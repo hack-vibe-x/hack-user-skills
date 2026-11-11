@@ -5,7 +5,7 @@ A Claude Code plugin that asks you decisions in a local web page instead of in t
 ## Install
 
 ```
-/plugin marketplace add hack-vibe-x/hack-user-skills-visualDecision
+/plugin marketplace add hack-vibe-x/visual-decision
 /plugin install visual-decision@visual-decision
 ```
 
@@ -43,7 +43,7 @@ Apache License 2.0. See `LICENSE` and `NOTICE`.
 ## 설치
 
 ```
-/plugin marketplace add hack-vibe-x/hack-user-skills-visualDecision
+/plugin marketplace add hack-vibe-x/visual-decision
 /plugin install visual-decision@visual-decision
 ```
 
