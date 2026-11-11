@@ -1,0 +1,135 @@
+{
+  "id": "sample",
+  "lang": "en",
+  "title": "Decision sample",
+  "decisions": [
+    {
+      "id": "layout", "type": "pick", "tag": "Screen design", "short": "Lead list layout",
+      "q": "Which layout should the lead list use?",
+      "ctx": "People skim 30–50 leads a day and open only a few of them to reply.",
+      "pattern": "When the options are screen designs. Show the designs side by side and line up the rows so differences read across.",
+      "dims": ["Leads on one screen", "Getting to detail", "Mobile", "Effort"],
+      "options": [
+        { "key": "table", "label": "Table", "visual": { "type": "screen", "layout": "table" }, "cap": "One row per person",
+          "d": [["12 leads", "good"], ["1 click · new page", ""], ["Scrolls sideways", "bad"], ["1 day", "good"]], "when": "Skimming many leads quickly matters most" },
+        { "key": "split", "label": "List + detail", "rec": true, "visual": { "type": "screen", "layout": "split" }, "cap": "Pick on the left, see it on the right",
+          "d": [["8 leads", ""], ["1 click · no page change", "good"], ["Two steps: list → detail", ""], ["2 days", ""]], "when": "Fits skimming and then replying right away" },
+        { "key": "cards", "label": "Cards", "visual": { "type": "screen", "layout": "cards" }, "cap": "One card per person",
+          "d": [["6 leads", "bad"], ["1 click · new page", ""], ["Works as is", "good"], ["1.5 days", ""]], "when": "There is a lot to show, like photos and notes" }
+      ],
+      "same": "All three keep the same search, filter and sort."
+    },
+    {
+      "id": "cta", "type": "pick", "tag": "Copy", "short": "Sign-up button text",
+      "q": "What should the sign-up button say?",
+      "ctx": "It is the last button of the free-trial form. See each one placed on a real button.",
+      "pattern": "Copy is not judged as plain text. Show it in the place it will actually appear.",
+      "dims": ["What it promises", "Length", "Catch"],
+      "options": [
+        { "key": "plain", "label": "Sign up", "visual": { "type": "button", "text": "Sign up" },
+          "d": [["Nothing", ""], ["7 characters", "good"], ["Doesn't say what happens next", "bad"]], "when": "The text above the form already explains enough" },
+        { "key": "free", "label": "Start free", "rec": true, "visual": { "type": "button", "text": "Start free" },
+          "d": [["It costs nothing", "good"], ["10 characters", ""], ["None", "good"]], "when": "Easing payment worries is the point" },
+        { "key": "fast", "label": "Finish sign-up in 3 minutes", "visual": { "type": "button", "text": "Finish sign-up in 3 minutes" },
+          "d": [["It's quick", "good"], ["27 characters · cut off on narrow screens", "bad"], ["The 3 minutes must be true", "bad"]], "when": "The form looks long and people drop off" }
+      ]
+    },
+    {
+      "id": "perm", "type": "pick", "tag": "Structure", "short": "Permission unit",
+      "q": "What unit should site permissions use?",
+      "ctx": "Today, permission keys differ per menu inside the same group, so three places are out of sync.",
+      "more": "The three places are SEO, images and channels. In each, the group's permission and the menu's permission key were set separately.",
+      "pattern": "Draw structure you can't see by its size and shape. Here, the number of cells to manage is drawn as is.",
+      "dims": ["Cells to manage", "DB change", "Same problem again", "Effort"],
+      "options": [
+        { "key": "group", "label": "6 groups × view/edit", "rec": true, "visual": { "type": "grid", "cols": 6, "rows": 2 }, "cap": "12 cells",
+          "d": [["12 cells", "good"], ["None", "good"], ["Blocked · menus follow the group", "good"], ["2 days", ""]], "when": "You want it simple and the mismatches gone" },
+        { "key": "menu", "label": "29 menus × view/edit/send", "visual": { "type": "grid", "cols": 29, "rows": 3 }, "cap": "87 cells",
+          "d": [["87 cells", "bad"], ["New table + migration", "bad"], ["Blocked", ""], ["5 days", "bad"]], "when": "People need different access per menu" },
+        { "key": "keep", "label": "Keep the 4 keys, fix only the mismatches", "visual": { "type": "grid", "cols": 4, "rows": 1, "big": true, "mark": [1, 2, 3] }, "cap": "4 cells · 3 mismatched",
+          "d": [["4 cells", ""], ["None", "good"], ["Can happen again", "bad"], ["0.5 day", "good"]], "when": "You only need to put out the urgent fire" }
+      ]
+    },
+    {
+      "id": "push", "type": "pick", "tag": "Approval", "short": "Push to main",
+      "q": "How far should the work branch go?",
+      "ctx": "Pushing is hard to undo, so we ask before doing it.",
+      "facts": [["Commits", "25"], ["Unit tests", "835 pass"], ["UI tests", "142 pass"], ["Work in progress", "1 forms admin"]],
+      "pattern": "A check before a hard-to-undo action. Current state as number chips; options drawn as how far it goes.",
+      "dims": ["Visible to users", "Undo", "What's left"],
+      "options": [
+        { "key": "staging", "label": "Up to staging", "rec": true, "visual": { "type": "steps", "steps": ["Work branch", "main", "Staging", "Production"], "reach": 2 },
+          "d": [["Not yet", "good"], ["Easy · roll back staging only", "good"], ["One more step to production after checking", ""]], "when": "You want to look at it before it goes out" },
+        { "key": "prod", "label": "Straight to production", "visual": { "type": "steps", "steps": ["Work branch", "main", "Staging", "Production"], "reach": 3 },
+          "d": [["Right away", "bad"], ["Hard · needs a new deploy", "bad"], ["Nothing", "good"]], "when": "It includes an urgent fix" },
+        { "key": "hold", "label": "Don't push yet", "visual": { "type": "steps", "steps": ["Work branch", "main", "Staging", "Production"], "reach": 0 },
+          "d": [["Not visible", ""], ["Not needed", ""], ["Commits pile up and get harder to merge", "bad"]], "when": "You'll push once the work in progress is done" }
+      ]
+    },
+    {
+      "id": "accent", "type": "preview", "tag": "Color · tone", "short": "Accent color",
+      "q": "Which accent color should we use?",
+      "ctx": "It is used on buttons, links, badges and charts. Hover an option to change the preview.",
+      "pattern": "For choices that change the overall feel: colors, fonts, spacing. One big preview, with the options swapped in.",
+      "options": [
+        { "key": "indigo", "label": "Indigo", "color": "#3b4bd8", "desc": "Calm and dependable", "rec": true },
+        { "key": "green", "label": "Green", "color": "#12805c", "desc": "Relaxed and healthy" },
+        { "key": "orange", "label": "Orange", "color": "#f2711c", "desc": "Lively and eye-catching" }
+      ]
+    },
+    {
+      "id": "scope", "type": "multi", "tag": "Scope", "short": "This week's scope",
+      "q": "Pick what goes into this week.",
+      "ctx": "You have 5 days. A recommended set is already selected.",
+      "pattern": "A pick-several decision. The total changes as you choose, so you can see when it overflows.",
+      "budget": 5, "unit": " days",
+      "items": [
+        { "id": "forms", "label": "Forms admin", "sub": "Create and edit forms without code", "cost": 2, "rec": true },
+        { "id": "dm", "label": "Auto DM", "sub": "Reply automatically to people who comment", "cost": 1.5, "rec": true },
+        { "id": "export", "label": "Export stats", "sub": "Download as a spreadsheet", "cost": 1, "rec": true },
+        { "id": "perm", "label": "Permission cleanup", "sub": "Fix 3 mismatched menus", "cost": 2 },
+        { "id": "mobile", "label": "Mobile fixes", "sub": "4 screens where tables overflow", "cost": 1 }
+      ]
+    },
+    {
+      "id": "small", "type": "batch", "tag": "Small decisions", "short": "5 small screen decisions",
+      "q": "Five small decisions.",
+      "ctx": "Any of them is easy to change later. You can accept the recommendations in one go.",
+      "pattern": "When there are several light decisions. One row each, and a way to finish them all with the recommendations.",
+      "items": [
+        { "id": "after", "q": "After a form is sent", "options": [
+          { "key": "inline", "label": "Message in place", "sub": "No page change", "rec": true },
+          { "key": "page", "label": "Thank-you page", "sub": "Easier to track conversions" } ] },
+        { "id": "empty", "q": "When a list is empty", "options": [
+          { "key": "cta", "label": "Message + create button", "sub": "Can start right away", "rec": true },
+          { "key": "text", "label": "Message only", "sub": "Simpler screen" } ] },
+        { "id": "del", "q": "When deleting", "options": [
+          { "key": "undo", "label": "Undo within 5 seconds", "sub": "Fast · recoverable", "rec": true },
+          { "key": "confirm", "label": "Confirm dialog", "sub": "One more click" } ] },
+        { "id": "date", "q": "Date format", "options": [
+          { "key": "md", "label": "Nov 11", "sub": "Easy to read", "rec": true },
+          { "key": "iso", "label": "2026-11-11", "sub": "Good for sorting and copying" },
+          { "key": "rel", "label": "3 days ago", "sub": "Hides the exact date" } ] },
+        { "id": "sort", "q": "Default table sort", "options": [
+          { "key": "new", "label": "Newest first", "sub": "New leads on top", "rec": true },
+          { "key": "name", "label": "By name", "sub": "Easy to find someone" } ] }
+      ]
+    },
+    {
+      "id": "limit", "type": "value", "tag": "Pick a value", "short": "Auto DM daily limit",
+      "q": "How many auto DMs should go out per day?",
+      "ctx": "1,200 people are waiting for a reply. Sending more finishes sooner but raises the risk of an account restriction.",
+      "pattern": "For picking a number. Move the value and the results change, so you can see where it is reasonable.",
+      "unit": "per day",
+      "stops": [
+        { "v": 50, "outs": [{ "k": "Time to reach all 1,200", "v": "24 days", "t": "bad", "p": 100 }, { "k": "Account restriction risk", "v": "Low", "t": "good", "p": 15 }] },
+        { "v": 100, "label": "Careful", "outs": [{ "k": "Time to reach all 1,200", "v": "12 days", "t": "bad", "p": 50 }, { "k": "Account restriction risk", "v": "Low", "t": "good", "p": 25 }] },
+        { "v": 150, "outs": [{ "k": "Time to reach all 1,200", "v": "8 days", "t": "", "p": 33 }, { "k": "Account restriction risk", "v": "Low", "t": "good", "p": 35 }] },
+        { "v": 200, "label": "Recommended", "rec": true, "outs": [{ "k": "Time to reach all 1,200", "v": "6 days", "t": "", "p": 25 }, { "k": "Account restriction risk", "v": "Medium", "t": "", "p": 50 }] },
+        { "v": 300, "outs": [{ "k": "Time to reach all 1,200", "v": "4 days", "t": "good", "p": 17 }, { "k": "Account restriction risk", "v": "Medium", "t": "", "p": 65 }] },
+        { "v": 400, "label": "Fast", "outs": [{ "k": "Time to reach all 1,200", "v": "3 days", "t": "good", "p": 13 }, { "k": "Account restriction risk", "v": "High", "t": "bad", "p": 85 }] },
+        { "v": 500, "outs": [{ "k": "Time to reach all 1,200", "v": "3 days", "t": "good", "p": 13 }, { "k": "Account restriction risk", "v": "High", "t": "bad", "p": 95 }] }
+      ]
+    }
+  ]
+}
