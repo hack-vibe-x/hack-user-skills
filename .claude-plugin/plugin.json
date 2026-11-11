@@ -1,7 +1,7 @@
 {
-  "name": "visual-decision",
+  "name": "hack-user-skills-visual-decision",
   "description": "Asks decisions in a local web page with visuals and clear differences, then records finished decisions as documents. Skill and hooks for Claude Code.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": {
     "name": "hack-vibe-x"
   },

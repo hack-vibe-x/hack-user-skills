@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Serves a question file as a local web page and waits until the person submits their answers.
-// On submit it writes the answers to <working dir>/.decisions/answers/<stamp>-<id>.json, prints a summary to stdout, and exits.
+// On submit it writes the answers to <working dir>/.hus-visual-decision/answers/<stamp>-<id>.json, prints a summary to stdout, and exits.
 // It does not write the decision record document. The record hook (hooks/record-hook.mjs) does that from the answer file.
 //
 //   node serve.mjs <questions.json> [--port 4747] [--no-open] [--keep]
@@ -12,14 +12,14 @@ import { createServer } from "node:http";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { makeT, pickLang, strings } from "./i18n.mjs";
-import { answersFor, buildRecord, config, recordPathFor } from "./record.mjs";
+import { DATA_DIR, answersFor, buildRecord, config, recordPathFor } from "./record.mjs";
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
 const opt = (name, fallback) => (args.includes(name) ? args[args.indexOf(name) + 1] : fallback);
 const file = args.find((a, i) => !a.startsWith("--") && args[i - 1] !== "--port");
 if (!file || !existsSync(file)) {
-  console.error("A question file is required: node serve.mjs <questions.json>");
+  console.error("[hus-visual-decision] A question file is required: node serve.mjs <questions.json>");
   process.exit(2);
 }
 
@@ -28,14 +28,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const app = join(here, "..", "assets", "app.html");
 const questions = JSON.parse(readFileSync(file, "utf8"));
 questions.id ||= basename(file, extname(file));
-// UI language: the question file, then .decisions/config.json, then English.
+// UI language: the question file, then .hus-visual-decision/config.json, then English.
 questions.lang = pickLang(questions.lang, config(cwd).lang);
 const en = makeT("en");
 const askedAt = new Date().toISOString();
 
 const problems = check(questions);
 if (problems.length) {
-  console.error("The question file needs fixes:\n- " + problems.join("\n- "));
+  console.error("[hus-visual-decision] The question file needs fixes:\n- " + problems.join("\n- "));
   process.exit(2);
 }
 
@@ -102,7 +102,7 @@ const server = createServer(async (req, res) => {
     }
     if (!state || typeof state !== "object") return send(res, 400, "text/plain", "no state");
     const session = { id: questions.id, askedAt, answeredAt: new Date().toISOString(), questions, state, answers: answersFor(questions, state) };
-    const dir = join(cwd, ".decisions", "answers");
+    const dir = join(cwd, DATA_DIR, "answers");
     mkdirSync(dir, { recursive: true });
     const stamp = session.answeredAt.replace(/[-:]/g, "").slice(0, 15);
     const out = join(dir, `${stamp}-${questions.id}.json`);
@@ -133,13 +133,13 @@ function listen(port, tries) {
   server.once("error", (e) => {
     if (e.code === "EADDRINUSE" && tries > 0) listen(port + 1, tries - 1);
     else {
-      console.error(String(e));
+      console.error("[hus-visual-decision] " + String(e));
       process.exit(1);
     }
   });
   server.listen(port, "127.0.0.1", () => {
     const url = `http://127.0.0.1:${port}/`;
-    console.error(`Decision page: ${url} (${questions.decisions.length} questions, waiting for the person to submit)`);
+    console.error(`[hus-visual-decision] Decision page: ${url} (${questions.decisions.length} questions, waiting for the person to submit)`);
     if (!flag("--no-open")) execFile(process.platform === "darwin" ? "open" : "xdg-open", [url], () => {});
   });
 }

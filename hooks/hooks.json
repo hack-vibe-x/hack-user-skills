@@ -1,5 +1,5 @@
 {
-  "description": "Redirects decisions to a web page (only where askHook is on in .decisions/config.json) and writes finished decisions to documents (only when an answer file exists). Does nothing otherwise.",
+  "description": "Redirects decisions to a web page (only where askHook is on in .hus-visual-decision/config.json) and writes finished decisions to documents (only when an answer file exists). Does nothing otherwise.",
   "hooks": {
     "PreToolUse": [
       {

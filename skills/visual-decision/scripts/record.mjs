@@ -90,9 +90,12 @@ export function answersFor(q, S) {
   return out;
 }
 
+// Per-project data folder (settings, pending question files, answer files). See the naming policy: hus-<name>.
+export const DATA_DIR = ".hus-visual-decision";
+
 export function config(cwd) {
   try {
-    return JSON.parse(readFileSync(join(cwd, ".decisions", "config.json"), "utf8"));
+    return JSON.parse(readFileSync(join(cwd, DATA_DIR, "config.json"), "utf8"));
   } catch {
     return {};
   }
@@ -108,7 +111,7 @@ export function recordPathFor(cwd, session) {
 
 // Finds answered batches that have no record yet and writes them as documents. Returns the paths written.
 export function writePending(cwd) {
-  const dir = join(cwd, ".decisions", "answers");
+  const dir = join(cwd, DATA_DIR, "answers");
   if (!existsSync(dir)) return [];
   const written = [];
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".json"))) {

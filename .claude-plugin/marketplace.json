@@ -1,11 +1,11 @@
 {
-  "name": "visual-decision",
+  "name": "hack-user-skills-visual-decision",
   "owner": {
     "name": "hack-vibe-x"
   },
   "plugins": [
     {
-      "name": "visual-decision",
+      "name": "hack-user-skills-visual-decision",
       "source": "./",
       "description": "Asks decisions in a local web page with visuals and clear differences, then records finished decisions as documents. Skill and hooks for Claude Code."
     }

@@ -474,7 +474,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'){ visited=false; go(cur+1); }
   if(e.key==='ArrowLeft'){ visited=false; go(cur-1); }
 });
-fetch('/api/questions').then(r=>r.json()).then(q=>{ META=q; D=q.decisions; KEY='vd-'+q.id; document.title=q.title||T('nav.title'); document.documentElement.lang=q.lang||'en';
+fetch('/api/questions').then(r=>r.json()).then(q=>{ META=q; D=q.decisions; KEY='hus-visual-decision:'+q.id; document.title=q.title||T('nav.title'); document.documentElement.lang=q.lang||'en';
   try{ S=JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){} render(); })
   .catch(e=>{ document.getElementById('stage').innerHTML=`<p class="err">${esc(T("err.load"))}: ${esc(e.message)}</p>`; });
 </script>

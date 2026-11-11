@@ -16,19 +16,19 @@ Do not ask a decision as terminal text. Open a local web page instead. The perso
 
 ## Language
 
-Write the questions in the language the user is using. Set `"lang"` at the top of the question file to match (`"en"`, `"ko"`); the page and the record document then use that language. If `lang` is missing, `.decisions/config.json` `lang` is used, then English. To add a language, copy `locales/en.json` to `locales/<code>.json` and translate it.
+Write the questions in the language the user is using. Set `"lang"` at the top of the question file to match (`"en"`, `"ko"`); the page and the record document then use that language. If `lang` is missing, `.hus-visual-decision/config.json` `lang` is used, then English. To add a language, copy `locales/en.json` to `locales/<code>.json` and translate it.
 
 ## Procedure
 
 1. **Collect what to ask.** Include decisions you will need soon, not only the one that blocks you now, in one batch. Do not ask what you can check yourself in the code or docs, or what has a clear convention.
-2. **Write the question file** at `<working dir>/.decisions/pending/<batch-name>.json`. Read [references/schema.md](references/schema.md) and follow it. The batch name is a short descriptive slug (e.g. `lead-list-layout`); it becomes the record file name.
+2. **Write the question file** at `<working dir>/.hus-visual-decision/pending/<batch-name>.json`. Read [references/schema.md](references/schema.md) and follow it. The batch name is a short descriptive slug (e.g. `lead-list-layout`); it becomes the record file name.
    - Mark one option `rec: true` if you recommend it. The reason should show in `when` or in the difference rows.
    - 2–4 options. If there are more, cut them first.
    - Need a design? Attach it as `html` (a small HTML snippet) or `image` (a screenshot file in the working dir or the scratchpad).
 3. **Open the page.** From the working directory, in the background (the person may take a while):
 
    ```bash
-   node <this skill's folder>/scripts/serve.mjs .decisions/pending/<batch-name>.json
+   node <this skill's folder>/scripts/serve.mjs .hus-visual-decision/pending/<batch-name>.json
    ```
 
    The browser opens, and when the person presses Submit the script exits and prints their answers. If the question file has missing values, it does not open and tells you what to fix.
@@ -38,7 +38,7 @@ Write the questions in the language the user is using. Set `"lang"` at the top o
    - `sent back (info)`: find out more, then open only that question again.
    - `sent back (options)`: write new options that fit the stated reason and open only that question again.
    - `sent back (delegate)`: go with the recommended option and tell the user what you chose.
-6. **The hook writes the record.** Answers pile up in `.decisions/answers/`. When the turn ends, the Stop hook writes `docs/decisions/<date>-<batch-name>.md` and adds one line to `docs/decisions/README.md`. Without hooks, run it yourself:
+6. **The hook writes the record.** Answers pile up in `.hus-visual-decision/answers/`. When the turn ends, the Stop hook writes `docs/decisions/<date>-<batch-name>.md` and adds one line to `docs/decisions/README.md`. Without hooks, run it yourself:
 
    ```bash
    node <plugin folder>/hooks/record-hook.mjs --cwd .
@@ -48,10 +48,10 @@ Write the questions in the language the user is using. Set `"lang"` at the top o
 
 | Hook | What it does | Turned on by |
 |---|---|---|
-| PreToolUse (AskUserQuestion) | Blocks the terminal question and redirects it to this skill | `{"askHook": true}` in `.decisions/config.json` |
+| PreToolUse (AskUserQuestion) | Blocks the terminal question and redirects it to this skill | `{"askHook": true}` in `.hus-visual-decision/config.json` |
 | Stop | Writes finished decisions as documents | Only acts when an answer file exists |
 
-`recordDir` in `.decisions/config.json` changes the record folder (default `docs/decisions`). If the user asks to receive decisions in the web UI from now on, turn `askHook` on in that file; if they ask to turn it off, turn it off.
+`recordDir` in `.hus-visual-decision/config.json` changes the record folder (default `docs/decisions`). If the user asks to receive decisions in the web UI from now on, turn `askHook` on in that file; if they ask to turn it off, turn it off.
 
 ## Do not
 
