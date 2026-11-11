@@ -1,13 +1,13 @@
 # hack-user-skills-session-coach
 
-A plugin for looking back on your AI work sessions, in Claude Code and Codex. It has two skills: a session diary written every midnight from the previous day's sessions, and a session playbook that pulls know-how and a ready-to-paste prompt out of the sessions you pick.
+A plugin for looking back on your AI work sessions, in Claude Code and Codex. It has two skills: a session diary written every midnight from the previous day's sessions, and a session playbook that pulls know-how and a ready-to-paste prompt out of the sessions you pick. In Claude Code it also adds two screen features: a compass pane that tracks a conversation's progress toward the goal you set, and a card that writes today's diary now.
 
 | Skill | What it does | Claude Code | Codex |
 |---|---|---|---|
 | **session-diary** | When turned on, writes a diary every midnight from the previous day's AI conversations. It points out how you worked, what you got done and how you used AI, with evidence, and gives one plan for tomorrow. | Yes | Skill only; needs `claude` |
 | **session-playbook** | From recent sessions you pick, writes a task spec, know-how, skill candidates and a prompt to paste, saved as Markdown. | Yes | No (reads Claude Code sessions only) |
-
-> **Still moving:** the screen features of the older plugin (the compass panel, the diary card in `/hack-mode`, the `/session-diary-now` command) are still in `hack-users-for-llms` and were not moved here. This plugin has the skills only.
+| **session-compass** (screen) | Set a goal for the conversation; a pane shows each turn's progress on an LED board and warns when the conversation drifts. | Yes | No |
+| **session-diary-now** (screen) | Writes today's diary from 00:00 until now, after asking. | Yes | No |
 
 ## Install
 
@@ -28,6 +28,10 @@ For Codex, `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill s
 |---|---|
 | `/hack-user-skills-session-coach:session-diary` | Turn the diary on or off, show its status, read a diary to you, rewrite one |
 | `/hack-user-skills-session-coach:session-playbook` | Pick several sessions from the recent list and save the result as a Markdown file |
+| `/session-compass [first thought]` | Claude Code only. Turn the compass on for this session and set the conversation's goal through a short interview. With a goal set, `/session-compass <what to change>` changes it; after the goal is reached it finishes it and starts the next |
+| `/session-compass-show` | Show the current goal and open the pane |
+| `/session-compass-reset` | Clear the goal and the path, and turn the compass off for this session |
+| `/session-diary-now` | Claude Code only. A card above the prompt asks whether to write today's diary from 00:00 until now |
 
 You can also just ask: "turn on the session diary", "show me yesterday's diary", "pull know-how out of my sessions".
 
@@ -39,9 +43,9 @@ You can also just ask: "turn on the session diary", "show me yesterday's diary",
 
 **Language:** the diary is written in the language you set when turning it on (Claude passes the language you are speaking, `--lang en` or `--lang ko`); without a setting, in the language of that day's sessions. To add a language, copy `skills/session-diary/locales/en.json` to `<code>.json` and translate it.
 
-**Rewriting:** ask to rewrite a diary and it is written again from midnight up to that moment; the earlier diary and your notes are thrown away. If it cannot be written, the earlier diary stays.
+**Writing now, rewriting:** in Claude Code, `/session-diary-now` shows a card above the prompt: **Write now** writes today's diary from midnight up to that moment, and a day with a diary is skipped by the midnight run. If today already has one, the card says the earlier diary and your notes are thrown away and offers **Write again**. You can also ask to rewrite a diary. If it cannot be written, the earlier diary stays. The card does not turn the diary on; that stays with the `hack-user-skills-session-coach:session-diary` skill.
 
-**Careful: writing it now when there are no conversations yet closes that day as "no conversations".** For example, writing just after midnight means the automatic run for that day is skipped. Ask "rewrite the diary" within that day.
+**Careful: writing it now when there are no conversations yet closes that day as "no conversations".** For example, writing just after midnight means the automatic run for that day is skipped. Run `/session-diary-now` again or ask "rewrite the diary" within that day.
 
 **What it sends:** the diary is written with `claude -p` on this computer, but the model that writes it runs on Anthropic's servers. So turning it on **sends the conversations of every project on this computer to Anthropic**, Codex conversations included. Keys are masked only for known patterns, so secrets you put in a conversation can go out. Diaries are stored only in `~/.hus-session-coach/session-diary/`, outside your repositories.
 
@@ -61,18 +65,38 @@ Run `/hack-user-skills-session-coach:session-playbook` and the Claude Code sessi
 
 **Limits:** it reads Claude Code sessions only (not Codex records). Long sessions are shortened in the middle. Whether the know-how makes good prompts in practice has not been checked; only the list and the extraction were checked on real records.
 
+### Session compass (Claude Code)
+
+It is off until you run `/session-compass` in a session, and it stays on only for that session. Claude interviews you one question at a time: the destination (what you should have in hand at the end), the "done when" condition, what to avoid, and about how many steps (turns) it takes. Once you confirm the card, Claude saves it and the **Goal journey** pane opens.
+
+After each turn a light model (Haiku) judges whether the turn moved toward the goal (▲ closer, ▶ standing still or a side road, ▼ further away) and the pane draws it on an LED board with the reason. After two turns off course a warning shows above the prompt. When it looks like the direction of the goal itself changed, the pane and the band above the prompt ask; the new goal is used only if you press **Yes, it changed**.
+
+When the "done when" condition looks met, buttons appear above the prompt: **Finish and set a new goal**, **Finish only**, **Not yet**. Judging pauses until you pick one. Using up the estimated steps alone does not count as reaching the goal. Finished goals stay in the pane until the session ends.
+
+**Cost:** one Haiku call per turn while a goal is set and not yet reached. No goal, no call. The turn that sets or changes the goal is not judged. Calls use the session's own login.
+
+**What it sends:** the judge gets the goal, the last few judgements, and that turn's message, answer (shortened) and tool names. It runs on Anthropic's servers like the session itself.
+
+**Judge log:** each judgement and your answer to an arrival or a goal change is one line in `~/.hus-session-coach/session-compass/judge-log/<project>/<session id>.jsonl`, so you can check later whether the judge was right. Parts of the conversation can appear in the reasons and goals. It is stored on this computer only, never deleted automatically, and stays after the plugin is removed.
+
+**Language:** the pane, buttons and command replies use the language the diary is set to; otherwise Korean once you write to Claude in Korean in that session; otherwise English. The text is in `hooks/locales/`.
+
 ## What is in it
 
 | Path | Contents |
 |---|---|
 | `skills/session-diary/` | The diary skill, its scripts (`diary_auto.py`, `day_sessions.py`, `check_quotes.py`), the writing rules in `references/`, and the language files in `locales/` |
 | `skills/session-playbook/` | The playbook skill, its script (`sessions.py`), and the result format in `references/format.md` |
+| `hooks/` | The Claude Code mod: `hooks.json` lists `session-coach.tsx`, which holds `session-compass.tsx` (commands, tools, pane, judge) and `session-diary.tsx` (`/session-diary-now` and its card, which runs `skills/session-diary/scripts/diary_auto.py`). Screen text is in `locales/en.json` and `locales/ko.json` |
+| `types/index.d.ts` | The types of the values the mod keeps for the session |
+| `tests/` | Tests of the mod, run with `claude plugin test` |
 
 Tests (fake records and a fake HOME only; they never register a launchd job):
 
 ```bash
 (cd skills/session-diary/scripts && HOME="$(mktemp -d)" python3 -m unittest -v test_day_sessions test_diary_auto)
 (cd skills/session-playbook/scripts && HOME="$(mktemp -d)" python3 -m unittest -v test_sessions)
+claude plugin test .
 ```
 
 ## What it creates
@@ -82,9 +106,12 @@ Tests (fake records and a fake HOME only; they never register a launchd job):
 | `~/.hus-session-coach/session-diary/` | Diaries, one `<date>.md` per day. Your documents | Delete the folder after turning the diary off |
 | `~/.hus-session-coach/session-diary/.auto/` | `state.json` (settings), `lock`, `app/` (the copy of the scripts the job runs), `logs/auto.log` and `logs/launchd.log` | Deleted with the folder above |
 | `~/.hus-session-coach/session-playbook/` | Know-how files `<date>-<topic>.md` and `.last-list.json` (the last list's numbers) | Delete the folder |
+| `~/.hus-session-coach/session-compass/judge-log/<project>/<session id>.jsonl` | The compass judge log, one file per session | Delete the folder |
 | launchd job `io.github.hack-vibe-x.hus-session-coach.session-diary` and `~/Library/LaunchAgents/io.github.hack-vibe-x.hus-session-coach.session-diary.plist` | Runs the diary on the hour and at login | Turn it off: say "turn off the session diary", or run `python3 ~/.hus-session-coach/session-diary/.auto/app/scripts/diary_auto.py off` |
 
-Environment variables it reads: `HUS_SESSION_COACH_HOME` (moves `~/.hus-session-coach`), `HUS_SESSION_COACH_CLAUDE_DIR` and `HUS_SESSION_COACH_CODEX_DIR` (where the session records are read from), `HUS_SESSION_COACH_LABEL` (used by the tests).
+The mod also keeps the goal, the path, the diary card and the screen language as session values of `hack-user-skills-session-coach` (`compass`, `diary`, `lang`), held by Claude Code for that session only. It writes nothing else to disk.
+
+Environment variables it reads: `HUS_SESSION_COACH_HOME` (moves `~/.hus-session-coach`, the judge log included), `HUS_SESSION_COACH_CLAUDE_DIR` and `HUS_SESSION_COACH_CODEX_DIR` (where the session records are read from), `HUS_SESSION_COACH_LABEL` (used by the tests).
 
 To remove the plugin:
 
@@ -110,6 +137,8 @@ cp -R ~/.session-playbook ~/.hus-session-coach/session-playbook
 
 Then turn this diary on. Nothing is moved automatically, and the old folders are left as they are.
 
+The screen features moved here too: `/compass` became `/session-compass` (and `/compass-show`, `/compass-reset` became `/session-compass-show`, `/session-compass-reset`), and `/session-diary-now` keeps its name. `/hack-mode` is gone: the compass turns on by running `/session-compass` in a session, and the diary is turned on with the skill. The old judge logs stay in `~/.hack-mode/` and are not moved. If both plugins are installed, two `/session-diary-now` commands and two compasses exist; remove or disable the old plugin.
+
 ## License
 
 Apache License 2.0. See `LICENSE` and `NOTICE`.
@@ -118,14 +147,14 @@ Apache License 2.0. See `LICENSE` and `NOTICE`.
 
 # 한국어
 
-AI와 한 작업 세션을 돌아보는 플러그인입니다. Claude Code와 Codex에서 씁니다. 스킬이 둘 들어 있습니다. 전날 세션으로 매일 자정에 쓰는 세션 일기, 고른 세션에서 노하우와 바로 붙여 쓸 프롬프트를 뽑는 세션 플레이북입니다.
+AI와 한 작업 세션을 돌아보는 플러그인입니다. Claude Code와 Codex에서 씁니다. 스킬이 둘 들어 있습니다. 전날 세션으로 매일 자정에 쓰는 세션 일기, 고른 세션에서 노하우와 바로 붙여 쓸 프롬프트를 뽑는 세션 플레이북입니다. Claude Code에서는 화면 기능 둘이 더 있습니다. 정한 목표를 향한 대화의 진척을 보여 주는 compass 패널, 오늘 일기를 지금 쓰는 카드입니다.
 
 | 스킬 | 하는 일 | Claude Code | Codex |
 |---|---|---|---|
 | **session-diary** | 켜 두면 매일 자정에 전날 AI 대화를 읽어 일기를 씁니다. 일하는 방식, 성과, AI 활용 수준을 근거와 함께 짚고 내일의 계획 하나를 줍니다. | O | 스킬만. `claude` 필요 |
 | **session-playbook** | 최근 세션 중 고른 것에서 작업 명세, 노하우, 스킬 후보, 붙여 쓸 프롬프트를 뽑아 md로 저장합니다. | O | X (Claude Code 세션만 읽음) |
-
-> **옮기는 중:** 옛 플러그인의 화면 기능(compass 패널, `/hack-mode`의 일기 카드, `/session-diary-now` 명령)은 아직 `hack-users-for-llms`에 있고 여기로 옮기지 않았습니다. 이 플러그인에는 스킬만 들어 있습니다.
+| **session-compass** (화면) | 대화의 목표를 정하면 패널이 턴마다 진척을 LED 판에 찍고, 대화가 벗어나면 알립니다. | O | X |
+| **session-diary-now** (화면) | 물어본 뒤 0시부터 지금까지로 오늘 일기를 씁니다. | O | X |
 
 ## 설치
 
@@ -146,6 +175,10 @@ Codex는 `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill ses
 |---|---|
 | `/hack-user-skills-session-coach:session-diary` | 일기 켜기, 끄기, 상태 보기, 읽어 주기, 다시 쓰기 |
 | `/hack-user-skills-session-coach:session-playbook` | 최근 세션 목록에서 여러 개를 골라 md 파일로 저장 |
+| `/session-compass [처음 생각]` | Claude Code 전용. 이 세션에서 compass를 켜고 짧은 인터뷰로 대화의 목표를 정합니다. 목표가 있으면 `/session-compass <고칠 내용>`으로 고치고, 목표를 달성한 뒤에는 완료하고 다음 목표를 정합니다 |
+| `/session-compass-show` | 지금 목표를 보고 패널을 엽니다 |
+| `/session-compass-reset` | 목표와 경로를 지우고 이 세션에서 compass를 끕니다 |
+| `/session-diary-now` | Claude Code 전용. 0시부터 지금까지로 오늘 일기를 쓸지 입력창 위 카드로 묻습니다 |
 
 말로 요청해도 됩니다("세션 일기 켜줘", "어제 일기 보여줘", "세션에서 노하우 뽑아줘").
 
@@ -157,9 +190,9 @@ Codex는 `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill ses
 
 **언어:** 켤 때 정한 언어로 씁니다(Claude가 지금 쓰는 말에 맞춰 `--lang ko`나 `--lang en`을 넘깁니다). 정하지 않았으면 그날 세션의 언어로 씁니다. 언어를 더하려면 `skills/session-diary/locales/en.json`을 `<코드>.json`으로 복사해 번역하면 됩니다.
 
-**다시 쓰기:** 일기를 다시 쓰라고 하면 0시부터 그 시점까지로 새로 쓰고, 이전 일기와 내 메모는 폐기합니다. 쓰지 못하면 이전 일기는 그대로 남습니다.
+**지금 쓰기, 다시 쓰기:** Claude Code에서 `/session-diary-now`를 부르면 입력창 위에 카드가 뜹니다. **지금 쓰기**를 누르면 0시부터 그 시점까지로 오늘 일기를 쓰고, 일기가 있는 날은 자정 자동 쓰기가 건너뜁니다. 오늘 일기가 이미 있으면 이전 일기와 내 메모가 폐기된다고 알리고 **다시 쓰기**를 보여 줍니다. 말로 다시 써 달라고 해도 됩니다. 쓰지 못하면 이전 일기는 그대로 남습니다. 카드는 일기를 켜지 않습니다. 켜기는 `hack-user-skills-session-coach:session-diary` 스킬이 합니다.
 
-**주의: 대화가 아직 없을 때 지금 쓰면 그날이 "대화 없음"으로 닫힙니다.** 예를 들어 0시 직후에 쓰면 그날 자정 자동 쓰기가 건너뜁니다. 그날 안에 "일기 다시 써줘"라고 하면 됩니다.
+**주의: 대화가 아직 없을 때 지금 쓰면 그날이 "대화 없음"으로 닫힙니다.** 예를 들어 0시 직후에 쓰면 그날 자정 자동 쓰기가 건너뜁니다. 그날 안에 `/session-diary-now`를 다시 부르거나 "일기 다시 써줘"라고 하면 됩니다.
 
 **보내는 것:** 일기는 이 컴퓨터의 `claude -p`로 쓰지만, 글을 쓰는 모델은 Anthropic 서버에서 돕니다. 그래서 켜면 **이 컴퓨터의 모든 프로젝트 대화를 Anthropic으로 보냅니다.** Codex 대화도 포함됩니다. 키는 정해진 패턴만 가리므로 대화에 넣은 비밀값이 나갈 수 있습니다. 일기는 저장소 밖 `~/.hus-session-coach/session-diary/`에만 저장합니다.
 
@@ -179,18 +212,38 @@ Codex는 `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill ses
 
 **한계:** Claude Code 세션만 읽습니다(Codex 기록은 읽지 않음). 긴 세션은 가운데를 줄여 읽습니다. 만든 노하우가 실제로 좋은 프롬프트가 되는지는 확인하지 못했습니다. 목록과 본문 뽑기만 실제 기록으로 확인했습니다.
 
+### 세션 compass (Claude Code)
+
+세션에서 `/session-compass`를 부르기 전에는 꺼져 있고, 켜도 그 세션에서만 켜집니다. Claude가 질문을 하나씩 하며 도착점(끝났을 때 손에 쥐고 있어야 할 것), "다 됐다"의 기준, 하지 말 것, 대략의 걸음 수(턴)를 정합니다. 카드를 확인하면 Claude가 저장하고 **목표 여정** 패널이 열립니다.
+
+턴이 끝날 때마다 가벼운 모델(Haiku)이 그 턴이 목표에 가까워졌는지 판정하고(▲ 가까워짐, ▶ 제자리/옆길, ▼ 멀어짐), 패널이 이유와 함께 LED 판에 찍습니다. 2턴 연속 벗어나면 입력창 위에 알립니다. 목표의 방향 자체가 바뀐 것 같으면 패널과 입력창 위에서 묻고, **바뀐 게 맞아요**를 눌러야 새 목표로 바뀝니다.
+
+"다 됐다"의 기준을 채운 것으로 판정되면 입력창 위에 버튼이 뜹니다. **완료하고 새 목표 정하기**, **완료만**, **아직이에요** 중에서 고르며, 고를 때까지 판정을 쉽니다. 예상 걸음 수를 다 썼다는 것만으로는 달성으로 치지 않습니다. 완료한 목표는 세션이 끝날 때까지 패널에 남습니다.
+
+**비용:** 목표가 있고 아직 달성 전인 동안 턴마다 Haiku를 한 번 부릅니다. 목표가 없으면 부르지 않습니다. 목표를 정하거나 고친 턴은 판정하지 않습니다. 세션의 로그인으로 부릅니다.
+
+**보내는 것:** 판정 모델은 목표, 최근 판정 몇 개, 그 턴의 메시지와 답변(줄인 것), 쓴 도구 이름을 받습니다. 세션 자체와 마찬가지로 Anthropic 서버에서 돕니다.
+
+**판정 기록:** 판정과, 달성 판정과 목표 전환에 고른 답을 한 줄씩 `~/.hus-session-coach/session-compass/judge-log/<프로젝트>/<세션 id>.jsonl`에 남깁니다. 판정이 맞았는지 나중에 되짚는 용도입니다. 대화 일부가 이유와 목표 문장에 섞일 수 있습니다. 이 컴퓨터에만 저장하고 자동으로 지우지 않으며, 플러그인을 지워도 남습니다.
+
+**언어:** 패널, 버튼, 명령 답은 일기에 정한 언어를 따르고, 없으면 그 세션에서 Claude에게 한국어로 쓰면 한국어, 그 밖에는 영어로 나옵니다. 글자는 `hooks/locales/`에 있습니다.
+
 ## 들어 있는 것
 
 | 위치 | 내용 |
 |---|---|
 | `skills/session-diary/` | 일기 스킬, 스크립트(`diary_auto.py`, `day_sessions.py`, `check_quotes.py`), `references/`의 쓰는 규칙, `locales/`의 언어 파일 |
 | `skills/session-playbook/` | 플레이북 스킬, 스크립트(`sessions.py`), `references/format.md`의 결과 형식 |
+| `hooks/` | Claude Code mod. `hooks.json`이 `session-coach.tsx`를 가리키고, 그 안에 `session-compass.tsx`(명령, 도구, 패널, 판정)와 `session-diary.tsx`(`/session-diary-now`와 카드, `skills/session-diary/scripts/diary_auto.py`를 실행)가 있습니다. 화면 글자는 `locales/en.json`, `locales/ko.json` |
+| `types/index.d.ts` | mod가 세션 동안 들고 있는 값의 형식 |
+| `tests/` | mod 시험. `claude plugin test`로 돌립니다 |
 
 시험(가짜 기록과 가짜 HOME만 씁니다. launchd 작업을 등록하지 않습니다):
 
 ```bash
 (cd skills/session-diary/scripts && HOME="$(mktemp -d)" python3 -m unittest -v test_day_sessions test_diary_auto)
 (cd skills/session-playbook/scripts && HOME="$(mktemp -d)" python3 -m unittest -v test_sessions)
+claude plugin test .
 ```
 
 ## 만드는 것
@@ -200,9 +253,12 @@ Codex는 `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill ses
 | `~/.hus-session-coach/session-diary/` | 일기. 하루에 `<날짜>.md` 하나. 사용자 문서입니다 | 일기를 끈 뒤 폴더를 지웁니다 |
 | `~/.hus-session-coach/session-diary/.auto/` | `state.json`(설정), `lock`, `app/`(자동 실행이 쓰는 스크립트 복사본), `logs/auto.log`, `logs/launchd.log` | 위 폴더와 함께 지워집니다 |
 | `~/.hus-session-coach/session-playbook/` | 노하우 파일 `<날짜>-<주제>.md`, `.last-list.json`(마지막 목록의 번호) | 폴더를 지웁니다 |
+| `~/.hus-session-coach/session-compass/judge-log/<프로젝트>/<세션 id>.jsonl` | compass 판정 기록. 세션마다 파일 하나 | 폴더를 지웁니다 |
 | launchd 작업 `io.github.hack-vibe-x.hus-session-coach.session-diary`와 `~/Library/LaunchAgents/io.github.hack-vibe-x.hus-session-coach.session-diary.plist` | 매 정각과 로그인 때 일기를 씁니다 | 끄기: "세션 일기 꺼줘"라고 하거나 `python3 ~/.hus-session-coach/session-diary/.auto/app/scripts/diary_auto.py off`를 실행합니다 |
 
-읽는 환경 변수: `HUS_SESSION_COACH_HOME`(`~/.hus-session-coach` 위치를 바꿈), `HUS_SESSION_COACH_CLAUDE_DIR`, `HUS_SESSION_COACH_CODEX_DIR`(세션 기록을 읽는 곳), `HUS_SESSION_COACH_LABEL`(시험용).
+mod는 목표, 경로, 일기 카드, 화면 언어를 `hack-user-skills-session-coach`의 세션 값(`compass`, `diary`, `lang`)으로 들고 있습니다. Claude Code가 그 세션 동안만 들고 있으며, 그 밖에 디스크에 쓰는 것은 없습니다.
+
+읽는 환경 변수: `HUS_SESSION_COACH_HOME`(`~/.hus-session-coach` 위치를 바꿈, 판정 기록 포함), `HUS_SESSION_COACH_CLAUDE_DIR`, `HUS_SESSION_COACH_CODEX_DIR`(세션 기록을 읽는 곳), `HUS_SESSION_COACH_LABEL`(시험용).
 
 플러그인을 지우려면:
 
@@ -227,6 +283,8 @@ cp -R ~/.session-playbook ~/.hus-session-coach/session-playbook
 ```
 
 그다음 이 일기를 켭니다. 자동으로 옮기는 것은 없고, 옛 폴더는 그대로 둡니다.
+
+화면 기능도 옮겨 왔습니다. `/compass`는 `/session-compass`가 되었고(`/compass-show`, `/compass-reset`은 `/session-compass-show`, `/session-compass-reset`), `/session-diary-now`는 이름이 그대로입니다. `/hack-mode`는 없어졌습니다. compass는 세션에서 `/session-compass`를 부르면 켜지고, 일기는 스킬로 켭니다. 옛 판정 기록은 `~/.hack-mode/`에 그대로 남고 옮기지 않습니다. 두 플러그인을 함께 설치하면 `/session-diary-now`와 compass가 두 벌 생기므로 옛 플러그인을 지우거나 끕니다.
 
 ## 라이선스
 

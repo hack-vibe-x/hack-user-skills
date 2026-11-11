@@ -22,6 +22,17 @@ If the hook was turned on with `hack-user-skills-criteria-gap:criteria-init`, a 
 - If the block says the criteria this prompt needs are not listed, ask only the one criterion that blocks the work, before starting. The list in the block may be a filtered part, so look up the record directly with `hack-user-skills-criteria-gap:criteria` when needed.
 - Without the hook, or with it off, this skill works the same way by hand.
 
+## Card answers
+If the question card was turned on with `hack-user-skills-criteria-gap:criteria-init`, the plugin asks about gaps (an omitted premise, a distinction, understanding a principle, a criterion) in a card above the prompt after a turn ends. A `[hus-criteria-gap]` note in the context says so. In that session, do not also ask about gaps in the chat: the same gap would be asked twice.
+A message that starts with `[hus-criteria-gap answer]` is the user's answer to that card. It holds the kind, the question, the options if any, the user's words the question rests on, and the user's answer.
+1. **Pin the current work in one line**, handle the answer, then go back to that work ("Keep the direction").
+2. Handle it by kind:
+   - **Omitted premise, distinction**: if the answer differs from what the AI filled in on its own in the last piece of work, say where in one or two lines and give the corrected result, or ask whether to redo it. If it is the same, confirm in one line and move on.
+   - **Principle**: if the answer fits the principle, confirm briefly. If it is wrong or misses something, explain the principle briefly, tied to the user's own example. Do not grade it.
+   - **Criterion**: as in step 5. Apply the criterion the user wrote in their wording; saving goes through the checks before saving of `hack-user-skills-criteria-gap:criteria`.
+3. **If the answer is "I don't know"**, show 2–3 candidates (each with a short example) as in step 5 and let the user pick or rewrite one.
+4. Do not save the answer to the record right away. If it is worth keeping as a criterion, ask "Save this as a criterion?" separately.
+
 ## Keep the direction
 Do not let asking about criteria make the user lose the work in hand.
 - Before asking, **pin the current work in one line**. Example: "Current work: filter sources, then plan. Let's settle one criterion and carry on." Once the criterion is settled, go straight back to that work and do it.

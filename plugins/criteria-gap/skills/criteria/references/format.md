@@ -9,7 +9,7 @@
 ```
 
 The same layout is used in the project (`.hus-criteria-gap/`) and globally (`~/.hus-criteria-gap/`).
-`config.json` holds the hook settings and is not a criterion (see `hack-user-skills-criteria-gap:criteria-init`). Leave it out of lookups.
+`config.json` holds the settings of the hook and the question card and is not a criterion (see `hack-user-skills-criteria-gap:criteria-init`). Leave it out of lookups.
 
 ## Criterion file `<id>.md`
 `id` is `area-decision-number` in lowercase ASCII letters, digits, and hyphens. Example: `magazine-source-filter-1`.

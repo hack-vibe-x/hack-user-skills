@@ -16,13 +16,13 @@
     {
       "name": "hack-user-skills-criteria-gap",
       "source": "./plugins/criteria-gap",
-      "description": "Records the judgement criteria you agree on with an AI, and finds where work was handed over without them. Skills and an opt-in hook.",
+      "description": "Records the judgement criteria you agree on with an AI, and finds where work was handed over without them. Skills, an opt-in hook, and an opt-in question card.",
       "category": "productivity"
     },
     {
       "name": "hack-user-skills-session-coach",
       "source": "./plugins/session-coach",
-      "description": "Looks back on your AI work sessions: a daily diary written from yesterday's sessions, and a playbook of know-how pulled from sessions you pick.",
+      "description": "Looks back on your AI work sessions: a daily diary written from yesterday's sessions, and a playbook of know-how pulled from sessions you pick. Skills for Claude Code and Codex.",
       "category": "productivity"
     }
   ]
