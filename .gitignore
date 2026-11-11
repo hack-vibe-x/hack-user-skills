@@ -1,3 +1,10 @@
-.hus-visual-decision/
+# Data folders the plugins create when you try them here
+.hus-*/
+
+# Local notes and scratch work
+/local/
+
+# System and build leftovers
 .DS_Store
-project-policy.md
+__pycache__/
+node_modules/

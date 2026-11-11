@@ -1,0 +1,17 @@
+{
+  "name": "hack-user-skills-session-coach",
+  "description": "Looks back on your AI work sessions: a daily diary written from yesterday's sessions, and a playbook of know-how pulled from sessions you pick. Skills for Claude Code and Codex.",
+  "version": "0.2.0",
+  "author": {
+    "name": "hack-vibe-x"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "diary",
+    "reflection",
+    "sessions",
+    "know-how",
+    "prompts"
+  ],
+  "homepage": "https://github.com/hack-vibe-x/hack-user-skills/tree/main/plugins/session-coach"
+}

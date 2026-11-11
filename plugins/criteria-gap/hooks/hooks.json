@@ -1,0 +1,19 @@
+{
+  "description": "Criteria check before delegation (UserPromptSubmit command hook). Acts only where criteria-init turned it on in .hus-criteria-gap/config.json (project) or ~/.hus-criteria-gap/config.json (global); otherwise prints nothing. Never blocks input.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/criteria-hook.sh"
+            ],
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

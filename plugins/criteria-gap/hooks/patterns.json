@@ -1,0 +1,11 @@
+{
+  "delegation": ["filter", "plan", "draft", "write", "create", "summarize", "summarise", "compare", "evaluate",
+                 "design", "curate", "select", "rank", "research", "analyze", "analyse", "recommend", "review",
+                 "organize", "organise", "propose", "outline"],
+  "request_form": ["please", "can you", "could you", "would you"],
+  "direction": ["pivot", "instead", "switch to", "change direction", "decided", "rather than", "from now on"],
+  "long_output": ["report", "roadmap", "strategy", "whole", "full", "entire", "magazine", "proposal",
+                  "manuscript", "series", "campaign", "long-form"],
+  "count_units": ["p", "pages", "slides", "items", "posts", "articles", "chapters"],
+  "criteria_words": ["criteria", "criterion", "standard"]
+}

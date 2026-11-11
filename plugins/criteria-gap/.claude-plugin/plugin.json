@@ -1,0 +1,15 @@
+{
+  "name": "hack-user-skills-criteria-gap",
+  "description": "Records the judgement criteria you agree on with an AI, and finds where work was handed over without them. Skills and an opt-in hook.",
+  "version": "0.2.0",
+  "author": {
+    "name": "hack-vibe-x"
+  },
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/hack-vibe-x/hack-user-skills/tree/main/plugins/criteria-gap",
+  "keywords": [
+    "criteria",
+    "delegation",
+    "hooks"
+  ]
+}

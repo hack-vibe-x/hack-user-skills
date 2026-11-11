@@ -1,16 +1,29 @@
 {
-  "name": "hack-user-skills-visual-decision",
+  "name": "hack-user-skills",
   "owner": {
     "name": "hack-vibe-x"
+  },
+  "metadata": {
+    "description": "hack-vibe-x skills and hooks for Claude Code. Install only the plugins you want."
   },
   "plugins": [
     {
       "name": "hack-user-skills-visual-decision",
-      "source": "./",
-      "description": "Asks decisions in a local web page with visuals and clear differences, then records finished decisions as documents. Skill and hooks for Claude Code."
+      "source": "./plugins/visual-decision",
+      "description": "Asks decisions in a local web page with visuals and clear differences, then records finished decisions as documents. Skill and hooks for Claude Code.",
+      "category": "productivity"
+    },
+    {
+      "name": "hack-user-skills-criteria-gap",
+      "source": "./plugins/criteria-gap",
+      "description": "Records the judgement criteria you agree on with an AI, and finds where work was handed over without them. Skills and an opt-in hook.",
+      "category": "productivity"
+    },
+    {
+      "name": "hack-user-skills-session-coach",
+      "source": "./plugins/session-coach",
+      "description": "Looks back on your AI work sessions: a daily diary written from yesterday's sessions, and a playbook of know-how pulled from sessions you pick.",
+      "category": "productivity"
     }
-  ],
-  "metadata": {
-    "description": "Asks decisions in a local web page with visuals and clear differences, then records finished decisions as documents. Skill and hooks for Claude Code."
-  }
+  ]
 }
