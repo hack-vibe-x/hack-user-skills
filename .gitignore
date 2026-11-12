@@ -3,6 +3,7 @@
 
 # Local notes and scratch work
 /local/
+/docs/
 
 # System and build leftovers
 .DS_Store
