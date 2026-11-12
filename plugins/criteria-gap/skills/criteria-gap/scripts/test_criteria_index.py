@@ -1,4 +1,4 @@
-"""Tests for criteria_index. Run: cd skills/criteria/scripts && python3 -m unittest -v test_criteria_index
+"""Tests for criteria_index. Run: cd skills/criteria-gap/scripts && python3 -m unittest -v test_criteria_index
 
 Every test works in a temporary folder.
 """
@@ -154,7 +154,7 @@ class DefaultFoldersTest(Base):
 
 
 class SameRulesAsTheHookTest(Base):
-    """INDEX.md, the hook and the card read the same files; what counts as confirmed must agree."""
+    """INDEX.md and the hook read the same files; what counts as confirmed must agree."""
 
     def test_hook_and_index_agree_on_confirmed(self):
         sys.path.insert(0, str(HOOKS))

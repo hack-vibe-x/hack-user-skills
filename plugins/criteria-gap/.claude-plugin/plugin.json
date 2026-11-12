@@ -1,7 +1,7 @@
 {
   "name": "hack-user-skills-criteria-gap",
-  "description": "Records the judgement criteria you agree on with an AI, and finds where work was handed over without them. Skills, an opt-in hook, and an opt-in question card.",
-  "version": "0.5.1",
+  "description": "When you hand work to Claude without saying how to judge it, Claude asks for that one criterion first, then remembers your answer and follows it next time. Skill and hook for Claude Code.",
+  "version": "0.6.0",
   "author": {
     "name": "hack-vibe-x"
   },
@@ -10,8 +10,6 @@
   "keywords": [
     "criteria",
     "delegation",
-    "hooks",
-    "mod"
-  ],
-  "types": "./types/index.d.ts"
+    "hooks"
+  ]
 }

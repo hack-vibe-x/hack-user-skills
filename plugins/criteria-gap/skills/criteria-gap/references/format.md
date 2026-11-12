@@ -9,7 +9,7 @@
 ```
 
 The same layout is used in the project (`.hus-criteria-gap/`) and globally (`~/.hus-criteria-gap/`).
-`config.json` holds the settings of the hook and the question card and is not a criterion (see `hack-user-skills-criteria-gap:criteria-init`). Leave it out of lookups.
+`config.json` is not a criterion: it only turns the hook off (`{"hook": false}`, see the skill's "Off in one project"). Leave it out of lookups. The folder is created when the first criterion is saved.
 
 ## Criterion file `<id>.md`
 `id` is `area-decision-number` in lowercase ASCII letters, digits, and hyphens. Example: `magazine-source-filter-1`.
@@ -20,7 +20,7 @@ id: magazine-source-filter-1
 area: magazine            # what the work is about
 decision: source-filter   # which decision this criterion is for
 keywords: sources, references  # optional; other words the user uses for this, comma-separated
-status: confirmed         # confirmed | draft | superseded | retired
+status: confirmed         # confirmed | superseded | retired (draft: written before 0.6.0, treated as not confirmed)
 source: user              # user | co-created | ai-inferred
 confirmed_at: 2026-10-20  # only when confirmed
 review_after: 2027-01-20  # optional; without it, 90 days after confirmed_at
@@ -47,9 +47,9 @@ python3 <skill>/scripts/criteria_index.py rebuild
 python3 <skill>/scripts/criteria_index.py check
 ```
 
-`<skill>` is the folder of the `criteria` skill. Without `--dir`, both work on this project's `.hus-criteria-gap/` and `~/.hus-criteria-gap/`. `check` reports errors (a broken front matter, an id that does not match its file, a missing `confirmed_at`, a `supersedes` that names nothing, two confirmed criteria for one decision, an `INDEX.md` that differs from the files) and exits 1, and warnings (a confirmed criterion that is AI-inferred or past its review date, so it is not treated as confirmed). Fix the errors and take the warnings to the user. Without `python3`, write the lines by hand in the format above.
+`<skill>` is the folder of the `criteria-gap` skill. Without `--dir`, both work on this project's `.hus-criteria-gap/` and `~/.hus-criteria-gap/`. `check` reports errors (a broken front matter, an id that does not match its file, a missing `confirmed_at`, a `supersedes` that names nothing, two confirmed criteria for one decision, an `INDEX.md` that differs from the files) and exits 1, and warnings (a confirmed criterion that is AI-inferred or past its review date, so it is not treated as confirmed). Fix the errors and take the warnings to the user. Without `python3`, write the lines by hand in the format above.
 
-The hook and the question card read the criterion files themselves, not `INDEX.md`, with the lookup rules below.
+The hook reads the criterion files itself, not `INDEX.md`, with the lookup rules below.
 
 ## Lookup rules
 1. Find a `confirmed` criterion with the same `area` and `decision`. Project first, then global.

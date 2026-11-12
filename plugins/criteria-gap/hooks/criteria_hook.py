@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Criteria check before delegation (UserPromptSubmit hook). Standard library only.
 
-Only when it is turned on and the prompt looks like a delegation does it look up the criteria
-records and add context. When it is off, or there is nothing to say, it prints nothing.
+On by default. When the prompt hands over work and has a signal (the first delegation in the session, a change of
+direction, long output), it looks up the criteria records and adds context: the criteria that apply, or a nudge to ask
+the one that is missing. It steps in at most MAX_FIRES times per session, COOLDOWN requests apart.
+Off where config.json says {"hook": false} (project first, then global). Otherwise it prints nothing.
 No error may block the user's input.
-Settings and lookup rules: skills/criteria/references/format.md, skills/criteria-init/SKILL.md.
+Record format and lookup rules: skills/criteria-gap/references/format.md.
 Words it looks for in prompts live in patterns.json (English) and patterns.<lang>.json.
 """
 import datetime
@@ -22,7 +24,8 @@ TEMP_DIR = NAME + "-hook"        # session counters when CLAUDE_PLUGIN_DATA is n
 TAG = f"[{NAME}]"
 SKILL_GAP = "hack-user-skills-criteria-gap:criteria-gap"
 
-DEFAULTS = {"enabled": False, "intensity": "light", "max_per_session": 3, "cooldown_turns": 3}
+MAX_FIRES = 3   # most times per session it says criteria are missing (telling the ones that apply does not count)
+COOLDOWN = 3    # requests to wait after that before doing it again
 REVIEW_DAYS = 90
 MAX_LISTED = 8
 # How the one question is asked. Without it Claude tended to list its own candidates and a recommendation first,
@@ -150,21 +153,22 @@ def find_project_dir(cwd, home):
     return None
 
 
-def load_config(project_dir, global_dir):
+def hook_on(project_dir, global_dir):
+    """On unless the nearest config.json turns it off: {"hook": false}, or {"hook": {"enabled": false}} as written
+    before 0.6.0. The project file wins over the global one. A broken file counts as off."""
     for folder in (project_dir, global_dir):
         if folder is None:
             continue
         path = folder / "config.json"
         if path.is_file():
             try:
-                raw = json.loads(path.read_text(encoding="utf-8")).get("hook", {})
+                raw = json.loads(path.read_text(encoding="utf-8")).get("hook", True)
             except (ValueError, OSError, AttributeError):
-                return dict(DEFAULTS)  # a broken config counts as off
-            cfg = dict(DEFAULTS)
+                return False
             if isinstance(raw, dict):
-                cfg.update({k: raw[k] for k in DEFAULTS if k in raw})
-            return cfg
-    return dict(DEFAULTS)
+                raw = raw.get("enabled", True)
+            return raw is not False
+    return True
 
 
 def load_criteria(folders, today):
@@ -203,8 +207,7 @@ def load_criteria(folders, today):
 # ---------- session state ----------
 
 # One file per session: turn (requests seen), delegations (detected), injected (times context was
-# added), fires (times it said the needed criteria are missing; capped by max_per_session), last_fire.
-# skills/criteria-init/scripts/criteria_status.py reads these.
+# added), fires (times it said the needed criteria are missing; capped by MAX_FIRES), last_fire.
 def state_file(session_id, data_dir):
     sid = re.sub(r"[^A-Za-z0-9_-]", "-", session_id or "unknown")[:80]
     return Path(data_dir) / "sessions" / f"{sid}.json"
@@ -347,11 +350,10 @@ def build_context(event, home=None, data_dir=None, today=None):
     project_dir = find_project_dir(event.get("cwd") or os.getcwd(), home)
     if project_dir is not None and project_dir.resolve() == global_dir.resolve():
         project_dir = None  # walking up from a folder under HOME reached the global folder; it is not a project
-    cfg = load_config(project_dir, global_dir if global_dir.is_dir() else None)
-    if cfg["enabled"] is not True:
+    if not hook_on(project_dir, global_dir if global_dir.is_dir() else None):
         return None
-    # Slash commands and this plugin's own messages (card answers start with "[hus-criteria-gap") are not delegations.
-    if len(prompt) < 10 or prompt.startswith(("/", TAG[:-1])):
+    # Slash commands are not delegations.
+    if len(prompt) < 10 or prompt.startswith("/"):
         return None
 
     spath = state_file(event.get("session_id"), data_dir)
@@ -365,7 +367,7 @@ def build_context(event, home=None, data_dir=None, today=None):
         first = state["delegations"] == 0
         state["delegations"] += 1
         found = signals(prompt, first)
-        if cfg["intensity"] != "active" and not found:
+        if not found:
             return None
 
         folders = [project_dir, global_dir if global_dir != project_dir else None]
@@ -375,8 +377,8 @@ def build_context(event, home=None, data_dir=None, today=None):
 
         strong = False
         if not hit:
-            room = state["fires"] < int(cfg["max_per_session"])
-            cooled = state["turn"] - state["last_fire"] > int(cfg["cooldown_turns"])
+            room = state["fires"] < MAX_FIRES
+            cooled = state["turn"] - state["last_fire"] > COOLDOWN
             strong = room and cooled
             if strong:
                 state["fires"] += 1
@@ -396,7 +398,7 @@ def build_context(event, home=None, data_dir=None, today=None):
             lines.append("Criteria that need rechecking (draft or past their review date; not confirmed):")
             lines += [f"  - {fmt(c)} · {c['why']}" for c in recheck[:3]]
         lines.append("This project's rule: when a confirmed criterion is applied, the first line of the answer "
-                     "says so as 'Applied criteria: ...'.")
+                     "says so in the user's language (in English: 'Applied criteria: ...').")
         if strong:
             lines.append(f"The judgement criteria this prompt needs are not listed above. This project's rule is to "
                          f"follow the {SKILL_GAP} skill and ask the user only the one criterion that blocks the work, "

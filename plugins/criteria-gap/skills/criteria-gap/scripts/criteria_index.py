@@ -33,7 +33,7 @@ HEADER = ("# Criteria index\n\n"
           "<!-- Made from the criterion files by scripts/criteria_index.py rebuild. Do not edit by hand. -->\n")
 
 
-# ---------- reading (the same rules as hooks/criteria_hook.py and hooks/criteria-card.tsx) ----------
+# ---------- reading (the same rules as hooks/criteria_hook.py) ----------
 
 def parse_file(text):
     """(front matter or None when there is none, body)."""

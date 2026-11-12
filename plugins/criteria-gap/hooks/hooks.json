@@ -1,5 +1,5 @@
 {
-  "description": "Two parts. (1) Criteria check before delegation: a UserPromptSubmit command hook that acts only where criteria-init turned it on (\"hook\": {\"enabled\": true}) and never blocks input. (2) The criteria question card: a hooks module that, after a turn, may ask one question about a gap in the user's thinking above the prompt (one Sonnet call on turns where it may ask), and adds /criteria-check; on only where config.json has \"card\": true. Both read .hus-criteria-gap/config.json (project) or ~/.hus-criteria-gap/config.json (global); with both off, they do nothing.",
+  "description": "Criteria check before delegation: a UserPromptSubmit command hook, on by default. When a request hands over work, it tells Claude the confirmed criteria that apply, or has Claude ask the one that is missing, at most 3 times per session. Off where .hus-criteria-gap/config.json (project, else global) says {\"hook\": false}. Never blocks input.",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -15,8 +15,5 @@
         ]
       }
     ]
-  },
-  "modules": [
-    "./criteria-card.tsx"
-  ]
+  }
 }
