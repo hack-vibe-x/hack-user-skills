@@ -120,7 +120,7 @@
       "q": "How many auto DMs should go out per day?",
       "ctx": "1,200 people are waiting for a reply. Sending more finishes sooner but raises the risk of an account restriction.",
       "pattern": "For picking a number. Move the value and the results change, so you can see where it is reasonable.",
-      "unit": "per day",
+      "unit": " per day",
       "stops": [
         { "v": 50, "outs": [{ "k": "Time to reach all 1,200", "v": "24 days", "t": "bad", "p": 100 }, { "k": "Account restriction risk", "v": "Low", "t": "good", "p": 15 }] },
         { "v": 100, "label": "Careful", "outs": [{ "k": "Time to reach all 1,200", "v": "12 days", "t": "bad", "p": 50 }, { "k": "Account restriction risk", "v": "Low", "t": "good", "p": 25 }] },

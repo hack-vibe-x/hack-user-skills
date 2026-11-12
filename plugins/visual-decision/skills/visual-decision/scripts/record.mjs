@@ -42,7 +42,7 @@ function lines(d, a = {}, t) {
   } else if (d.type === "batch") {
     for (const i of d.items) L.push(`- **${esc(i.q)}:** ${esc(label(i.options, a.choices[i.id]))}`);
   } else if (d.type === "value") {
-    L.push(`${B("rec.answer")} ${esc(`${a.choice} ${d.unit || ""}`.trim())}`);
+    L.push(`${B("rec.answer")} ${esc(text(d, a.choice))}`);
   }
   if (a.note) L.push(`${B("sum.note")} ${esc(a.note)}`);
   return L;
@@ -50,7 +50,8 @@ function lines(d, a = {}, t) {
 // An answer value in words.
 function text(d, v) {
   if (d.type === "pick" || d.type === "preview") return label(d.options, v);
-  if (d.type === "value") return `${v} ${d.unit || ""}`.trim();
+  // The unit follows the number as written: " days" keeps a space, "%" does not.
+  if (d.type === "value") return `${v}${d.unit || ""}`.trim();
   if (d.type === "multi") return d.items.filter((i) => v.includes(i.id)).map((i) => i.label).join(", ");
   if (d.type === "batch") return d.items.map((i) => `${i.q}: ${label(i.options, v[i.id])}`).join(" / ");
   return JSON.stringify(v);

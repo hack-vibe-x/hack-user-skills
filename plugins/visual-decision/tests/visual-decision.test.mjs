@@ -122,6 +122,10 @@ test("record: every answer shape, in the question file's language, kept at the g
     "- Claude goes with the recommended answer: M",
   ])
     assert.ok(md.includes(line), `${line}\n---\n${md}`);
+  // The unit follows the number exactly as written.
+  const unit = (u) => buildRecord({ ...Q, decisions: [{ ...Q.decisions[3], unit: u }] }, FULL);
+  assert.ok(unit(" per day").includes("- **Answer:** 5 per day"));
+  assert.ok(unit("x").includes("- **Answer:** 5x"));
   const ko = JSON.parse(readFileSync(join(here, "..", "skills", "visual-decision", "locales", "ko.json"), "utf8"));
   assert.ok(buildRecord({ ...Q, lang: "ko" }, FULL).includes(`- **${ko["rec.answer"]}:** \\<Button\\> (${ko["pick.rec"]})`));
   const top = tmp();

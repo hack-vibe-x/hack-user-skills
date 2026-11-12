@@ -73,7 +73,7 @@ h2:focus:not(:focus-visible){outline:0}
 .check{position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:none;place-items:center;font-size:13px}
 .opt.sel .check{display:grid}
 /* the thing being shown sits in a window frame on a different background, so it reads apart from the decision text */
-.opt-v{background:var(--surface2);margin:0 -14px 2px;padding:14px 14px 10px;border-block:1px solid var(--line)}
+.opt-v{background:var(--surface2);margin:0 -14px 2px;padding:14px 14px 10px;border-block:1px solid var(--line);display:flex;flex-direction:column;justify-content:center}
 .opt-v + .dim{border-top:0}
 .win{border:1px solid var(--mk2);border-radius:8px;overflow:hidden;background:var(--surface);box-shadow:0 3px 10px rgb(0 0 0/.10)}
 .win-bar{display:flex;gap:4px;align-items:center;padding:5px 8px;border-bottom:1px solid var(--line);background:var(--surface)}
@@ -122,9 +122,10 @@ h2:focus:not(:focus-visible){outline:0}
 .mx i.x{background:var(--bad)}
 .mx.big{width:70%}
 .mx.big i{aspect-ratio:2/1;border-radius:5px}
-.pipe{aspect-ratio:16/10;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;gap:0;padding:8px}
+.pipe{min-height:96px;background:var(--surface2);border-radius:8px;display:flex;flex-wrap:wrap;align-items:center;align-content:center;justify-content:center;gap:6px 0;padding:8px}
 .pipe span{font-size:11.5px;font-weight:600;border:1.5px solid var(--mk2);color:var(--muted);border-radius:6px;padding:5px 6px;white-space:nowrap;background:var(--surface)}
-.pipe em{flex:1;max-width:26px;min-width:8px;height:2px;background:var(--mk2)}
+.pipe .st{display:flex;align-items:center;font-weight:inherit}
+.pipe em{width:18px;height:2px;background:var(--mk2)}
 .pipe span.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 .pipe em.on{background:var(--accent)}
 .pipe span.stop{border-style:dashed}
@@ -255,7 +256,9 @@ pre{background:var(--surface2);border-radius:10px;padding:12px;font:12px/1.5 ui-
   .app{grid-template-columns:minmax(0,1fr)}
   .nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:12px}
   .nav .list{display:flex;gap:4px;overflow-x:auto}
-  .nav .list button{min-width:150px}
+  .nav .list{scrollbar-width:none}
+  .nav .list button{flex:0 0 auto;width:auto;max-width:190px}
+  .nav .list .t{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .nav hr{display:none}
   .stage{padding:22px 16px}
   .bar-in{padding:10px 16px;flex-wrap:wrap}
@@ -313,9 +316,11 @@ function visual(v){
   if(v.type==='screen') return win(SCREENS[v.layout]||SCREENS.table);
   if(v.type==='button') return win(`<div class="mk mk-form"><i style="width:40%;background:var(--mk2)"></i><div class="inp"></div><div class="inp"></div><span class="mk-btn">${esc(v.text)}</span></div>`);
   if(v.type==='grid') return `<div class="mx-wrap"><div class="mx ${v.big?'big':''}" style="--c:${+v.cols};${v.cols>20?'--g:1.5px':''}">${rep(v.cols*(v.rows||1),i=>`<i class="${(v.mark||[]).includes(i)?'x':''}"></i>`)}</div></div>`;
-  if(v.type==='steps') return `<div class="pipe">${v.steps.map((x,i)=>`${i?`<em class="${i<=v.reach?'on':''}"></em>`:''}<span class="${i<=v.reach?'on':'stop'}">${esc(x)}</span>`).join('')}</div>`;
+  // Each step keeps its incoming line, so a wrapped flow never leaves a line dangling at the end of a row.
+  if(v.type==='steps') return `<div class="pipe">${v.steps.map((x,i)=>`<b class="st">${i?`<em class="${i<=v.reach?'on':''}"></em>`:''}<span class="${i<=v.reach?'on':'stop'}">${esc(x)}</span></b>`).join('')}</div>`;
   if(v.type==='image') return framed(`<img class="vimg" src="/file?path=${encodeURIComponent(v.src)}" alt="">`);
-  if(v.type==='html') return framed(`<iframe class="vframe" sandbox srcdoc="${esc(v.html)}" style="height:${+v.height||180}px" tabindex="-1" aria-hidden="true"></iframe>`);
+  // allow-same-origin only lets this page measure the drawing (fitFrame); scripts inside still never run.
+  if(v.type==='html') return framed(`<iframe class="vframe" sandbox="allow-same-origin" srcdoc="${esc(v.html)}" data-min="${+v.height||0}" style="height:${+v.height||180}px" tabindex="-1" aria-hidden="true"></iframe>`);
   return '';
 }
 // The preview of a "preview" decision runs in its own sandboxed frame (no scripts, no access to this page), one frame per option.
@@ -356,7 +361,7 @@ function answerText(d){ const a=S[d.id]; if(!a) return ''; if(a.defer) return T(
   if(d.type==='pick'||d.type==='preview'){ const o=d.options.find(o=>o.key===a.choice); return o?o.label:''; }
   if(d.type==='multi') return a.choices? d.items.filter(i=>a.choices.includes(i.id)).map(i=>i.label).join(', ')||T('ans.nothing') : '';
   if(d.type==='batch') return isDone(d)? d.items.map(i=>i.options.find(o=>o.key===a.choices[i.id])?.label??'').join(' · ') : (a.choices?T('ans.chosen',{n:Object.keys(a.choices).length,m:d.items.length}):'');
-  if(d.type==='value') return a.choice!=null? a.choice+' '+(d.unit||'') : '';
+  if(d.type==='value') return a.choice!=null? a.choice+(d.unit||'') : '';
   return ''; }
 const doneCount=()=>D.filter(isDone).length;
 function contrast(hex){ if(!/^#[0-9a-f]{6}$/i.test(hex||'')) return null; const c=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4); return 1.05/(.2126*c[0]+.7152*c[1]+.0722*c[2]+.05); }
@@ -370,7 +375,14 @@ function renderNav(){
       return `<button data-go="${i}" class="${cls} ${i===cur?'cur':''}" ${i===cur?'aria-current="step"':''}><span class="dot" aria-hidden="true">${a.defer?'↩':done?'✓':''}</span><span><span class="t">${esc(d.short||d.q)}</span><span class="a">${esc(sub)}</span>${done?'':`<span class="sr">, ${T('sr.open')}</span>`}</span></button>`; }).join('')}
     <hr><button data-go="${D.length}" class="${cur===D.length?'cur':''}" ${cur===D.length?'aria-current="step"':''}><span class="dot" style="border-style:dashed" aria-hidden="true"></span><span><span class="t">${T('nav.review')}</span><span class="a">${n===D.length?T('nav.all'):T('nav.left',{n:D.length-n})}</span></span></button></div>
     ${locked()?'':`<button class="nav-cancel" data-cancel>${T('nav.cancel')}</button>`}`;
+  // On a phone the list scrolls sideways and is redrawn on every change: keep where it was, and bring the current question into view.
+  const l=document.querySelector('#nav .list'), c=l.querySelector('.cur');
+  l.scrollLeft=navScroll;
+  if(c&&l.scrollWidth>l.clientWidth){ const x=c.getBoundingClientRect().left-l.getBoundingClientRect().left+l.scrollLeft; if(x<l.scrollLeft||x+c.offsetWidth>l.scrollLeft+l.clientWidth) l.scrollLeft=x-16; }
+  navScroll=l.scrollLeft;
 }
+let navScroll=0;
+document.addEventListener('scroll',e=>{ if(e.target.classList&&e.target.classList.contains('list')) navScroll=e.target.scrollLeft; },true);
 function head(d){
   return `<div class="kicker">${d.tag?`<span class="tag">${esc(d.tag)}</span>`:''}${d.noDelegate?`<span class="tag hard">${T('head.noDelegate')}</span>`:''}<span>${cur+1} / ${D.length}</span></div>
   <h2 id="qh" tabindex="-1">${esc(d.q)}</h2>${d.ctx?`<p class="ctx">${esc(d.ctx)}</p>`:''}
@@ -383,7 +395,7 @@ const recBadge=()=>`<span class="rec">${T('pick.rec')}</span>`;
 const tabFor=(key,list,chosen)=>key===(chosen!=null&&list.some(o=>o.key===chosen)?chosen:list[0].key)?0:-1;
 const stopsHtml=(d,i,draft)=>d.stops.filter(s=>s.label).map(s=>{ const on=d.stops[i]===s; return `<button class="${on?(draft?'draft':'sel'):''}" aria-pressed="${on&&!draft}" data-stop="${d.stops.indexOf(s)}">${esc(s.label)} ${esc(s.v)}</button>`; }).join('');
 const outsHtml=(d,i)=>(d.stops[i].outs||[]).map(o=>`<div class="out ${o.t||''}"><span>${esc(o.k)}</span><b>${esc(o.v)}</b>${o.p!=null?`<div class="viz" aria-hidden="true"><i style="width:${o.p}%"></i></div>`:''}</div>`).join('');
-const valueText=(d,i)=>`${d.stops[i].v} ${d.unit||''}${d.stops[i].label?' · '+d.stops[i].label:''}`.trim();
+const valueText=(d,i)=>`${d.stops[i].v}${d.unit||''}${d.stops[i].label?' · '+d.stops[i].label:''}`.trim();
 // A pick question takes a typed answer of the person's own unless it says "ownAnswer": false.
 const ownOk=d=>d.type==='pick'&&d.ownAnswer!==false;
 const draftNote=(kind)=>`<div class="draft-note" id="draftnote"><span>${T('draft.'+kind)}</span><button class="ghost" data-confirm>${T('draft.confirm')}</button></div>`;
@@ -539,6 +551,15 @@ document.addEventListener('input',e=>{
     document.getElementById('ownbox').classList.toggle('sel',!!v); renderNav(); }
   if(e.target.id==='note'){ const a=A(D[cur].id); a.note=e.target.value; if(!a.note) delete a.note; save(); }
 });
+// A drawing's frame grows (or shrinks) to fit what is drawn, so a height that is too small never cuts it off. `height` is the least it gets.
+function fitFrame(f){
+  try{ const d=f.contentDocument, b=d&&d.body; if(!b) return;
+    const need=Math.ceil(b.getBoundingClientRect().bottom+parseFloat(getComputedStyle(b).marginBottom||0));
+    const over=d.documentElement.scrollHeight>f.clientHeight?d.documentElement.scrollHeight:0;
+    f.style.height=Math.min(Math.max(need,over,+f.dataset.min||0,40),900)+'px'; }catch{}
+}
+document.addEventListener('load',e=>{ if(e.target.classList&&e.target.classList.contains('vframe')) fitFrame(e.target); },true);
+let fitTimer; addEventListener('resize',()=>{ clearTimeout(fitTimer); fitTimer=setTimeout(()=>document.querySelectorAll('.vframe').forEach(fitFrame),150); });
 const showPv=key=>document.querySelectorAll('.pvframe').forEach(f=>f.classList.toggle('on',f.dataset.pv===key));
 const chosenPv=()=>{ const d=D[cur], a=S[d.id]||{}; return (d.options.find(o=>o.key===a.choice)||recOf(d.options)).key; };
 document.addEventListener('mouseover',e=>{ const t=e.target.closest('[data-hover]'); if(t) showPv(t.dataset.hover); });

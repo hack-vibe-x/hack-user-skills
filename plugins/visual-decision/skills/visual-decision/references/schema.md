@@ -61,7 +61,7 @@ Option `key`s and item `id`s are text (`"1"`, not `1`) and may hold any characte
 |---|---|---|
 | `screen` | `layout`: `table` `cards` `split` | A skeleton of a common screen layout |
 | `button` | `text` | Button copy placed on a real button |
-| `html` | `html`, `height` (px) | A small design you draw yourself. Rendered in an isolated frame; scripts do not run |
+| `html` | `html`, `height` (px, optional) | A small design you draw yourself. Rendered in an isolated frame; scripts do not run. The frame fits the drawing's height; `height` is the least it gets |
 | `image` | `src` (file path) | A screenshot or mock image: png, jpg, gif, webp or svg, inside the working dir or `/tmp`. A relative path starts at the working dir. `--check` reports a file the page cannot show |
 | `grid` | `cols`, `rows`, `mark` (cell numbers to paint red), `big` | Comparing counts or sizes (cells, table size) |
 | `steps` | `steps` (names), `reach` (how far it goes, from 0) | How far along a flow it goes |
@@ -105,11 +105,13 @@ Give each item one `rec` ("Pick all recommended" uses it). `sub` says what diffe
 ## value
 
 ```json
-{ "id": "limit", "type": "value", "q": "How many per day?", "unit": "per day",
+{ "id": "limit", "type": "value", "q": "How many per day?", "unit": " per day",
   "stops": [
     { "v": 100, "label": "Careful", "outs": [ { "k": "Time to finish", "v": "12 days", "t": "bad", "p": 50 } ] },
     { "v": 200, "label": "Recommended", "rec": true, "outs": [ { "k": "Time to finish", "v": "6 days", "t": "", "p": 25 } ] } ] }
 ```
+
+`unit` (here and in `multi`) is put right after the number as written: start it with a space when the language wants one (`" per day"` → 200 per day, `"%"` → 20%; Korean counters also go on without a space).
 
 List the values a person can pick as `stops`, and write the result for each value (`outs`) ahead of time. A stop with `label` becomes a quick-pick button. `p` is a bar length (0–100). The slider starts on the `rec` stop as a draft; like `multi`, it becomes the answer only when the person moves it, picks a stop, or keeps it.
 
