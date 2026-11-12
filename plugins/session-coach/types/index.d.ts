@@ -53,12 +53,22 @@ export type Compass = {
   finished: string[]
 }
 
+// "Tomorrow's plan" from the latest diary before today, shown above the prompt when a session starts.
+export type Plan = {
+  // The diary's date, YYYY-MM-DD.
+  date: string
+  text: string
+  // The person has sent a prompt with it on screen: it is marked seen and goes when that turn ends.
+  isSeen: boolean
+}
+
 // The "write today's diary now" card and what the diary script last said about today.
 export type Diary = {
   isAsking: boolean
   isOn: boolean
   isTodayWritten: boolean
   isWriting: boolean
+  plan: Plan | null
 }
 
 // The language of the text drawn on screen, and where it came from.

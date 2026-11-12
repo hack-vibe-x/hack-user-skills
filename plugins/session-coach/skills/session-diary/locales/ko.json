@@ -17,6 +17,7 @@
   "notify.written_plan": "{date} 일기를 썼어요. 내일의 계획: {plan}",
   "notify.failed": "{date} 일기를 쓰지 못했어요. 일기 상태를 확인해 주세요.",
   "notify.failed_kept": "{date} 일기를 쓰지 못했어요. 이전 일기는 그대로 있어요.",
+  "notify.removed": "플러그인이 지워져서 자동 일기를 껐어요. 써 둔 일기는 그대로 있어요.",
   "diary.title": "{date} ({weekday}) 세션 일기",
   "diary.today": "오늘 한 줄",
   "diary.range": "기록 범위",

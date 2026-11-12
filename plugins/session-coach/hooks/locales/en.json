@@ -51,6 +51,10 @@
   "diary.btn.skip": "Don't write",
   "diary.toast.writing": "Writing today's diary. This can take a few minutes.",
   "diary.toast.written": "Wrote today's diary.",
+  "diary.toast.empty": "No conversations yet today, so nothing was written. The diary will be written at midnight.",
   "diary.toast.failed": "Could not write today's diary: {detail}",
-  "diary.failed.no_run": "python3 did not run, or it took too long"
+  "diary.failed.no_run": "python3 did not run, or it took too long",
+  "diary.plan.band": "📝 Plan from the {date} diary: {plan}",
+  "diary.plan.ok": "Got it",
+  "date.month_day": "{month}/{day}"
 }

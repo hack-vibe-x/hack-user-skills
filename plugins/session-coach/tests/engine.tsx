@@ -35,6 +35,11 @@ export const EN: Record<string, string> = {
   'diary.toast.writing': 'Writing.',
   'diary.toast.written': 'Written.',
   'diary.toast.failed': 'Failed: {detail}',
+  'diary.toast.empty': 'Nothing yet today.',
+  'note.judge_failed': 'Could not judge turn {turn}',
+  'diary.plan.band': 'Plan from the {date} diary: {plan}',
+  'diary.plan.ok': 'Got it',
+  'date.month_day': '{month}/{day}',
 }
 
 export const KO: Record<string, string> = {
@@ -93,8 +98,13 @@ export const BAND = {
 } as const
 
 export const LOG = '/home/me/.hus-session-coach/session-compass/judge-log/-proj/s1.jsonl'
+export const DIARIES = '/home/me/.hus-session-coach/session-diary'
+export const DIARY_STATE = `${DIARIES}/.auto/state.json`
+export const PLAN_SEEN = `${DIARIES}/.auto/plan-seen`
+// Noon on 2026-11-12, local time: "today" for the tests that read diaries.
+export const NOON = new Date(2026, 10, 12, 12).getTime()
 
-type DiaryOpts = { isOn?: boolean; isTodayWritten?: boolean; isWriteRefused?: boolean }
+type DiaryOpts = { isOn?: boolean; isTodayWritten?: boolean; isWriteRefused?: boolean; isTodayEmpty?: boolean }
 
 type Opts = {
   verdicts?: string[]
@@ -102,10 +112,17 @@ type Opts = {
   env?: Record<string, string>
   isWriteRefused?: boolean
   diary?: DiaryOpts
+  // The judge call throws instead of answering.
+  isJudgeBroken?: boolean
+  // The judge call waits until the test calls release().
+  isJudgeHeld?: boolean
+  // Where the clock starts (0 when not given), and this plugin's version in its plugin.json.
+  now?: number
+  pluginVersion?: string
 }
 
 export function engine(on: On, opts: Opts = {}) {
-  const clock = mock.clock(on)
+  const clock = mock.clock(on, { now: opts.now ?? 0 })
   const files: Record<string, string> = { ...(opts.files ?? {}) }
   const verdicts = [...(opts.verdicts ?? [])]
   const sent: string[] = []
@@ -117,16 +134,20 @@ export function engine(on: On, opts: Opts = {}) {
   const diary = { isOn: false, isTodayWritten: false, ...opts.diary }
   const locale = (path: string) =>
     path.endsWith('/hooks/locales/en.json') ? EN : path.endsWith('/hooks/locales/ko.json') ? KO : null
+  const manifest = (path: string) =>
+    path.endsWith('/.claude-plugin/plugin.json') ? JSON.stringify({ version: opts.pluginVersion ?? '0.5.0' }) : null
 
   mock.env(on, { HOME: '/home/me', ...(opts.env ?? {}) })
   on('session.root', () => ({ value: '/proj' }))
   on('session.id', () => ({ value: 's1' }))
   on('session.messages', () => ({ value: [] }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('fs.exists', (_, e) => ({ value: e.path in files || locale(e.path) !== null }))
+  on('fs.exists', (_, e) => ({ value: e.path in files || locale(e.path) !== null || manifest(e.path) !== null }))
   on('fs.read', (_, e) => {
     const table = locale(e.path)
     if (table) return { value: JSON.stringify(table) }
+    const own = manifest(e.path)
+    if (own) return { value: own }
     if (!(e.path in files)) throw new Error('no such file')
 
     return { value: files[e.path] ?? '' }
@@ -136,6 +157,14 @@ export function engine(on: On, opts: Opts = {}) {
     files[e.path] = String(e.text)
 
     return { value: undefined }
+  })
+  on('fs.list', (_, e) => {
+    const dir = `${e.path.replace(/\/+$/, '')}/`
+    const under = Object.keys(files).filter(p => p.startsWith(dir))
+    if (!under.length) throw new Error('no such directory')
+    const names = under.map(p => p.slice(dir.length)).filter(n => !n.includes('/'))
+
+    return { value: names.map(name => ({ name, kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false })) }
   })
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('tool.register', (_, e) => {
@@ -158,8 +187,12 @@ export function engine(on: On, opts: Opts = {}) {
 
     return { value: undefined }
   })
-  on('model.complete', (_, e) => {
+  const held: (() => void)[] = []
+  const release = () => held.splice(0).forEach(go => go())
+  on('model.complete', async (_, e) => {
     calls.push({ model: e.model, system: e.system ?? '', prompt: e.prompt })
+    if (opts.isJudgeBroken) throw new Error('model unavailable')
+    if (opts.isJudgeHeld) await new Promise<void>(go => held.push(go))
 
     return { value: { isAnswered: true, text: verdicts.shift() ?? verdict(), usage: USAGE } }
   })
@@ -172,8 +205,10 @@ export function engine(on: On, opts: Opts = {}) {
     if (args[0] === 'status') return result(JSON.stringify({ on: diary.isOn, today_written: diary.isTodayWritten }))
     if (args[0] === 'write') {
       if (opts.diary?.isWriteRefused) return result('[hus-session-coach] Could not write it: busy', 1)
+      if (opts.diary?.isTodayEmpty) return result('[hus-session-coach] No conversations yet today', 3)
       diary.isTodayWritten = true
     }
+    if (args[0] === 'sync') return result('[hus-session-coach] The automatic diary now runs the scripts')
 
     return result('[hus-session-coach] Written')
   })
@@ -198,7 +233,7 @@ export function engine(on: On, opts: Opts = {}) {
       .filter(Boolean)
       .map(l => JSON.parse(l))
 
-  return { clock, files, sent, calls, tools, toasts, argv, panes, lines }
+  return { clock, files, sent, calls, tools, toasts, argv, panes, lines, release }
 }
 
 export async function start($: any) {

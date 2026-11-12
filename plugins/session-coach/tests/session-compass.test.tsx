@@ -295,3 +295,73 @@ test('a log that cannot be written changes nothing else', async ($, on) => {
   expect(await band.find({ type: 'Text', text: /Reached:/ })).toBeTruthy()
   await band.unmount()
 })
+
+test("a turn started only by another plugin's prompt is not judged, and its words never reach the judge", async ($, on) => {
+  const eng = engine(on)
+  const turn = await withGoal($, eng)
+  await ($ as any).prompt.submit({ text: 'Brief from a plugin', origin: { kind: 'plugin', name: 'other-plugin' } })
+  await $.turn.complete(turnEnd(2, 'Did what the plugin asked'))
+  await eng.clock.advance(10)
+  expect(eng.calls.length).toBe(0)
+
+  await turn(3, 'Words of the user')
+  expect(eng.calls.length).toBe(1)
+  expect(eng.calls[0]?.prompt).toContain('Words of the user')
+  expect(eng.calls[0]?.prompt.includes('Brief from a plugin')).toBe(false)
+})
+
+test('"not yet" and one flat turn after it is not off course; two flat turns are', async ($, on) => {
+  const eng = engine(on, {
+    verdicts: [verdict({ done: true }), verdict({ move: 'flat', reason: 'side talk' }), verdict({ move: 'flat', reason: 'more side talk' })],
+  })
+  const turn = await withGoal($, eng)
+  await turn(2)
+  const band = await $.ui.mount({ ...BAND, surface: 'vscode' })
+  await band.press({ key: 'arrive-not-yet' })
+  await band.unmount()
+
+  await turn(3)
+  const calm = await $.ui.mount({ ...BAND, surface: 'vscode' })
+  expect(await calm.find({ type: 'Text', text: /Off course/ })).toBeFalsy()
+  await calm.unmount()
+
+  await turn(4)
+  const warned = await $.ui.mount({ ...BAND, surface: 'vscode' })
+  expect((await warned.find({ type: 'Text', text: /Off course/ }))?.text).toBe('Off course: more side talk')
+  await warned.unmount()
+})
+
+test('a judge call that throws leaves a note, and the next turn is judged again', async ($, on) => {
+  const eng = engine(on, { isJudgeBroken: true })
+  const turn = await withGoal($, eng)
+  await turn(2)
+  const pane = await $.ui.mount({ ...PANE, surface: 'vscode' })
+  expect(await pane.find({ type: 'Text', text: /Could not judge turn 2/ })).toBeTruthy()
+  expect((await pane.find({ type: 'Text', text: /Progress 0\/2/ }))?.text).toContain('Progress 0/2')
+  await pane.unmount()
+
+  await turn(3)
+  expect(eng.calls.length).toBe(2)
+})
+
+test('a verdict that arrives after the goal changed is dropped', async ($, on) => {
+  const eng = engine(on, { verdicts: [verdict({ done: true, reason: 'old goal reached' })], isJudgeHeld: true })
+  const turn = await withGoal($, eng)
+  await turn(2)
+  expect(eng.calls.length).toBe(1)
+
+  await run($, 'session-compass-reset')
+  await run($, 'session-compass')
+  await eng.clock.advance(10)
+  await $.tool.call({ tool: TOOL('set_goal'), destination: 'Press release draft', done: 'CEO approval', avoid: '-', steps: 3 })
+  eng.release()
+  await eng.clock.advance(10)
+
+  const band = await $.ui.mount({ ...BAND, surface: 'vscode' })
+  expect(await band.find({ type: 'Text', text: /Reached:/ })).toBeFalsy()
+  await band.unmount()
+  const pane = await $.ui.mount({ ...PANE, surface: 'vscode' })
+  expect((await pane.find({ type: 'Text', text: /Progress 0\/3/ }))?.text).toContain('Progress 0/3')
+  expect(await pane.find({ type: 'Text', text: /old goal reached/ })).toBeFalsy()
+  await pane.unmount()
+})

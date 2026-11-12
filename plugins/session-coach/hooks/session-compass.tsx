@@ -281,18 +281,30 @@ async function judge($: EngineInterface, snap: TurnSnapshot) {
   if (!before.isActive || !before.goal || isArrived(before)) return
 
   await update($, compass, c => ({ ...c, isJudging: true }))
-  const res = await $.model.complete({
-    model: JUDGE_MODEL,
-    system: judgeSystem(await langCode($)),
-    prompt: judgePrompt(before, snap),
-    maxTokens: 300,
-    effort: 'low',
-  })
+  let res: Awaited<ReturnType<typeof $.model.complete>>
+  try {
+    res = await $.model.complete({
+      model: JUDGE_MODEL,
+      system: judgeSystem(await langCode($)),
+      prompt: judgePrompt(before, snap),
+      maxTokens: 300,
+      effort: 'low',
+    })
+  } catch {
+    await update($, compass, c => ({ ...c, isJudging: false, note: { key: 'note.judge_failed', vars: { turn: snap.turn } } }))
+
+    return
+  }
   const verdict = res.isAnswered ? parseVerdict(res.text) : null
+  // The goal may have changed while the judge was thinking; a verdict on the old goal is dropped.
+  const isSameGoal = (c: Compass) =>
+    c.isActive && c.goal?.destination === before.goal?.destination && currentSegment(c) === currentSegment(before)
   const after = await update($, compass, c =>
-    verdict
-      ? { ...applyVerdict({ ...c, isJudging: false }, snap.turn, verdict), note: null }
-      : { ...c, isJudging: false, note: { key: 'note.judge_failed', vars: { turn: snap.turn } } },
+    !isSameGoal(c)
+      ? { ...c, isJudging: false }
+      : verdict
+        ? { ...applyVerdict({ ...c, isJudging: false }, snap.turn, verdict), note: null }
+        : { ...c, isJudging: false, note: { key: 'note.judge_failed', vars: { turn: snap.turn } } },
   )
   const last = after.steps[after.steps.length - 1]
   await logEvent($, 'judge', {
@@ -527,6 +539,7 @@ function arrivalButtons($: EngineInterface, t: T, Button: any, Box: any) {
 let prompts: string[] = []
 let tools: string[] = []
 let isSetupTurn = false
+let isPluginTurn = false
 
 // From the module's session.start: the commands, and after a reload the tools and pane of an active compass.
 export async function startCompass($: EngineInterface) {
@@ -547,15 +560,18 @@ export async function startCompass($: EngineInterface) {
   }
 }
 
-// From the module's prompt.submit: what the user said this turn, for the judge.
-export function compassPrompt(text: string) {
-  prompts.push(text)
+// From the module's prompt.submit: what the user said this turn, for the judge. A prompt this plugin sent
+// (the goal-change brief, the interview) is not the user's words; a turn started only by one is not judged.
+export function compassPrompt(text: string, isPlugin = false) {
+  if (isPlugin) isPluginTurn = true
+  else prompts.push(text)
 }
 
 export const registerCompass: Register = on => {
   prompts = []
   tools = []
   isSetupTurn = false
+  isPluginTurn = false
   isToolsRegistered = false
 
   on('command.run', { command: 'session-compass' }, async ($, e) => {
@@ -800,28 +816,25 @@ export const registerCompass: Register = on => {
       </Box>
     )
   })
+}
 
-  on('turn.complete', async ($, e, next) => {
-    const result = await next(e)
-    if (e.agentId) return result
+// From the module's turn.complete, for a turn of the main conversation (not a subagent's).
+export async function compassTurnEnd($: EngineInterface, e: { answer: string; reason: string }) {
+  const snap: TurnSnapshot = { turn: 0, prompt: prompts.join('\n---\n'), answer: e.answer, tools }
+  const wasSetup = isSetupTurn || (isPluginTurn && !prompts.length)
+  prompts = []
+  tools = []
+  isSetupTurn = false
+  isPluginTurn = false
+  const c = await update($, compass, cur => ({ ...cur, turn: cur.turn + 1 }))
+  snap.turn = c.turn
 
-    const snap: TurnSnapshot = { turn: 0, prompt: prompts.join('\n---\n'), answer: e.answer, tools }
-    const wasSetup = isSetupTurn
-    prompts = []
-    tools = []
-    isSetupTurn = false
-    const c = await update($, compass, cur => ({ ...cur, turn: cur.turn + 1 }))
-    snap.turn = c.turn
-
-    // Judge outside this dispatch, so the turn ends without waiting on the model.
-    if (!wasSetup && e.reason === 'answer' && c.isActive && c.goal && !isArrived(c)) {
-      $.clock.after(1, () => {
-        void judge($, snap)
-      })
-    }
-
-    return result
-  })
+  // Judge outside this dispatch, so the turn ends without waiting on the model.
+  if (!wasSetup && e.reason === 'answer' && c.isActive && c.goal && !isArrived(c)) {
+    $.clock.after(1, () => {
+      void judge($, snap)
+    })
+  }
 }
 
 // The compass's part of the seat above the prompt, or null when it has nothing to show: the arrival
@@ -850,7 +863,8 @@ export async function compassBand($: EngineInterface, e: any) {
     )
   }
 
-  const tail = c.steps.filter(s => s.segment === currentSegment(c)).slice(-2)
+  // "Not yet" is the user's word on arrival, not a turn of work: it does not count toward drifting.
+  const tail = c.steps.filter(s => s.segment === currentSegment(c) && s.mark !== 'not-yet').slice(-2)
   const isDrifting = tail.length === 2 && tail.every(s => s.kind === 'flat' || s.kind === 'down')
   if (!isDrifting || !tail[1]) return null
 

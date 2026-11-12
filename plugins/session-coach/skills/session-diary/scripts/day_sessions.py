@@ -39,11 +39,13 @@ STRIP_BLOCKS = ("system-reminder", "ide_selection", "ide_opened_file", "ide_diag
 # Temporary folders used by automated runs (tests, sub-tasks). Not a record of a person working.
 TEMP_ROOTS = ("/tmp/", "/private/tmp/", "/var/folders/", "/private/var/folders/")
 SECRET_RES = [
-    re.compile(r"\b(?:sk|pk|rk)-[A-Za-z0-9_-]{16,}"),
+    re.compile(r"\b(?:sk|pk|rk)[-_][A-Za-z0-9_-]{16,}"),  # OpenAI, Anthropic, Stripe (sk_live_...)
     re.compile(r"\b(?:ghp|gho|ghs|github_pat)_[A-Za-z0-9_]{16,}"),
     re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"),
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?(?:-----END [A-Z ]*PRIVATE KEY-----|\Z)", re.S),
+    re.compile(r"\bAIza[0-9A-Za-z_-]{35}"),  # Google API key
+    re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),  # JWT
     re.compile(r"(?i)\b(password|passwd|api[_-]?key|secret|token)\b(\s*[:=]\s*)\S+"),
 ]
 SHORT_CHARS = 10
@@ -161,15 +163,21 @@ def add_turn(turns, role, text, when):
 
 
 def parse_claude(path, day, stats):
+    """One pass over a Claude Code file: that day's turns, and the tokens of each message that day."""
     turns, cwd, sid, is_headless = [], None, None, False
+    usage = {}
     for o in read_jsonl(path, stats):
-        if o.get("type") not in ("user", "assistant") or o.get("isSidechain"):
+        if o.get("type") not in ("user", "assistant"):
+            continue
+        when = local_time(o.get("timestamp"))
+        if o["type"] == "assistant":
+            add_message_usage(usage, o, when, day)
+        if o.get("isSidechain"):
             continue
         cwd = cwd or o.get("cwd")
         sid = sid or o.get("sessionId")
         # A run launched by a program (claude -p, the SDK). Not typed by a person even when it runs in a project folder.
         is_headless = is_headless or str(o.get("entrypoint") or "").startswith("sdk")
-        when = local_time(o.get("timestamp"))
         if when is None or when.date() != day:
             continue
         content = (o.get("message") or {}).get("content")
@@ -184,7 +192,7 @@ def parse_claude(path, day, stats):
             parts = (p.strip() for p in block_texts(content))
             add_turn(turns, "assistant", "\n".join(p for p in parts if p), when)
     return {"tool": "Claude Code", "id": sid or os.path.splitext(os.path.basename(path))[0], "cwd": cwd, "turns": turns,
-            "is_headless": is_headless}
+            "is_headless": is_headless, "path": path, "usage": usage}
 
 
 def codex_imported_ids(root):
@@ -199,10 +207,13 @@ def codex_imported_ids(root):
 
 
 def parse_codex(path, day, stats):
+    """One pass over a Codex file: that day's turns, and the tokens that grew that day."""
     meta = {}
     typed, fallback, assistant = [], [], []
+    tokens = CodexTokens(day)
     for seq, o in enumerate(read_jsonl(path, stats)):
         typ, p, when = o.get("type"), o.get("payload") or {}, local_time(o.get("timestamp"))
+        tokens.add(p, when)
         if typ == "session_meta" and not meta:
             meta = p
         elif typ == "event_msg" and p.get("type") == "user_message":
@@ -231,6 +242,8 @@ def parse_codex(path, day, stats):
         "is_subagent": isinstance(source, dict) and "subagent" in source,
         # A run started with codex exec. Not a conversation with a person.
         "is_headless": source == "exec" or meta.get("originator") == "codex_exec",
+        "path": path,
+        "tokens": tokens.gained,
     }
 
 
@@ -245,25 +258,34 @@ def recent_files(pattern, day):
             pass
 
 
-def collect(args, day, stats):
+def read_day(args, day, stats):
+    """Reads every record file that can hold that day once, turns and tokens together. collect() and day_usage()
+    both work from what this returns, so a file is not opened twice for one diary."""
+    root = os.path.expanduser(args.claude_dir)
+    # Top-level <project>/<session>.jsonl are sessions; <session>/subagents/*.jsonl are only counted for tokens.
+    claude = [parse_claude(path, day, stats) for path in recent_files(os.path.join(root, "*", "*.jsonl"), day)]
+    sub = [(path, claude_rows_usage(path, day, stats))
+           for path in recent_files(os.path.join(root, "*", "*", "subagents", "*.jsonl"), day)]
+    codex_root = os.path.expanduser(args.codex_dir)
+    codex = [parse_codex(path, day, stats)
+             for pattern in ("sessions/**/*.jsonl", "archived_sessions/*.jsonl")
+             for path in recent_files(os.path.join(codex_root, pattern), day)]
+    return {"claude": claude, "sub": sub, "codex": codex, "imported": codex_imported_ids(codex_root)}
+
+
+def collect(args, day, stats, read=None):
+    read = read or read_day(args, day, stats)
     skip = {x for x in args.exclude_session if x}
     found = {}
-    # Only top-level <project>/<session>.jsonl. Files under <session>/subagents/ are subagent records.
-    claude = os.path.join(os.path.expanduser(args.claude_dir), "*", "*.jsonl")
-    for path in recent_files(claude, day):
-        s = parse_claude(path, day, stats)
+    for s in read["claude"]:
         found[("claude", s["id"])] = max(s, found.get(("claude", s["id"]), s), key=lambda x: len(x["turns"]))
-    root = os.path.expanduser(args.codex_dir)
-    imported = codex_imported_ids(root)
-    for pattern in ("sessions/**/*.jsonl", "archived_sessions/*.jsonl"):
-        for path in recent_files(os.path.join(root, pattern), day):
-            s = parse_codex(path, day, stats)
-            if s.pop("is_subagent"):
-                stats["left out: subagent"] += 1
-            elif s["id"] in imported:
-                stats["left out: copy imported from another tool"] += 1
-            else:
-                found[("codex", s["id"])] = max(s, found.get(("codex", s["id"]), s), key=lambda x: len(x["turns"]))
+    for s in read["codex"]:
+        if s["is_subagent"]:
+            stats["left out: subagent"] += 1
+        elif s["id"] in read["imported"]:
+            stats["left out: copy imported from another tool"] += 1
+        else:
+            found[("codex", s["id"])] = max(s, found.get(("codex", s["id"]), s), key=lambda x: len(x["turns"]))
 
     kept = []
     for s in found.values():
@@ -361,23 +383,26 @@ def empty_usage():
     return {"mine": Counter(), "sub": Counter(), "auto": Counter(), "models": Counter()}
 
 
+def add_message_usage(found, o, when, day):
+    """Tokens of one assistant row that day. One message is recorded once per block, so rows are grouped by message id."""
+    message = o.get("message") or {}
+    tokens = message.get("usage")
+    if not tokens or when is None or when.date() != day:
+        return
+    key = (message.get("id"), o.get("requestId"))
+    row = {"new": (tokens.get("input_tokens") or 0) + (tokens.get("cache_creation_input_tokens") or 0),
+           "cache": tokens.get("cache_read_input_tokens") or 0,
+           "out": tokens.get("output_tokens") or 0, "model": message.get("model") or "?"}
+    if key not in found or row["out"] > found[key]["out"]:
+        found[key] = row
+
+
 def claude_rows_usage(path, day, stats):
-    """Tokens per message that day. One message is recorded once per block, so rows are grouped by message id."""
+    """Tokens per message that day, for a file read only for its tokens (a subagent's)."""
     found = {}
     for o in read_jsonl(path, stats):
-        if o.get("type") != "assistant":
-            continue
-        message = o.get("message") or {}
-        tokens = message.get("usage")
-        when = local_time(o.get("timestamp"))
-        if not tokens or when is None or when.date() != day:
-            continue
-        key = (message.get("id"), o.get("requestId"))
-        row = {"new": (tokens.get("input_tokens") or 0) + (tokens.get("cache_creation_input_tokens") or 0),
-               "cache": tokens.get("cache_read_input_tokens") or 0,
-               "out": tokens.get("output_tokens") or 0, "model": message.get("model") or "?"}
-        if key not in found or row["out"] > found[key]["out"]:
-            found[key] = row
+        if o.get("type") == "assistant":
+            add_message_usage(found, o, local_time(o.get("timestamp")), day)
     return found
 
 
@@ -387,53 +412,134 @@ def add_tokens(usage, kind, row):
     usage["models"][row["model"]] += row["new"] + row["out"]
 
 
-def codex_tokens(path, day, stats):
+class CodexTokens:
     """Token records are running totals: count only what grew that day. Input includes cache reads, so they are taken out."""
-    prev = Counter()
-    gained = Counter()
-    for o in read_jsonl(path, stats):
-        p = o.get("payload") or {}
-        total = (p.get("info") or {}).get("total_token_usage") if p.get("type") == "token_count" else None
-        when = local_time(o.get("timestamp"))
+
+    def __init__(self, day):
+        self.day = day
+        self.prev = Counter()
+        self.gained = Counter()
+
+    def add(self, payload, when):
+        total = (payload.get("info") or {}).get("total_token_usage") if payload.get("type") == "token_count" else None
         if not total or when is None:
-            continue
+            return
         now = Counter(new=(total.get("input_tokens") or 0) - (total.get("cached_input_tokens") or 0),
                       cache=total.get("cached_input_tokens") or 0, out=total.get("output_tokens") or 0)
-        if when.date() == day:
+        if when.date() == self.day:
             for name in now:
-                gained[name] += max(0, now[name] - prev[name])
-        prev = now
-    return gained
+                self.gained[name] += max(0, now[name] - self.prev[name])
+        self.prev = now
 
 
-def day_usage(args, day, kept, stats):
+def stem(path):
+    return os.path.splitext(os.path.basename(path))[0]
+
+
+def day_usage(args, day, kept, stats, read=None):
     """Tokens used that day, split into the person's sessions, their subagents, and automated runs.
     A resumed session that records old messages again is counted once."""
+    read = read or read_day(args, day, stats)
     usage = empty_usage()
     mine = {s["id"] for s in kept}
     seen = set()
-    root = os.path.expanduser(args.claude_dir)
-    groups = [(os.path.join(root, "*", "*.jsonl"), lambda p: "mine" if os.path.splitext(os.path.basename(p))[0] in mine else "auto"),
-              (os.path.join(root, "*", "*", "subagents", "*.jsonl"),
-               lambda p: "sub" if os.path.basename(os.path.dirname(os.path.dirname(p))) in mine else "auto")]
-    for pattern, classify in groups:
-        for path in recent_files(pattern, day):
-            for key, row in claude_rows_usage(path, day, stats).items():
-                if key not in seen:
-                    seen.add(key)
-                    add_tokens(usage, classify(path), row)
-    codex = os.path.expanduser(args.codex_dir)
-    imported = codex_imported_ids(codex)
-    for pattern in ("sessions/**/*.jsonl", "archived_sessions/*.jsonl"):
-        for path in recent_files(os.path.join(codex, pattern), day):
-            meta = next(read_jsonl(path, stats), {}).get("payload") or {}
-            if meta.get("id") in imported:
-                continue
-            gained = codex_tokens(path, day, stats)
-            kind = "mine" if meta.get("id") in mine else "auto"
-            usage[kind].update(gained)
-            usage["models"]["Codex"] += gained["new"] + gained["out"]
+    rows = [("mine" if stem(s["path"]) in mine else "auto", s["usage"]) for s in read["claude"]]
+    rows += [("sub" if os.path.basename(os.path.dirname(os.path.dirname(path))) in mine else "auto", found)
+             for path, found in read["sub"]]
+    for kind, found in rows:
+        for key, row in found.items():
+            if key not in seen:
+                seen.add(key)
+                add_tokens(usage, kind, row)
+    for s in read["codex"]:
+        if s["id"] in read["imported"]:
+            continue
+        kind = "mine" if s["id"] in mine else "auto"
+        usage[kind].update(s["tokens"])
+        usage["models"]["Codex"] += s["tokens"]["new"] + s["tokens"]["out"]
     return usage
+
+
+# ---------- session-compass goals ----------
+
+def compass_log_dir():
+    """Where session-compass (this plugin's Claude Code pane) logs its judgements, one file per session."""
+    root = os.path.expanduser(os.environ.get("HUS_SESSION_COACH_HOME") or "~/.hus-session-coach")
+    return os.path.join(root, "session-compass", "judge-log")
+
+
+def compass_goals(log_dir, day, sessions, stats):
+    """For the sessions in the material, the goals set with session-compass and what happened to them that day:
+    how many turns the light model judged closer, standing still or further away, whether it judged the goal
+    reached, and what the person answered. [(session, [goal, ...])] in session order."""
+    by_id = {s["id"]: s for s in sessions}
+    found = []
+    for path in sorted(recent_files(os.path.join(os.path.expanduser(log_dir), "*", "*.jsonl"), day)):
+        session = by_id.get(stem(path))
+        if session is None:
+            continue
+        goals = {}
+
+        def goal(destination):
+            return goals.setdefault(destination or "?", {"destination": destination or "?", "done": "", "moves": Counter(),
+                                                         "failed": 0, "not_yet": 0, "side_road": 0, "end": None})
+
+        for o in read_jsonl(path, stats):
+            when = local_time(o.get("at"))
+            if when is None or when.date() != day:
+                continue
+            event = o.get("event")
+            if event == "goal-set":
+                goal(o.get("destination"))["done"] = o.get("done") or ""
+            elif event == "judge":
+                g = goal(o.get("goal"))
+                if o.get("ok"):
+                    g["moves"][o.get("kind") or "?"] += 1
+                else:
+                    g["failed"] += 1
+            elif event in ("arrive-finish", "arrive-next"):
+                goal(o.get("goal"))["end"] = ("finished", "")
+            elif event == "arrive-not-yet":
+                goal(o.get("goal"))["not_yet"] += 1
+            elif event == "pivot-yes":
+                goal(o.get("goal"))["end"] = ("changed", o.get("to") or "")
+                goal(o.get("to"))
+            elif event == "pivot-no":
+                goal(o.get("goal"))["side_road"] += 1
+        if goals:
+            found.append((session, list(goals.values())))
+    found.sort(key=lambda item: item[0]["turns"][0]["at"])
+    return found
+
+
+def goal_lines(goals):
+    if not goals:
+        return []
+    out = ["", "## Goals I set with session-compass (a light model judged each turn against the goal; it can be wrong)"]
+    for s, items in goals:
+        out.append("- Session %s · %s · from %s" % (os.path.basename(repo_root(s["cwd"]) or "(unknown)"), s["tool"],
+                                                   s["turns"][0]["at"].strftime("%H:%M")))
+        for g in items:
+            m = g["moves"]
+            judged = sum(m.values())
+            parts = ["goal: %s" % clip(mask(g["destination"]), 200)]
+            if g["done"]:
+                parts.append("done when: %s" % clip(mask(g["done"]), 200))
+            parts.append("judged turns: %d (closer %d, standing still %d, further away %d)" % (
+                judged, m["up"], m["flat"], m["down"]))
+            if g["failed"]:
+                parts.append("could not judge %d" % g["failed"])
+            if m["arrive"]:
+                parts.append("judged reached %d times" % m["arrive"])
+            if g["not_yet"]:
+                parts.append("I answered 'not yet' %d times" % g["not_yet"])
+            if g["side_road"]:
+                parts.append("I turned down a goal change %d times" % g["side_road"])
+            end = g["end"]
+            parts.append("end: " + ("I marked it finished" if end and end[0] == "finished" else
+                                    "I changed the goal to: %s" % clip(mask(end[1]), 200) if end else "still open"))
+            out.append("  - " + "; ".join(parts))
+    return out
 
 
 def usage_lines(usage):
@@ -479,7 +585,8 @@ def is_question(text):
     return len(text) <= QUESTION_MAX_CHARS and text.rstrip().endswith(QUESTION_ENDINGS)
 
 
-def render(day, sessions, commit_map, stats, ai_keep=AI_KEEP, question_keep=AI_BEFORE_QUESTION_KEEP, usage=None):
+def render(day, sessions, commit_map, stats, ai_keep=AI_KEEP, question_keep=AI_BEFORE_QUESTION_KEEP, usage=None,
+           goals=None):
     f = facts(sessions)
     tools = ", ".join("%s %d" % kv for kv in f["by_tool"].most_common())
     projects = ", ".join("%s %d" % kv for kv in f["by_project"].most_common())
@@ -500,6 +607,7 @@ def render(day, sessions, commit_map, stats, ai_keep=AI_KEEP, question_keep=AI_B
             out += ["  - " + mask(line) for line in lines]
     else:
         out.append("- None. If folders whose commits could not be read are listed above, commits there were not seen")
+    out += goal_lines(goals)
     for s in sessions:
         turns = s["turns"]
         users = sum(1 for t in turns if t["role"] == "user")
@@ -512,26 +620,29 @@ def render(day, sessions, commit_map, stats, ai_keep=AI_KEEP, question_keep=AI_B
             else:
                 after = turns[i + 1] if i + 1 < len(turns) else None
                 who, keep = "AI", question_keep if after and is_question(after["text"]) else ai_keep
-            out.append("[%s %s] %s" % (t["at"].strftime("%H:%M"), who, mask(clip(t["text"], keep))))
+            out.append("[%s %s] %s" % (t["at"].strftime("%H:%M"), who, clip(mask(t["text"]), keep)))
     return "\n".join(out) + "\n"
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--date", help="YYYY-MM-DD. Today when left out")
-    ap.add_argument("--claude-dir", default="~/.claude/projects")
-    ap.add_argument("--codex-dir", default="~/.codex")
+    ap.add_argument("--claude-dir", default=os.environ.get("HUS_SESSION_COACH_CLAUDE_DIR") or "~/.claude/projects")
+    ap.add_argument("--codex-dir", default=os.environ.get("HUS_SESSION_COACH_CODEX_DIR") or "~/.codex")
     ap.add_argument("--exclude-session", action="append",
                     default=[os.environ.get("CLAUDE_CODE_SESSION_ID"), os.environ.get("CODEX_THREAD_ID")],
                     help="session id to leave out. This conversation is left out through its environment variable")
+    ap.add_argument("--compass-dir", default=compass_log_dir(), help="where session-compass logs its judgements")
     ap.add_argument("--out", required=True, help="output path. Keep it out of public repositories")
     args = ap.parse_args(argv)
 
     day = datetime.date.fromisoformat(args.date) if args.date else datetime.date.today()
     stats = Counter()
-    sessions = collect(args, day, stats)
+    read = read_day(args, day, stats)
+    sessions = collect(args, day, stats, read)
     commit_map = commits(sessions, day, stats)
-    text = render(day, sessions, commit_map, stats)
+    goals = compass_goals(args.compass_dir, day, sessions, stats)
+    text = render(day, sessions, commit_map, stats, usage=day_usage(args, day, sessions, stats, read), goals=goals)
     out = os.path.expanduser(args.out)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:

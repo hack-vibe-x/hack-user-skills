@@ -20,4 +20,4 @@ One JSON object per line, split into `type` and `payload`.
 
 ## Keeping only sessions where a person worked
 - When `session_meta` has `source` `exec` or `originator` `codex_exec`, a program ran it and it is left out. On the machine checked, 406 of 407 sessions from 2026-10-24 to 29 were like this.
-- The conversation writing the diary right now is left out by `CODEX_THREAD_ID`. The name of this environment variable was not checked. If it does not match, pass `--exclude-session <id>`.
+- When `day_sessions.py` is run by hand, the conversation reading the records right now is left out by `CODEX_THREAD_ID` (the automatic run and `diary_auto.py write` keep it). The name of this environment variable was not checked. If it does not match, pass `--exclude-session <id>`.

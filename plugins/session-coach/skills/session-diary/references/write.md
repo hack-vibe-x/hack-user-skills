@@ -73,6 +73,8 @@ If the material lists folders whose commits could not be read, say so and judge 
 ## Intent and result
 One or two places where what I first meant to do and what came out differed. Why, and what to do next time.
 
+When the material has a "Goals I set with session-compass" section, those are goals I wrote down myself before the work: start from them. Compare the goal and its "done when" with how the conversation went and how the goal ended (finished, changed, still open). The turn counts come from a light model and can be wrong, so use them only as a pointer to where to look in the conversation; a judgement in the diary still rests on the conversation lines, and its evidence quotes come from those lines, not from the goals section.
+
 ## How I worked
 One or two things done well (what happened, why it matters) and at most three behaviours to change (what happened, why it cost something, what to do next time).
 

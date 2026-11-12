@@ -26,4 +26,4 @@ AI lines use only the `type: "text"` blocks of `message.content`. `thinking` and
 - Sessions whose `entrypoint` starts with `sdk`: runs launched by a program
 - Sessions whose `cwd` is a temporary folder (`/tmp`, `/var/folders`): automated runs such as tests
 - Groups of three or more sessions in a day that open with the same instruction and have two or fewer messages from the person: a rule of thumb, because automated runs that inherit the parent process's `entrypoint` (`claude-vscode`) cannot be told apart by any other signal. If a person opens a session three times with the same words, they may be left out by mistake.
-- The session equal to `CLAUDE_CODE_SESSION_ID`: the conversation writing the diary right now
+- The session equal to `CLAUDE_CODE_SESSION_ID`, when `day_sessions.py` is run by hand: the conversation reading the records right now. The automatic run and `diary_auto.py write` keep it on purpose, because its messages that day are part of the day

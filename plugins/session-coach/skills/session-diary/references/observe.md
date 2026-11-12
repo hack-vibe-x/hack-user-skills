@@ -25,7 +25,7 @@ Read with care:
 - **Do not use their percentages as a baseline.** Those figures were observed on Claude.ai users, not on coding tools or on this person. Compare only with this person's earlier diaries. Talk about trends only once five diaries have built up.
 
 ## How the person works: what to look at
-- Was there a goal and a "done" criterion at the start, and did it change on the way?
+- Was there a goal and a "done" criterion at the start, and did it change on the way? Goals set with session-compass are listed in the material with how each ended.
 - Places where the person explained the same thing again or repeated the same request.
 - Asking again about something that was in the reply just before (a sign it was not read). The material keeps the AI reply before a short question up to 800 characters. If it is cut and cannot be confirmed, do not write it.
 - Did the person make the decision, or take the AI's proposal as is? "Fix it" or "implement it" sent with no discussion before counts as handing it over. "OK, implement it" after a long discussion may be a decision, so it does not count as handing over.

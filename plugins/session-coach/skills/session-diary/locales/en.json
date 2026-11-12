@@ -17,6 +17,7 @@
   "notify.written_plan": "Wrote the diary for {date}. Tomorrow's plan: {plan}",
   "notify.failed": "Could not write the diary for {date}. Ask for the diary status.",
   "notify.failed_kept": "Could not write the diary for {date}. The earlier diary is unchanged.",
+  "notify.removed": "The plugin is no longer installed, so the automatic diary turned itself off. Your diaries are kept.",
   "diary.title": "{date} ({weekday}) session diary",
   "diary.today": "Today in one line",
   "diary.range": "Range",

@@ -51,6 +51,10 @@
   "diary.btn.skip": "안 쓰기",
   "diary.toast.writing": "오늘 일기를 쓰는 중이에요. 몇 분 걸릴 수 있어요.",
   "diary.toast.written": "오늘 일기를 썼어요.",
+  "diary.toast.empty": "오늘은 아직 대화가 없어 쓰지 않았어요. 일기는 자정에 써요.",
   "diary.toast.failed": "오늘 일기를 쓰지 못했어요: {detail}",
-  "diary.failed.no_run": "python3를 실행하지 못했거나 시간이 너무 오래 걸렸어요"
+  "diary.failed.no_run": "python3를 실행하지 못했거나 시간이 너무 오래 걸렸어요",
+  "diary.plan.band": "📝 {date} 일기의 계획: {plan}",
+  "diary.plan.ok": "확인",
+  "date.month_day": "{month}월 {day}일"
 }

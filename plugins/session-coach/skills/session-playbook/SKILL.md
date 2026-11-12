@@ -6,7 +6,7 @@ license: Apache-2.0
 
 # session-playbook: know-how and prompts from sessions
 
-Reads past work sessions and turns them into a prompt and skill candidates for the next time the same kind of work is handed over. It reads Claude Code sessions (not Codex records yet).
+Reads past work sessions and turns them into a prompt and skill candidates for the next time the same kind of work is handed over. It reads Claude Code and Codex sessions on this computer.
 
 Below, `<skill>` is the absolute path of this skill folder. Result files are saved in `~/.hus-session-coach/session-playbook/`. They hold conversation text, so they do not go into public repositories.
 
@@ -17,12 +17,13 @@ Script output is in English. Show it to the person in the language they use with
    ```bash
    python3 <skill>/scripts/sessions.py list
    ```
-   Show the list as it is (translate only the labels) and ask which numbers to analyse (several allowed). For older sessions add `--days 30 --limit 30`. The script leaves out this conversation, runs launched by a program, and runs in temporary folders.
+   Show the list as it is (translate only the labels) and ask which ones to analyse (several allowed). Each line names its tool (Claude Code or Codex) and ends with the start of the session's id. For older sessions add `--days 30 --limit 30`. The script leaves out this conversation, runs launched by a program (`claude -p`, `codex exec`), subagent runs, sessions Codex imported from another tool, and runs in temporary folders.
 
 2. **Read the picked sessions.**
    ```bash
-   python3 <skill>/scripts/sessions.py show 2 4 7
+   python3 <skill>/scripts/sessions.py show 1a2b3c4d 5e6f7a8b
    ```
+   Pass the ids the list showed for the sessions the person picked. The list's numbers work too, but only for the list made last in this conversation; if a number is refused, use the id.
    Each session comes with its title, the tools used, the files changed, and the shortened conversation. Long sessions are shortened in the middle as `...(N turns cut)...`. If the conclusion seems to be in that cut, extract again with `--budget 30000`.
 
 3. **Analyse and write.** Follow the structure and rules in `references/format.md`. Three things matter most.

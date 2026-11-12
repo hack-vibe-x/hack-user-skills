@@ -8,11 +8,13 @@ import io
 import json
 import os
 import plistlib
+import shutil
 import stat
 import subprocess
 import tempfile
 import time
 import unittest
+from collections import Counter
 from pathlib import Path
 from unittest import mock
 
@@ -538,6 +540,80 @@ class WriteOneTest(Base):
         self.assertTrue(out.getvalue().startswith("[hus-session-coach] "))
 
 
+class FixesTest(Base):
+    """Cases that used to stop the diary or write something wrong."""
+
+    def quiet(self, *args):
+        with contextlib.redirect_stdout(io.StringIO()):
+            return da.write_one(*args)
+
+    def test_lock_left_by_a_killed_process_is_taken_over(self):
+        self.session(D3)
+        self.state(since=D3)
+        lock = Path(da.auto_dir()) / "lock"
+        lock.mkdir(parents=True)
+        dead = subprocess.Popen(["true"])
+        dead.wait()
+        (lock / "pid").write_text(str(dead.pid))
+        da.tick(TODAY)
+        self.assertEqual(len(self.calls()), 1)
+        self.assertFalse(lock.exists())
+
+    def test_lock_of_a_live_process_is_respected(self):
+        self.session(D3)
+        self.state(since=D3)
+        lock = Path(da.auto_dir()) / "lock"
+        lock.mkdir(parents=True)
+        (lock / "pid").write_text(str(os.getpid()))
+        self.assertEqual(da.tick(TODAY), 0)
+        self.assertEqual(self.calls(), [])
+
+    def test_unexpected_error_counts_as_an_attempt(self):
+        self.session(D3)
+        self.state(since=D3)
+        with mock.patch.object(da, "make_diary", side_effect=AttributeError("'str' object has no attribute 'get'")):
+            self.assertEqual(da.tick(TODAY), 1)
+        self.assertEqual(da.load_state()["attempts"], {D3.isoformat(): 1})
+
+    def test_today_without_conversations_is_not_written(self):
+        self.state(since=datetime.date.today())
+        self.assertEqual(self.quiet(None, False), da.NOTHING_TO_WRITE)
+        self.assertFalse(os.path.exists(da.diary_path(datetime.date.today())))
+
+    def test_counted_front_matter_comes_from_the_script(self):
+        self.session(D3)
+        wrong = GOOD.replace("date: x\n", "date: x\nsessions: 9\nuser_turns: 40\n")
+        self.state(since=D3, replies=[wrong])
+        da.tick(TODAY)
+        head = self.diary(D3).split("\n---", 1)[0]
+        self.assertIn("sessions: 1\n", head)
+        self.assertIn("user_turns: 1\n", head)
+        self.assertIn("short_turns: ", head)
+        self.assertNotIn("sessions: 9", head)
+
+    def test_material_too_long_even_when_thinned_is_cut_with_a_note(self):
+        self.session(D3, text=MESSAGE + " " + "x" * 3000)
+        with mock.patch.object(da, "MAX_MATERIAL_CHARS", 800):
+            material, info = da.build_material(D3)
+        self.assertLessEqual(len(material), 800 + 100)
+        self.assertIn("material cut here", material)
+        self.assertGreater(info["cut"], 0)
+
+
+class MaskTest(unittest.TestCase):
+    def test_more_key_formats_are_masked(self):
+        import day_sessions
+        for key in ("sk_live_" + "a" * 24, "AIza" + "b" * 35, "eyJhbGciOiJI.eyJzdWIiOiIx.c2lnbmF0dXJl"):
+            self.assertNotIn(key, day_sessions.mask("key " + key + " end"), key)
+
+    def test_keys_are_masked_before_clipping(self):
+        import day_sessions
+        key = "sk-" + "z" * 40
+        text = "a" * 60 + key + "b" * 200
+        out = day_sessions.clip(day_sessions.mask(text), 80)
+        self.assertNotIn("zzzzzzzzzz", out)
+
+
 class SwitchTest(Base):
     def turn_on(self, *args):
         out = io.StringIO()
@@ -638,6 +714,262 @@ class SwitchTest(Base):
         self.assertFalse((app / "scripts" / "test_diary_auto.py").exists())
         self.assertFalse((app / "scripts" / "test_samples.ko.json").exists())
         self.assertTrue((app / "scripts" / "day_sessions.py").exists())
+
+
+class SourceTest(Base):
+    """The job follows the plugin it was copied from: refreshed after an update, turned off once it is removed."""
+
+    def plugin(self, version, where=None):
+        """A copy of this plugin's diary skill at where (default: Claude Code's cache), with a plugin.json."""
+        root = where or (self.fake_home / ".claude" / "plugins" / "cache" / "hus" / da.PLUGIN_NAME / version)
+        skill = root / "skills" / "session-diary"
+        shutil.copytree(da.skill_dir(), skill, ignore=shutil.ignore_patterns("__pycache__", "test_*"))
+        (root / ".claude-plugin").mkdir(parents=True)
+        (root / ".claude-plugin" / "plugin.json").write_text(json.dumps({"version": version}), encoding="utf-8")
+        return root, skill
+
+    def record(self, *roots):
+        path = self.fake_home / ".claude" / "plugins" / "installed_plugins.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        plugins = {"%s@hus" % da.PLUGIN_NAME: [{"scope": "user", "installPath": str(r)} for r in roots]} if roots else {}
+        path.write_text(json.dumps({"version": 2, "plugins": plugins}), encoding="utf-8")
+
+    def turned_on_from(self, skill):
+        self.state(since=D3)
+        state = da.load_state()
+        da.refresh_app(state, str(skill))
+        da.save_state(state)
+
+    def test_an_updated_plugin_refreshes_the_copy_before_writing(self):
+        old_root, old_skill = self.plugin("0.4.0")
+        self.record(old_root)
+        self.turned_on_from(old_skill)
+        self.assertEqual(da.load_state()["app_version"], "0.4.0")
+        new_root, new_skill = self.plugin("0.5.0")
+        (new_skill / "references" / "write.md").write_text("new rules", encoding="utf-8")
+        shutil.rmtree(old_root)
+        self.record(new_root)
+        self.assertEqual(da.tick(TODAY), 0)
+        state = da.load_state()
+        self.assertEqual(state["app_version"], "0.5.0")
+        self.assertEqual(state["source"], str(new_skill))
+        self.assertEqual((Path(da.app_dir()) / "references" / "write.md").read_text(encoding="utf-8"), "new rules")
+
+    def test_a_removed_plugin_writes_nothing_then_turns_the_diary_off(self):
+        root, skill = self.plugin("0.4.0")
+        self.record(root)
+        self.turned_on_from(skill)
+        Path(da.plist_path()).parent.mkdir(parents=True, exist_ok=True)
+        Path(da.plist_path()).write_bytes(b"")
+        self.session(D3)
+        # Uninstalled: Claude Code's record no longer lists it, though the cache folder stays behind.
+        self.record()
+        self.assertEqual(da.tick(TODAY), 0)
+        self.assertEqual(self.calls(), [])
+        self.assertTrue(da.load_state().get("since"))
+        self.assertTrue(os.path.exists(da.plist_path()))
+        with mock.patch.object(da.time, "time", return_value=time.time() + da.GONE_AFTER_SECONDS + 1), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(da.tick(TODAY), 0)
+        self.assertEqual(self.calls(), [])
+        self.assertNotIn("since", da.load_state())
+        self.assertFalse(os.path.exists(da.plist_path()))
+        self.assertIn("no longer installed", self.notifications.call_args.args[1])
+
+    def test_a_plugin_back_after_one_miss_carries_on(self):
+        root, skill = self.plugin("0.4.0")
+        self.record(root)
+        self.turned_on_from(skill)
+        self.record()
+        da.tick(TODAY)
+        self.record(root)
+        self.session(D3)
+        da.tick(TODAY)
+        self.assertEqual(len(self.calls()), 1)
+        self.assertNotIn("source_missing_since", da.load_state())
+
+    def test_outside_claude_code_the_folder_itself_decides(self):
+        _, skill = self.plugin("0.4.0", where=self.root / "codex-skills" / "hus")
+        self.turned_on_from(skill)
+        self.session(D3)
+        da.tick(TODAY)
+        self.assertEqual(len(self.calls()), 1)
+        shutil.rmtree(skill)
+        da.tick(TODAY + datetime.timedelta(days=1))
+        self.assertIn("source_missing_since", da.load_state())
+
+    def test_an_unreadable_install_record_falls_back_to_the_folder(self):
+        root, skill = self.plugin("0.4.0")
+        self.turned_on_from(skill)
+        self.assertEqual(da.check_source(da.load_state()), "ok")
+
+    def test_state_from_an_older_version_is_left_alone(self):
+        self.state(since=D3)
+        self.session(D3)
+        da.tick(TODAY)
+        self.assertEqual(len(self.calls()), 1)
+
+    def test_sync_points_the_job_at_these_scripts(self):
+        self.state(since=D3)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(da.sync(), 0)
+        state = da.load_state()
+        self.assertEqual(state["source"], da.skill_dir())
+        self.assertEqual(state["app_version"], json.loads(
+            (Path(da.skill_dir()).parents[1] / ".claude-plugin" / "plugin.json").read_text())["version"])
+        self.assertTrue((Path(da.app_dir()) / "scripts" / "diary_auto.py").exists())
+
+    def test_sync_does_nothing_while_off(self):
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(da.sync(), 0)
+        self.assertFalse(os.path.exists(da.app_dir()))
+
+    def test_the_copy_is_never_recorded_as_its_own_source(self):
+        state = {}
+        da.copy_app()
+        da.refresh_app(state, da.app_dir())
+        self.assertNotIn("source", state)
+
+
+class BootstrapTest(Base):
+    def turn_on(self):
+        out = io.StringIO()
+        with mock.patch.object(da.sys, "platform", "darwin"), contextlib.redirect_stdout(out), \
+                mock.patch.object(da, "pause"), \
+                mock.patch.object(da, "find_runner", return_value={"runner": "/opt/x/bin/claude", "runner_kind": "claude"}):
+            code = da.turn_on(None)
+        return code, out.getvalue()
+
+    def bootstraps(self):
+        return [c for c in self.run_launchd.call_args_list if c.args[0] == "bootstrap"]
+
+    def test_a_bootstrap_that_fails_once_is_tried_again(self):
+        answers = iter([done(5, "Bootstrap failed: 5: Input/output error"), done(0)])
+        self.run_launchd.side_effect = lambda *a: next(answers) if a[0] == "bootstrap" else done(1)
+        code, out = self.turn_on()
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(self.bootstraps()), 2)
+        self.assertTrue(os.path.exists(da.plist_path()))
+
+    def test_a_bootstrap_that_keeps_failing_leaves_it_off_and_clean(self):
+        self.run_launchd.side_effect = lambda *a: done(5, "Bootstrap failed: 5: Input/output error") if a[0] == "bootstrap" else done(1)
+        code, out = self.turn_on()
+        self.assertEqual(code, 1)
+        self.assertEqual(len(self.bootstraps()), da.BOOTSTRAP_TRIES)
+        self.assertFalse(os.path.exists(da.plist_path()))
+        self.assertNotIn("since", da.load_state())
+        self.assertIn("It is off", out)
+
+
+class MigrateTest(Base):
+    def old(self):
+        diary = self.fake_home / ".session-diary"
+        (diary / ".auto").mkdir(parents=True)
+        (diary / "2026-10-01.md").write_text("old diary 1", encoding="utf-8")
+        (diary / "2026-10-02.md").write_text("old diary 2", encoding="utf-8")
+        (diary / "notes.txt").write_text("not a diary", encoding="utf-8")
+        (diary / ".auto" / "state.json").write_text(json.dumps({"lang": "ko", "model": "opus", "since": "2026-01-01"}),
+                                                    encoding="utf-8")
+        playbook = self.fake_home / ".session-playbook"
+        playbook.mkdir()
+        (playbook / "2026-10-03-copy.md").write_text("know-how", encoding="utf-8")
+        (playbook / ".last-list.json").write_text("[]", encoding="utf-8")
+
+    def migrate(self, dry_run=False):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = da.migrate(dry_run)
+        return code, out.getvalue()
+
+    def test_copies_diaries_playbook_files_and_settings_without_overwriting(self):
+        self.old()
+        Path(da.diary_path(D2)).write_text("mine already", encoding="utf-8")
+        code, out = self.migrate()
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.diary(D1), "old diary 1")
+        self.assertEqual(self.diary(D2), "mine already")
+        self.assertFalse(os.path.exists(os.path.join(da.home(), "notes.txt")))
+        self.assertEqual((self.data / "session-playbook" / "2026-10-03-copy.md").read_text(encoding="utf-8"), "know-how")
+        self.assertFalse((self.data / "session-playbook" / ".last-list.json").exists())
+        state = da.load_state()
+        self.assertEqual((state["lang"], state["model"]), ("ko", "opus"))
+        self.assertNotIn("since", state)
+        self.assertTrue((self.fake_home / ".session-diary" / "2026-10-01.md").exists())
+        self.assertIn("2026-10-02.md", out)
+
+    def test_a_dry_run_copies_nothing(self):
+        self.old()
+        code, out = self.migrate(dry_run=True)
+        self.assertEqual(code, 0)
+        self.assertIn("Would copy 3 files", out)
+        self.assertFalse(os.path.exists(da.diary_path(D1)))
+        self.assertEqual(da.load_state(), {})
+
+    def test_the_old_diary_still_on_stops_it(self):
+        self.old()
+        self.run_launchd.side_effect = lambda *a: done(0 if a[0] == "print" and a[1].endswith(da.OLD_LABEL) else 1)
+        code, out = self.migrate()
+        self.assertEqual(code, 2)
+        self.assertIn(da.OLD_OFF_COMMAND, out)
+        self.assertFalse(os.path.exists(da.diary_path(D1)))
+
+    def test_nothing_old_says_so(self):
+        code, out = self.migrate()
+        self.assertEqual(code, 0)
+        self.assertIn("Nothing to copy", out)
+
+
+class CompassMaterialTest(Base):
+    def log(self, sid, *events):
+        path = self.data / "session-compass" / "judge-log" / "-home-a-proj" / ("%s.jsonl" % sid)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # 01:00 UTC is 10:00 in Seoul, the same day as the session.
+        at = "%sT01:00:00.000Z" % D3.isoformat()
+        path.write_text("".join(json.dumps(dict(e, at=at), ensure_ascii=False) + "\n" for e in events), encoding="utf-8")
+
+    def test_goals_and_how_they_ended_go_into_the_material(self):
+        self.session(D3, sid="s1")
+        self.log("s1",
+                 {"event": "goal-set", "destination": "Landing copy", "done": "CTA approved", "rows": 3},
+                 {"event": "judge", "ok": True, "goal": "Landing copy", "kind": "up"},
+                 {"event": "judge", "ok": True, "goal": "Landing copy", "kind": "flat"},
+                 {"event": "judge", "ok": False, "goal": "Landing copy"},
+                 {"event": "judge", "ok": True, "goal": "Landing copy", "kind": "arrive"},
+                 {"event": "arrive-not-yet", "goal": "Landing copy"},
+                 {"event": "arrive-finish", "goal": "Landing copy"})
+        self.log("other", {"event": "goal-set", "destination": "Not in the material", "done": "-", "rows": 2})
+        material, _ = da.build_material(D3)
+        self.assertIn("## Goals I set with session-compass", material)
+        self.assertIn("goal: Landing copy; done when: CTA approved", material)
+        self.assertIn("judged turns: 3 (closer 1, standing still 1, further away 0)", material)
+        self.assertIn("could not judge 1", material)
+        self.assertIn("I answered 'not yet' 1 times", material)
+        self.assertIn("end: I marked it finished", material)
+        self.assertNotIn("Not in the material", material)
+        self.assertLess(material.index("## Goals"), material.index("## Session "))
+
+    def test_no_log_means_no_goals_section(self):
+        self.session(D3)
+        material, _ = da.build_material(D3)
+        self.assertNotIn("## Goals", material)
+
+    def test_each_record_file_is_read_once(self):
+        self.session(D3, sid="s1")
+        sub = self.claude / "proj" / "s1" / "subagents" / "agent-1.jsonl"
+        sub.parent.mkdir(parents=True)
+        sub.write_text(json.dumps(user_row(D3)) + "\n", encoding="utf-8")
+        opened = Counter()
+        real = da.day_sessions.read_jsonl
+
+        def counting(path, stats):
+            opened[path] += 1
+            return real(path, stats)
+
+        with mock.patch.object(da.day_sessions, "read_jsonl", side_effect=counting):
+            da.build_material(D3)
+        self.assertTrue(opened)
+        self.assertEqual(max(opened.values()), 1, opened)
 
 
 if __name__ == "__main__":

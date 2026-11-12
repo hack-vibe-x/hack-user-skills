@@ -85,3 +85,19 @@ test('the diary card comes before the compass band, which returns after it', asy
   expect(await band.find({ type: 'Text', text: /Reached:/ })).toBeTruthy()
   await band.unmount()
 })
+
+test('with no conversations yet today, writing now writes nothing and says so', async ($, on) => {
+  const eng = engine(on, { diary: { isOn: true, isTodayEmpty: true } })
+  await start($)
+  await run($, 'session-diary-now')
+  const card = await $.ui.mount({ ...BAND, surface: 'vscode' })
+  await card.press({ key: 'diary-write' })
+  await card.unmount()
+  expect(eng.toasts).toEqual(['Writing.', 'Nothing yet today.'])
+
+  await run($, 'session-diary-now')
+  const again = await $.ui.mount({ ...BAND, surface: 'vscode' })
+  expect(await again.find({ type: 'Text', text: /Write today now\?/ })).toBeTruthy()
+  expect(await again.find({ type: 'Text', text: /Else written at midnight/ })).toBeTruthy()
+  await again.unmount()
+})

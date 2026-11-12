@@ -6,8 +6,13 @@
   status  Show the state.
   tick    Write the diaries missing up to yesterday. launchd runs this on the hour and at login.
   write   Write one date. Without a date, today from midnight until now. --force throws away the earlier diary first.
+  sync    Bring the copy the job runs up to this version of the scripts. The Claude Code mod runs it after an update.
+  migrate Copy diaries, playbook files and settings from the older hack-users-for-llms plugin. Nothing is overwritten.
 
 tick skips days that already have a diary file, so writing today's diary during the day means no midnight run for it.
+tick also checks that the plugin is still installed where the scripts came from. When the plugin was updated it
+refreshes its copy; when the plugin is gone (twice in a row, an hour apart) it turns itself off, so a removed plugin
+does not keep sending conversations to the AI.
 
 The AI gets text back only, with no tools. The material holds web pages and pasted text; an agent with file and
 command access reading it while nobody watches could follow instructions hidden in it.
@@ -15,11 +20,13 @@ command access reading it while nobody watches could follow instructions hidden 
 import argparse
 import datetime
 import getpass
+import hashlib
 import json
 import os
 import plistlib
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -42,6 +49,15 @@ LABEL = "io.github.hack-vibe-x.hus-session-coach.session-diary"
 # The same diary in the older hack-users-for-llms plugin. Both on would read and send every session twice.
 OLD_LABEL = "co.hack-users-for-llms.session-diary"
 OLD_OFF_COMMAND = "python3 ~/.session-diary/.auto/app/scripts/diary_auto.py off"
+# Where the older plugin kept its diaries and playbook files. migrate copies from here.
+OLD_DIARY_DIR = "~/.session-diary"
+OLD_PLAYBOOK_DIR = "~/.session-playbook"
+# How Claude Code names this plugin in its record of installed plugins (<name>@<marketplace>).
+PLUGIN_NAME = "hack-user-skills-session-coach"
+SKILL_IN_PLUGIN = os.path.join("skills", "session-diary")
+# The plugin folder missing for this long (two hourly runs) counts as removed. One miss can be an update in progress.
+GONE_AFTER_SECONDS = 50 * 60
+BOOTSTRAP_TRIES = 3
 
 DEFAULT_MODEL = "sonnet"
 MAX_PREVIOUS = 7
@@ -49,12 +65,16 @@ MAX_PREVIOUS = 7
 MAX_MATERIAL_CHARS = 250_000
 THIN_AI_KEEP = 100
 THIN_QUESTION_KEEP = 300
+# Each step keeps fewer characters of AI replies (plain, before a question). Never 0: clip keeps head and tail.
+THIN_STEPS = ((THIN_AI_KEEP, THIN_QUESTION_KEEP), (30, 120))
 MAX_BUDGET_USD = "3"
 RUN_TIMEOUT = 30 * 60
 # Retried every hour, so about six hours. Gives a usage limit time to reset.
 MAX_ATTEMPTS = 6
 STALE_LOCK_SECONDS = 3 * 60 * 60
 FAILED_MARK = "failed: true"
+# Exit code of write when today has no conversations yet. The card in hooks/session-diary.tsx reads it.
+NOTHING_TO_WRITE = 3
 DIARY_NAME = re.compile(r"\d{4}-\d\d-\d\d\.md")
 # Headings and labels the AI writes. For another language the prompt maps each English one to that language's text.
 PROMPT_KEYS = ("diary.today", "diary.range", "diary.h.happened", "diary.h.done", "diary.h.gap", "diary.h.work",
@@ -70,8 +90,16 @@ def say(message):
     print("%s %s" % (PREFIX, message))
 
 
+def data_root():
+    return os.path.expanduser(env("HOME", DATA_ROOT))
+
+
 def home():
-    return os.path.join(os.path.expanduser(env("HOME", DATA_ROOT)), SKILL_FOLDER)
+    return os.path.join(data_root(), SKILL_FOLDER)
+
+
+def compass_log_dir():
+    return os.path.join(data_root(), "session-compass", "judge-log")
 
 
 def auto_dir():
@@ -210,16 +238,26 @@ def build_material(day):
                               codex_dir=env("CODEX_DIR", "~/.codex"),
                               exclude_session=[])
     stats = Counter()
-    sessions = day_sessions.collect(args, day, stats)
-    usage = day_sessions.day_usage(args, day, sessions, stats)
+    # Each record file is read once for both the conversations and the tokens.
+    read = day_sessions.read_day(args, day, stats)
+    sessions = day_sessions.collect(args, day, stats, read)
+    usage = day_sessions.day_usage(args, day, sessions, stats, read)
     info = {"stats": stats, "usage": usage, "sessions": sessions, "commits": 0}
     if not sessions:
         return None, info
     commit_map = day_sessions.commits(sessions, day, stats)
     info["commits"] = sum(total for total, _ in commit_map.values())
-    text = day_sessions.render(day, sessions, commit_map, stats, usage=usage)
+    goals = day_sessions.compass_goals(compass_log_dir(), day, sessions, stats)
+    text = day_sessions.render(day, sessions, commit_map, stats, usage=usage, goals=goals)
+    # Too long for one call: shorten AI replies step by step, then cut the end. A call that is too long
+    # would fail the same way on every retry and use up the attempts.
+    for ai_keep, question_keep in THIN_STEPS:
+        if len(text) <= MAX_MATERIAL_CHARS:
+            break
+        text = day_sessions.render(day, sessions, commit_map, stats, ai_keep, question_keep, usage, goals)
     if len(text) > MAX_MATERIAL_CHARS:
-        text = day_sessions.render(day, sessions, commit_map, stats, THIN_AI_KEEP, THIN_QUESTION_KEEP, usage)
+        info["cut"] = len(text) - MAX_MATERIAL_CHARS
+        text = text[:MAX_MATERIAL_CHARS] + "\n\n[material cut here: %d more characters were left out]\n" % info["cut"]
     return text, info
 
 
@@ -267,12 +305,26 @@ def frontmatter_lines(info, spent):
     return lines
 
 
+def counted_fields(info):
+    """Front matter fields the script knows exactly. The AI is asked to fill them, but it can count wrong."""
+    if not info["sessions"]:
+        return {}
+    f = day_sessions.facts(info["sessions"])
+    return {"sessions": f["sessions"], "user_turns": f["user_turns"], "short_turns": f["short_turns"], "until": f["last"]}
+
+
 def add_statistics(diary, info, spent, t):
     """Numbers go into the front matter and the statistics block before the closing line, so the next diary sees trends."""
     closing = re.search(r"^---[ \t]*$", diary[3:], flags=re.M)
     if diary.startswith("---") and closing:
         at = 3 + closing.start()
-        diary = diary[:at] + "\n".join(frontmatter_lines(info, spent)) + "\n" + diary[at:]
+        head = diary[:at]
+        for key, value in counted_fields(info).items():
+            line = "%s: %s" % (key, value)
+            head, n = re.subn(r"^%s:.*$" % key, line, head, count=1, flags=re.M)
+            if not n:
+                head = head.rstrip("\n") + "\n" + line + "\n"
+        diary = head + "\n".join(frontmatter_lines(info, spent)) + "\n" + diary[at:]
     block = statistics_block(info, spent, t)
     footers = list(re.finditer(r"^---[ \t]*$", diary, flags=re.M))
     # The last --- after the two front matter lines marks the footer.
@@ -473,23 +525,192 @@ class Busy(Exception):
     pass
 
 
+def pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
 class Lock:
+    """A folder holding the writer's process id. A lock left by a process that was killed (for example by a
+    hook time limit) is taken over at once instead of blocking the diary for hours."""
+
     def __enter__(self):
         os.makedirs(auto_dir(), exist_ok=True)
         self.path = os.path.join(auto_dir(), "lock")
-        try:
-            if time.time() - os.path.getmtime(self.path) > STALE_LOCK_SECONDS:
-                os.rmdir(self.path)
-        except OSError:
-            pass
+        if os.path.isdir(self.path) and self.stale():
+            shutil.rmtree(self.path, ignore_errors=True)
         try:
             os.mkdir(self.path)
         except FileExistsError:
             raise Busy()
+        with open(os.path.join(self.path, "pid"), "w") as fh:
+            fh.write(str(os.getpid()))
         return self
 
+    def stale(self):
+        try:
+            if time.time() - os.path.getmtime(self.path) > STALE_LOCK_SECONDS:
+                return True
+            with open(os.path.join(self.path, "pid")) as fh:
+                return not pid_alive(int(fh.read().strip()))
+        except (OSError, ValueError):
+            return False  # no pid yet: another writer is just starting
+
     def __exit__(self, *exc):
-        os.rmdir(self.path)
+        shutil.rmtree(self.path, ignore_errors=True)
+
+
+# ---------- Where the scripts come from ----------
+# The job runs a copy in the diary folder, because the plugin folder moves on every update. state.json keeps
+# `source`, the skill folder the copy was taken from, and `app_version`, that plugin's version.
+
+def skill_dir():
+    return os.path.dirname(script_dir())
+
+
+def app_dir():
+    return os.path.join(auto_dir(), "app")
+
+
+def plugins_dir():
+    return os.path.join(os.path.expanduser("~"), ".claude", "plugins")
+
+
+def is_inside(path, root):
+    path, root = os.path.realpath(path), os.path.realpath(root)
+    return path == root or path.startswith(root.rstrip(os.sep) + os.sep)
+
+
+def is_skill(path):
+    return bool(path) and os.path.isfile(os.path.join(path, "scripts", "diary_auto.py"))
+
+
+def installed_skill():
+    """(this skill in the plugin as Claude Code has it installed now, or None; whether the record could be read)."""
+    try:
+        with open(os.path.join(plugins_dir(), "installed_plugins.json"), encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None, False
+    plugins = data.get("plugins") if isinstance(data, dict) else None
+    if not isinstance(plugins, dict):
+        return None, False
+    for key, entries in plugins.items():
+        if key.split("@")[0] != PLUGIN_NAME:
+            continue
+        for entry in entries if isinstance(entries, list) else [entries]:
+            path = os.path.join(str((entry or {}).get("installPath") or ""), SKILL_IN_PLUGIN)
+            if isinstance(entry, dict) and is_skill(path):
+                return path, True
+    return None, True
+
+
+def current_source(state):
+    """The skill folder the job should follow now, or None when the plugin is gone.
+    Installed as a Claude Code plugin, Claude Code's record decides: an uninstalled plugin's folder can stay behind
+    in its cache. Anywhere else (a Codex skills folder, a checkout) the folder itself decides."""
+    src = state["source"]
+    if is_inside(src, plugins_dir()):
+        found, readable = installed_skill()
+        if readable:
+            return found
+    return src if is_skill(src) else None
+
+
+def tree_digest(root):
+    """A hash of the files the copy holds (tests and caches left out), to see whether a copy is current."""
+    h = hashlib.sha256()
+    for folder, dirs, files in os.walk(root):
+        dirs[:] = sorted(d for d in dirs if d != "__pycache__")
+        for name in sorted(files):
+            if name.startswith("test_") or name.endswith(".pyc"):
+                continue
+            path = os.path.join(folder, name)
+            h.update(os.path.relpath(path, root).encode("utf-8") + b"\0")
+            with open(path, "rb") as f:
+                h.update(f.read())
+    return h.hexdigest()
+
+
+def plugin_version(src):
+    try:
+        with open(os.path.join(src, "..", "..", ".claude-plugin", "plugin.json"), encoding="utf-8") as f:
+            version = json.load(f).get("version")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return version if isinstance(version, str) else None
+
+
+def copy_app(src=None):
+    """The plugin folder changes on update, so the job runs from a copy in the diary folder."""
+    src = src or skill_dir()
+    dest = app_dir()
+    if os.path.abspath(src) != os.path.abspath(dest):
+        shutil.rmtree(dest, ignore_errors=True)
+        shutil.copytree(src, dest, ignore=shutil.ignore_patterns("__pycache__", "test_*"))
+    return os.path.join(dest, "scripts", "diary_auto.py")
+
+
+def refresh_app(state, src):
+    """Copies the scripts from src for the job and remembers where they came from. The copy itself is no source."""
+    if is_inside(src, app_dir()):
+        return os.path.join(app_dir(), "scripts", "diary_auto.py")
+    script = copy_app(src)
+    state["source"] = os.path.abspath(src)
+    state.pop("source_missing_since", None)
+    version = plugin_version(src)
+    if version:
+        state["app_version"] = version
+    else:
+        state.pop("app_version", None)
+    return script
+
+
+def check_source(state):
+    """"ok", "updated", "missing" (gone for now: write nothing) or "gone" (gone twice, an hour apart)."""
+    if not state.get("source"):
+        # Turned on by a version that did not record it. The mod's sync, or turning it on again, records it.
+        return "ok"
+    src = current_source(state)
+    if src is None:
+        first = state.get("source_missing_since")
+        if not first:
+            state["source_missing_since"] = time.time()
+            save_state(state)
+            log("the plugin folder %s is gone; writing nothing until it is back. If it is still gone at the next "
+                "run, the automatic diary turns off" % state["source"])
+            return "missing"
+        return "gone" if time.time() - first >= GONE_AFTER_SECONDS else "missing"
+    if os.path.abspath(src) != state["source"] or tree_digest(src) != tree_digest(app_dir()):
+        refresh_app(state, src)
+        save_state(state)
+        log("the scripts were updated from %s (version %s)" % (src, state.get("app_version") or "?"))
+        return "updated"
+    if state.pop("source_missing_since", None):
+        save_state(state)
+    return "ok"
+
+
+def restart_tick():
+    """Runs the refreshed copy instead of the code already loaded, once. Only the job's own copy restarts."""
+    if not is_inside(script_dir(), app_dir()) or env("RESTARTED"):
+        return
+    os.environ[ENV_PREFIX + "RESTARTED"] = "1"
+    script = os.path.join(app_dir(), "scripts", "diary_auto.py")
+    os.execv(sys.executable, [sys.executable, script, "tick"])
+
+
+def stop_for_removed_plugin(state):
+    log("the plugin is no longer installed (%s is gone); turning the automatic diary off" % state.get("source"))
+    t = i18n.T(diary_lang(state))
+    send_notification(t("notify.title"), t("notify.removed"))
+    turn_off()
+    return 0
 
 
 # ---------- Commands ----------
@@ -497,6 +718,15 @@ class Lock:
 def tick(today=None):
     today = today or datetime.date.today()
     state = load_state()
+    if not state.get("since"):
+        return 0
+    found = check_source(state)
+    if found == "missing":
+        return 0
+    if found == "gone":
+        return stop_for_removed_plugin(state)
+    if found == "updated":
+        restart_tick()
     days = missing_dates(state, today)
     if not days:
         return 0
@@ -505,7 +735,9 @@ def tick(today=None):
             for day in days:
                 try:
                     diary, note, lang = make_diary(day, state)
-                except (RuntimeError, OSError, subprocess.SubprocessError) as e:
+                # Any error counts as a failed attempt. An unexpected one (a changed log format) would otherwise
+                # stop every later run at the same place without a failure diary or a notification.
+                except Exception as e:  # noqa: BLE001
                     attempts = state.setdefault("attempts", {})
                     attempts[day.isoformat()] = attempts.get(day.isoformat(), 0) + 1
                     log("%s failed %d/%d: %s" % (day, attempts[day.isoformat()], MAX_ATTEMPTS, e))
@@ -560,14 +792,19 @@ def write_one(day_text, force, lang=None):
     try:
         with Lock():
             diary, note, written_lang = make_diary(day, state)
+            # Today is not over. Writing "no conversations" now would close the day and skip its automatic diary.
+            if day == today and note == "no conversations":
+                say("No conversations yet today (%s); nothing was written." % day)
+                return NOTHING_TO_WRITE
             write_atomic(diary_path(day), diary)
             # The automatic run uses a copy. When it is on, bring the copy up to this version.
-            if is_loaded():
-                copy_app()
+            if state.get("since") and is_loaded():
+                refresh_app(state, skill_dir())
+                save_state(state)
     except Busy:
         say("Another diary is being written. Try again shortly.")
         return 1
-    except (RuntimeError, OSError, subprocess.SubprocessError) as e:
+    except Exception as e:  # noqa: BLE001 - any failure is reported, the old diary is kept
         notify(i18n.T(diary_lang(state)), "notify.failed_kept", day)
         say("Could not write it: %s" % e)
         return 1
@@ -635,24 +872,33 @@ def old_job_present():
     return job_loaded(OLD_LABEL) or os.path.exists(launch_agent(OLD_LABEL))
 
 
-def copy_app():
-    """The plugin folder changes on update, so the job runs from a copy in the diary folder."""
-    src = os.path.dirname(script_dir())
-    dest = os.path.join(auto_dir(), "app")
-    if os.path.abspath(src) != os.path.abspath(dest):
-        shutil.rmtree(dest, ignore_errors=True)
-        shutil.copytree(src, dest, ignore=shutil.ignore_patterns("__pycache__", "test_*"))
-    return os.path.join(dest, "scripts", "diary_auto.py")
-
-
-def refuse_old_job():
-    say("The older session diary from hack-users-for-llms is still on (launchd job %s). "
-        "Two diaries would read and send every session twice, so this one was not turned on." % OLD_LABEL)
-    say("Turn the old one off first, then turn this one on again. Its diaries are kept:")
+def refuse_old_job(why=None):
+    say(why or ("The older session diary from hack-users-for-llms is still on (launchd job %s). "
+                "Two diaries would read and send every session twice, so this one was not turned on." % OLD_LABEL))
+    say("Turn the old one off first, then run this again. Its diaries are kept:")
     print("  " + OLD_OFF_COMMAND)
     say("If that script is gone, remove the old job by hand:")
     print("  launchctl bootout %s/%s; rm -f %s" % (domain(), OLD_LABEL, launch_agent(OLD_LABEL)))
     return 2
+
+
+def pause(seconds):
+    time.sleep(seconds)
+
+
+def bootstrap():
+    """launchctl bootstrap, tried up to three times. Right after a bootout launchd can still hold the old job and
+    answer "Bootstrap failed: 5: Input/output error"; a moment later the same call works."""
+    done = None
+    for attempt in range(BOOTSTRAP_TRIES):
+        done = run_launchd("bootstrap", domain(), plist_path())
+        if done.returncode == 0:
+            return done
+        log("bootstrap attempt %d failed: %s" % (attempt + 1, (done.stderr or "").strip()))
+        if attempt + 1 < BOOTSTRAP_TRIES:
+            run_launchd("bootout", "%s/%s" % (domain(), label()))
+            pause(attempt + 1)
+    return done
 
 
 def turn_on(model, lang=None):
@@ -673,16 +919,25 @@ def turn_on(model, lang=None):
     if not (was_on and state.get("since")):
         state["since"] = datetime.date.today().isoformat()
     os.makedirs(logs_dir(), exist_ok=True)
+    script = refresh_app(state, skill_dir())
     save_state(state)
-    script = copy_app()
     os.makedirs(os.path.dirname(plist_path()), exist_ok=True)
     if was_on:
         run_launchd("bootout", "%s/%s" % (domain(), label()))
     with open(plist_path(), "wb") as f:
         plistlib.dump(plist_data(sys.executable, script, state["runner"]), f)
-    done = run_launchd("bootstrap", domain(), plist_path())
+    done = bootstrap()
     if done.returncode != 0:
-        say("Could not turn it on: %s" % done.stderr.strip())
+        # Leave nothing half on: no plist that loads at the next login, no start date for a job that is not there.
+        try:
+            os.unlink(plist_path())
+        except OSError:
+            pass
+        if not was_on:
+            state.pop("since", None)
+            save_state(state)
+        say("Could not turn it on after %d tries: %s" % (BOOTSTRAP_TRIES, (done.stderr or "").strip()))
+        say("It is off. Try again in a minute; if it keeps failing, log out and back in, then turn it on again.")
         return 1
     say("Turned on. Diaries are written from %s into %s" % (state["since"], home()))
     say("Writer: %s (%s). Language: %s. Today's diary is written at midnight; use write to write it now." % (
@@ -691,17 +946,91 @@ def turn_on(model, lang=None):
 
 
 def turn_off():
-    if is_loaded():
-        run_launchd("bootout", "%s/%s" % (domain(), label()))
+    # The job itself may be the caller (a removed plugin), and bootout stops it: everything else goes first.
     try:
         os.unlink(plist_path())
     except OSError:
         pass
     state = load_state()
     state.pop("since", None)
+    state.pop("source_missing_since", None)
     if state:
         save_state(state)
     say("Turned off. The diaries are kept in %s" % home())
+    sys.stdout.flush()
+    if is_loaded():
+        run_launchd("bootout", "%s/%s" % (domain(), label()))
+    return 0
+
+
+def sync():
+    """Points the job at this copy of the scripts. The Claude Code mod runs it when the plugin is newer than the copy."""
+    state = load_state()
+    if not state.get("since"):
+        say("The automatic diary is off; there is no copy to update.")
+        return 0
+    if is_inside(skill_dir(), app_dir()):
+        say("Run sync from the plugin's scripts, not from the copy.")
+        return 2
+    refresh_app(state, skill_dir())
+    save_state(state)
+    log("synced from %s (version %s)" % (skill_dir(), state.get("app_version") or "?"))
+    say("The automatic diary now runs the scripts from %s (version %s)." % (skill_dir(), state.get("app_version") or "?"))
+    return 0
+
+
+def migrate(dry_run=False):
+    """Copies what the older hack-users-for-llms plugin left: diaries, playbook files, the diary language and model.
+    Nothing is overwritten and nothing is deleted. Its judge logs are left out: they mix in another plugin's lines."""
+    old_diary = os.path.expanduser(OLD_DIARY_DIR)
+    old_playbook = os.path.expanduser(OLD_PLAYBOOK_DIR)
+    if not os.path.isdir(old_diary) and not os.path.isdir(old_playbook):
+        say("Nothing to copy: neither %s nor %s exists." % (OLD_DIARY_DIR, OLD_PLAYBOOK_DIR))
+        return 0
+    if not dry_run and old_job_present():
+        return refuse_old_job("The older session diary from hack-users-for-llms is still on (launchd job %s), so it "
+                              "could write more diaries while they are copied. Nothing was copied." % OLD_LABEL)
+    pairs = ((old_diary, home(), DIARY_NAME),
+             (old_playbook, os.path.join(data_root(), "session-playbook"), re.compile(r"[^.].*\.md")))
+    copy, kept = [], []
+    for src_dir, dest_dir, pattern in pairs:
+        try:
+            names = sorted(os.listdir(src_dir))
+        except OSError:
+            continue
+        for name in names:
+            src = os.path.join(src_dir, name)
+            if pattern.fullmatch(name) and os.path.isfile(src):
+                dest = os.path.join(dest_dir, name)
+                (kept if os.path.exists(dest) else copy).append((src, dest))
+    try:
+        with open(os.path.join(old_diary, AUTO_FOLDER, "state.json"), encoding="utf-8") as f:
+            old_state = json.load(f)
+    except (OSError, ValueError):
+        old_state = {}
+    state = load_state()
+    settings = {k: old_state[k] for k in ("lang", "model")
+                if isinstance(old_state, dict) and old_state.get(k) and not state.get(k)
+                and (k != "lang" or i18n.is_known(old_state[k]))}
+    verb = "Would copy" if dry_run else "Copied"
+    if not dry_run:
+        for src, dest in copy:
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            shutil.copy2(src, dest)
+        if settings:
+            state.update(settings)
+            save_state(state)
+        log("migrated %d files from hack-users-for-llms" % len(copy))
+    say("%s %d files: %d diaries, %d playbook files." % (
+        verb, len(copy), sum(1 for _, d in copy if d.startswith(home() + os.sep)),
+        sum(1 for _, d in copy if not d.startswith(home() + os.sep))))
+    for src, dest in copy:
+        print("  %s -> %s" % (src, dest))
+    if kept:
+        say("Left as they are, already here: %s" % ", ".join(os.path.basename(d) for _, d in kept))
+    if settings:
+        say("%s settings: %s" % (verb, ", ".join("%s=%s" % kv for kv in sorted(settings.items()))))
+    say("The old folders are not changed. The old judge logs in ~/.hack-mode are not copied.")
     return 0
 
 
@@ -717,6 +1046,10 @@ def status(as_json=False):
     if state.get("since"):
         print("Writing since: %s" % state["since"])
         print("Writer: %s (%s)" % (state.get("runner_kind"), state.get("model") or "default model"))
+        if state.get("source"):
+            print("Scripts: version %s, copied from %s" % (state.get("app_version") or "?", state["source"]))
+        if state.get("source_missing_since"):
+            print("The plugin folder is gone. Nothing is written; if it stays gone, the diary turns itself off.")
     print("Language: %s" % (state.get("lang") or "follows the sessions"))
     days = missing_dates(state, datetime.date.today())
     print("Missing dates: %s" % (", ".join(d.isoformat() for d in days) or "none"))
@@ -747,7 +1080,13 @@ def main(argv=None):
     write.add_argument("--date", help="YYYY-MM-DD. Today when left out")
     write.add_argument("--force", action="store_true")
     write.add_argument("--lang", help="language of the diaries; kept for later diaries too")
+    sub.add_parser("sync")
+    sub.add_parser("migrate").add_argument("--dry-run", action="store_true", help="only list what would be copied")
     args = ap.parse_args(argv)
+    if args.command == "sync":
+        return sync()
+    if args.command == "migrate":
+        return migrate(args.dry_run)
     if args.command == "on":
         return turn_on(args.model, args.lang)
     if args.command == "off":
@@ -760,4 +1099,7 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    # Stopped from outside (a hook time limit, logout): leave as SystemExit, so subprocess.run kills the
+    # claude -p it started and the lock is released, instead of an orphan that keeps spending.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
     sys.exit(main())
