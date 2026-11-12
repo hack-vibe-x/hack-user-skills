@@ -1,5 +1,5 @@
 {
-  "description": "Redirects decisions to a web page (only where askHook is on in .hus-visual-decision/config.json) and writes finished decisions to documents (only when an answer file exists). Does nothing otherwise.",
+  "description": "Sends questions Claude was about to ask in the terminal (AskUserQuestion) to the visual-decision web page, and at session start points Claude to earlier decisions in .hus-visual-decision/decisions/ when there are any.",
   "hooks": {
     "PreToolUse": [
       {
@@ -14,14 +14,14 @@
         ]
       }
     ],
-    "Stop": [
+    "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/record-hook.mjs"],
-            "timeout": 10
+            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-hook.mjs"],
+            "timeout": 5
           }
         ]
       }

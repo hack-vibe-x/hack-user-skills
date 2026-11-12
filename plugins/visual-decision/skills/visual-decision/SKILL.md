@@ -1,82 +1,63 @@
 ---
 name: visual-decision
-description: When you need the user to make a decision, ask it in a local web page where every option has a visual and rows that show how the options differ, then continue with their answers. Finished decisions are saved as documents. Use when there is something to choose (screen designs, copy, structure, approvals before hard-to-undo actions, scope, numbers), when the user says "ask me in the web UI", "open a decision page", "웹으로 물어봐", "결정 화면 띄워줘", or when a hook tells you to use this skill instead of AskUserQuestion.
+description: Asks the user a question in a local web page instead of terminal text. Every option has a visual and rows that show how the options differ; the person answers and Claude continues with the answers. Use when there is something for the user to choose (screen designs, copy, structure, approvals before hard-to-undo actions, scope, numbers), when the user says "ask me in the web UI", "open a decision page", "웹으로 물어봐", "결정 화면 띄워줘", or when the hook blocks AskUserQuestion and points here. Also when the user wants web questions off (or back on) in this project ("turn off web questions here", "이 프로젝트에서는 웹으로 묻지 마").
 license: Apache-2.0
 ---
 
-# Ask decisions in a web page
+# Ask in a web page
 
-Do not ask a decision as terminal text. Open a local web page instead. The person sees one question at a time, compares options by their pictures, and submits everything once.
+Do not ask a choice as terminal text. Open a local web page: the person sees one question at a time, compares options by their pictures, and submits all answers at once.
 
-## Three rules
+If no page can be opened on this computer (`claude -p`, a remote or SSH session), or the question only checks what the person meant, ask in plain text instead.
 
-1. **Put a visual on every option.** Screen design: a mock. Structure or flow: a diagram. Copy: the text placed where it will appear. An option with text only is the last resort.
-2. **Keep it short.** One-line question, one-sentence context. Fold long explanations into `more`. Spell out internal jargon and file names the person may not know.
-3. **Make the differences visible.** Compare every option on the same rows (`dims`). Use 2–4 rows, short phrases, `good` where an option is better and `bad` where it is worse. Things that are the same across options are not rows; put them in one `same` line.
+## Rules for the questions
 
-## Language
+1. **A visual on every option.** Screen design: a mock. Structure or flow: a diagram. Copy: the text where it will appear.
+2. **Short.** One-line question, one-sentence context. Longer background goes in `more`.
+3. **Differences visible.** Compare options on the same 2–4 rows (`dims`), with `good` / `bad` marks. What is the same for all goes in one `same` line.
+4. **2–4 options.** Mark the one you recommend `rec: true`.
+5. **One batch.** Put the decisions you will need soon in one file, not only the one that blocks you now.
+6. **Do not ask again what was decided.** Earlier answers are kept in `.hus-visual-decision/decisions/` at the project root. Look there first and follow them unless the user wants to change one.
 
-Write the questions in the language the user is using. Set `"lang"` at the top of the question file to match (`"en"`, `"ko"`); the page and the record document then use that language. If `lang` is missing, `.hus-visual-decision/config.json` `lang` is used, then English. To add a language, copy `locales/en.json` to `locales/<code>.json` and translate it.
+Write in the user's language and set `"lang"` (`"en"`, `"ko"`).
 
-## Procedure
+## Steps
 
-1. **Collect what to ask.** Include decisions you will need soon, not only the one that blocks you now, in one batch. Do not ask what you can check yourself in the code or docs, or what has a clear convention.
-2. **Write the question file** at `<working dir>/.hus-visual-decision/pending/<batch-name>.json`. Read [references/schema.md](references/schema.md) and follow it. The batch name is a short descriptive slug (e.g. `lead-list-layout`); it becomes the record file name.
-   - Mark one option `rec: true` if you recommend it. The reason should show in `when` or in the difference rows.
-   - Approval before a hard-to-undo action (deploy, delete, sending outside, pushing to a shared branch): add `"noDelegate": true` to that decision. The page then hides "Decide for me", so the person has to pick or send it back.
-   - Asking again what an earlier batch sent back: add `"supersedes": "<earlier batch id>"` at the top. The page drops answers kept for any other version of a file, and the new record links to the old one.
-   - 2–4 options. If there are more, cut them first.
-   - Need a design? Attach it as `html` (a small HTML snippet) or `image` (a screenshot file in the working dir or the scratchpad).
-3. **Check, then open the page.** First check the file in the foreground; it exits at once and lists anything to fix (exit 0 = valid):
+1. **Write the question file** in a temp folder, e.g. `/tmp/hus-visual-decision/<short-name>.json`. Follow [references/schema.md](references/schema.md).
+   - Approval before a hard-to-undo action (deploy, delete, sending outside, pushing to a shared branch): add `"noDelegate": true` and `"ownAnswer": false` to that decision.
+2. **Check it** (foreground, exits at once; 0 = valid, 2 = lists what to fix):
 
    ```bash
-   node <this skill's folder>/scripts/serve.mjs .hus-visual-decision/pending/<batch-name>.json --check
+   node <this skill's folder>/scripts/serve.mjs <file> --check
    ```
 
-   Then open it from the working directory, in the background (the person may take a while):
+3. **Open it** in the background (the person may take a while):
 
    ```bash
-   node <this skill's folder>/scripts/serve.mjs .hus-visual-decision/pending/<batch-name>.json
+   node <this skill's folder>/scripts/serve.mjs <file>
    ```
 
-   The browser opens, and when the person presses Submit the script exits and prints their answers. The top-level `id` becomes part of file names, so use only letters, digits, `.`, `_` and `-`.
+   Tell the user in one line that the page is open, with the address from the first stderr line (`Decision page: http://127.0.0.1:…`). Work on what does not depend on the answers; do not guess them.
+4. **Read the result** when the script exits:
 
-   The script does not wait forever. It stops after `--timeout <minutes>` (default 60, `0` = no limit), when the person presses Cancel on the page, or when the page has been closed for `--grace <seconds>` (default 60; a reload inside that time is fine).
-4. **Wait.** Tell the user in one line that the page is open. Work on anything that does not depend on the answers. Do not guess the answers and proceed.
-5. **Read the result and continue.** The exit code and the first line of stdout say how it ended:
+   | Exit | What to do |
+   |---|---|
+   | 0 | `Decisions are done. Record: …` and one line per question id. Follow each answer (and its `additional comments`) |
+   | 3 | The person cancelled. Stop the work that depends on it and say so in one line |
+   | 4, 5 | Timed out or page closed. Say so and offer to open the same file again; the browser usually keeps the choices made so far |
+   | 2, 1 | Fix the file (2) or report the error (1) |
 
-   | Exit | First line | What to do |
-   |---|---|---|
-   | 0 | `Decisions are done. Answer file: …` | Read the answers below and continue |
-   | 3 | `Decisions cancelled. …` | The person chose not to answer. Stop the work that depends on these decisions, say so in one line, and do not open the page again unless they ask |
-   | 4 | `Decisions timed out. …` | Tell the user in one line and offer to open the same file again. Choices made so far come back in the browser |
-   | 5 | `Decisions not submitted. The page was closed …` | Same as 4 |
-   | 2 | (stderr) the fixes the file needs | Fix the question file and open it again |
-   | 1 | (stderr) a server error | Report it; do not guess the answers |
+   Lines after exit 0:
+   - `"…"` / `[…]` / `{…}` / a number: the chosen answer.
+   - `own answer (none of the options)`: the person typed what they want instead. Follow it.
+   - `sent back (info)` / `sent back (options)`: find out more or write new options, then ask only that question again in a new file.
+   - `sent back (delegate)`: go with the answer the line names (or choose yourself if it says there is none), and tell the user what you chose.
 
-   After exit 0 the output has one line per question id.
-   - A chosen value: follow it. If there are additional comments, apply them.
-   - `sent back (info)`: find out more, then open only that question again.
-   - `sent back (options)`: write new options that fit the stated reason and open only that question again.
-   - `sent back (delegate)`: go with the recommended option and tell the user what you chose.
-6. **The hook writes the record.** Answers pile up in `.hus-visual-decision/answers/`. When the turn ends, the Stop hook writes `docs/decisions/<date>-<batch-name>.md` and adds one line to `docs/decisions/README.md`. Without hooks, run it yourself:
+## Off in one project
 
-   ```bash
-   node <this skill's folder>/../../hooks/record-hook.mjs --cwd .
-   ```
-
-## Hooks
-
-| Hook | What it does | Turned on by |
-|---|---|---|
-| PreToolUse (AskUserQuestion) | Blocks the terminal question and redirects it to this skill | `{"askHook": true}` in `.hus-visual-decision/config.json` |
-| Stop | Writes finished decisions as documents | Only acts when an answer file exists |
-
-`recordDir` in `.hus-visual-decision/config.json` changes the record folder (default `docs/decisions`). If the user asks to receive decisions in the web UI from now on, turn `askHook` on in that file; if they ask to turn it off, turn it off.
+If the user wants questions in the terminal again in this project, run `claude plugin disable hack-user-skills-visual-decision@hack-user-skills --scope local` there (`enable` with the same options turns it back on). It writes only this project's `.claude/settings.local.json`; other projects stay on. Tell the user it applies from the next session.
 
 ## Do not
 
 - Call AskUserQuestion from inside this skill.
-- Treat `delegate` as approval for a hard-to-undo action (deploy, delete, sending outside). Mark those `noDelegate`; the person must pick an answer themselves.
-- Treat a cancel, a time-out or a closed page as an answer. Nothing was decided.
-- Edit answer files or record documents by hand.
+- Treat `delegate`, a cancel, a time-out or a closed page as approval for a hard-to-undo action.

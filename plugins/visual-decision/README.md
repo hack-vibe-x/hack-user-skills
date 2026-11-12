@@ -1,6 +1,6 @@
 # hack-user-skills-visual-decision
 
-A Claude Code plugin that asks you decisions in a local web page instead of in terminal text. Every option comes with a visual and rows that show how the options differ, and you submit all your answers at once. Finished decisions are saved as documents in your project.
+A Claude Code plugin: when Claude has a question for you, it asks in a local web page instead of terminal text. Every option comes with a visual and rows that show how the options differ, and you submit all your answers at once.
 
 ## Install
 
@@ -9,50 +9,46 @@ A Claude Code plugin that asks you decisions in a local web page instead of in t
 /plugin install hack-user-skills-visual-decision@hack-user-skills
 ```
 
-Requires Node.js 18 or later. There are no packages to install. The `hack-user-skills` marketplace holds other plugins too; only the ones you install run.
+Requires Node.js 18 or later. There are no packages to install.
 
-## Use
+## How it works
 
-- Say "ask me in the web UI" or "open a decision page", or run `/hack-user-skills-visual-decision:visual-decision`. The skill writes a question file and opens the page.
-- To receive every question in the web UI in a project, put `{"askHook": true}` in `.hus-visual-decision/config.json`. It is off by default.
-- Press **Submit** and your answers go to Claude. When the turn ends, a record is written to `docs/decisions/<date>-<name>.md`. Change the folder with `recordDir` in the same config file.
-- The page and the record follow the question file's `"lang"` (`en` or `ko`), then `lang` in `.hus-visual-decision/config.json`, then English. To add a language, copy `skills/visual-decision/locales/en.json` to `<code>.json` and translate it.
+1. Claude is about to ask you something (AskUserQuestion). The hook stops that and sends Claude to the skill. You can also say "ask me in the web UI".
+2. The skill writes the question to a temp file and opens a page on `127.0.0.1`.
+3. You pick, type your own answer, or send a question back ("I need more information", "None of these options fit", "Decide for me"). Then press **Submit**.
+4. Claude reads your answers and continues. The answers are also kept in `.hus-visual-decision/decisions/<date>-<name>.md` at the project root, so you and Claude can look back at what was decided.
+5. In later sessions, Claude is told at the start that these records exist, and reads the one that covers what it is about to work on.
+
+It is on in every project once installed. To turn it off in one project only, run this in that project (it writes `.claude/settings.local.json` there; other projects stay on):
+
+```
+claude plugin disable hack-user-skills-visual-decision@hack-user-skills --scope local
+```
+
+Turn it back on with `enable` and the same options. Or just tell Claude "turn off web questions in this project".
 
 ## What is in it
 
 | Path | Contents |
 |---|---|
-| `skills/visual-decision/` | The skill, the decision page, the server, the question file format, and the language files |
-| `hooks/` | A hook that redirects questions to the web page and a hook that writes the records |
-| `samples/` | `decisions.json` (English) and `decisions.ko.json` (Korean) with all five decision types |
-| `tests/` | Tests for the question check, the answer clean-up, the records and the server. Run `node --test tests/*.test.mjs` |
+| `hooks/` | One hook sends AskUserQuestion to the skill; another, at session start, tells Claude that `.hus-visual-decision/decisions/` exists (only when it does) |
+| `skills/visual-decision/` | The skill, the page, the server, the question file format, and the language files (`en`, `ko`) |
+| `samples/` | Questions of all five types, in English and Korean |
+| `tests/` | `node --test tests/visual-decision.test.mjs` |
 
-Check a question file without opening a page: add `--check`.
+Try the sample from this folder: `node skills/visual-decision/scripts/serve.mjs samples/decisions.json --keep`
 
-The server does not wait forever. It stops when you press **Cancel these decisions** on the page, when the page has been closed for a minute (`--grace <seconds>`), or after an hour without a submit (`--timeout <minutes>`, `0` for no limit). Nothing is sent to Claude in those cases, and your choices so far stay in the browser for the next time the page opens.
-
-Try the sample from this folder (`plugins/visual-decision/`): `node skills/visual-decision/scripts/serve.mjs samples/decisions.json --keep`
-
-The server listens on 127.0.0.1 only. Answers and records stay in your project folder.
+The page stops waiting when you press **Cancel these decisions**, when it has been closed for a minute, or after an hour without a submit. Choices made so far stay in your browser for the next time.
 
 ## What it creates
 
 | Where | What | Remove |
 |---|---|---|
-| `.hus-visual-decision/` in your project | `config.json` (settings), `pending/` (question files), `answers/` (answer files). Add it to `.gitignore` | Delete the folder |
-| `docs/decisions/` in your project | Decision records and an index `README.md`. Change it with `recordDir` | Your documents; keep or delete them |
-| Browser storage for `127.0.0.1:<port>` | Answers in progress, under `hus-visual-decision:<question id>`, with a hash of the question file. Kept per port, so they come back only on the same port, and only for the same file. Removed on submit | Clear site data for `127.0.0.1` |
+| A temp folder, e.g. `/tmp/hus-visual-decision/` | The question files Claude writes | The system clears it, or delete it |
+| Browser storage for `127.0.0.1:<port>` | Choices in progress, under `hus-visual-decision:<question file name>`. Removed on submit | Clear site data for `127.0.0.1` |
+| `.hus-visual-decision/decisions/` at the project root (the git root, or the working folder) | One Markdown file per submitted batch. Commit it to share decisions with your team, or add `.hus-visual-decision/` to `.gitignore` to keep them on your machine | Your documents; keep or delete them |
 
-Before 0.3.0 the project folder was `.decisions/`. Move it with `mv .decisions .hus-visual-decision`.
-
-Before 0.4.0 this plugin had its own marketplace, `hack-user-skills-visual-decision`. If you installed it from there, reinstall from the shared one:
-
-```
-/plugin uninstall hack-user-skills-visual-decision@hack-user-skills-visual-decision
-/plugin marketplace remove hack-user-skills-visual-decision
-/plugin marketplace add hack-vibe-x/hack-user-skills
-/plugin install hack-user-skills-visual-decision@hack-user-skills
-```
+Before 0.7.0 records went to `docs/decisions/`, and `.hus-visual-decision/` also held `config.json`, `pending/` and `answers/`. Those are no longer used: move old records with `mkdir -p .hus-visual-decision && mv docs/decisions .hus-visual-decision/decisions`, and delete the rest.
 
 ## License
 
@@ -62,7 +58,7 @@ Apache License 2.0. See `LICENSE` and `NOTICE`.
 
 # 한국어
 
-결정이 필요할 때 터미널 글 대신 로컬 웹 화면으로 묻는 Claude Code 플러그인입니다. 선택지마다 그림과 차이 항목이 붙고, 다 고르면 한 번에 넘깁니다. 끝난 결정은 프로젝트 안에 문서로 쌓입니다.
+Claude가 물어볼 것이 생기면 터미널 글 대신 로컬 웹 화면으로 묻는 Claude Code 플러그인입니다. 선택지마다 그림과 차이 항목이 붙고, 다 고르면 한 번에 넘깁니다.
 
 ## 설치
 
@@ -71,50 +67,46 @@ Apache License 2.0. See `LICENSE` and `NOTICE`.
 /plugin install hack-user-skills-visual-decision@hack-user-skills
 ```
 
-Node.js 18 이상이 필요합니다. 따로 깔 패키지는 없습니다. `hack-user-skills` 마켓플레이스에는 다른 플러그인도 있지만, 설치한 것만 동작합니다.
+Node.js 18 이상이 필요합니다. 따로 깔 패키지는 없습니다.
 
-## 쓰는 법
+## 동작
 
-- "웹으로 물어봐", "결정 화면 띄워줘"라고 하거나 `/hack-user-skills-visual-decision:visual-decision`을 부르면 스킬이 질문 파일을 만들고 화면을 띄웁니다.
-- 프로젝트에서 모든 질문을 웹으로 받으려면 `.hus-visual-decision/config.json`에 `{"askHook": true}`를 둡니다. 기본은 꺼져 있습니다.
-- **이대로 진행**을 누르면 답이 Claude에게 넘어가고, 턴이 끝날 때 `docs/decisions/<날짜>-<이름>.md`에 기록이 쌓입니다. 기록 폴더는 같은 설정 파일의 `recordDir`로 바꿉니다.
-- 화면과 기록의 언어는 질문 파일의 `"lang"`(`en` 또는 `ko`), 없으면 `.hus-visual-decision/config.json`의 `lang`, 그것도 없으면 영어입니다. 언어를 더하려면 `skills/visual-decision/locales/en.json`을 `<코드>.json`으로 복사해 번역하면 됩니다.
+1. Claude가 질문하려고 하면(AskUserQuestion) 훅이 그 질문을 막고 스킬로 보냅니다. "웹으로 물어봐"라고 해도 됩니다.
+2. 스킬이 질문을 임시 파일로 쓰고 `127.0.0.1`에 화면을 띄웁니다.
+3. 답을 고르거나 직접 적고, 아니면 질문을 돌려보냅니다("정보가 부족해요", "마음에 드는 선택지가 없어요", "알아서 정해 주세요"). 그리고 **이대로 진행**을 누릅니다.
+4. Claude가 답을 읽고 이어서 일합니다. 답은 프로젝트 루트의 `.hus-visual-decision/decisions/<날짜>-<이름>.md`에도 남아, 나중에 무엇을 정했는지 다시 볼 수 있습니다.
+5. 다음 세션부터는 시작할 때 Claude에게 이 기록이 있다고 알려 주고, Claude는 하려는 일에 해당하는 기록을 읽습니다.
+
+설치하면 모든 프로젝트에서 켜집니다. 한 프로젝트에서만 끄려면 그 프로젝트에서 다음을 실행합니다. 그 프로젝트의 `.claude/settings.local.json`에만 적히고, 다른 프로젝트는 그대로 켜져 있습니다.
+
+```
+claude plugin disable hack-user-skills-visual-decision@hack-user-skills --scope local
+```
+
+다시 켜려면 같은 옵션으로 `enable`을 실행합니다. Claude에게 "이 프로젝트에서는 웹으로 묻지 마"라고 해도 됩니다.
 
 ## 들어 있는 것
 
 | 위치 | 내용 |
 |---|---|
-| `skills/visual-decision/` | 스킬 본문, 결정 화면, 서버, 질문 파일 형식, 언어 파일 |
-| `hooks/` | 질문을 웹으로 돌리는 훅, 기록을 쌓는 훅 |
-| `samples/` | 다섯 가지 결정 유형이 모두 들어 있는 `decisions.json`(영어)과 `decisions.ko.json`(한국어) |
-| `tests/` | 질문 검사, 답 정리, 기록, 서버 테스트. `node --test tests/*.test.mjs`로 돌립니다 |
+| `hooks/` | AskUserQuestion을 스킬로 보내는 훅, 세션을 시작할 때 `.hus-visual-decision/decisions/`가 있음을 Claude에게 알리는 훅(폴더가 있을 때만) |
+| `skills/visual-decision/` | 스킬 본문, 화면, 서버, 질문 파일 형식, 언어 파일(`en`, `ko`) |
+| `samples/` | 다섯 가지 질문 유형이 모두 든 영어·한국어 샘플 |
+| `tests/` | `node --test tests/visual-decision.test.mjs` |
 
-화면을 띄우지 않고 질문 파일만 검사하려면 `--check`를 붙입니다.
+샘플 보기(이 폴더에서): `node skills/visual-decision/scripts/serve.mjs samples/decisions.ko.json --keep`
 
-서버는 끝없이 기다리지 않습니다. 화면의 **결정 그만두기**를 누르거나, 화면을 닫고 1분이 지나거나(`--grace <초>`), 제출 없이 1시간이 지나면(`--timeout <분>`, `0`이면 제한 없음) 멈춥니다. 이때 Claude에게 넘어가는 답은 없고, 지금까지 고른 것은 브라우저에 남아 다음에 화면을 열면 되살아납니다.
-
-샘플 보기(이 폴더 `plugins/visual-decision/`에서): `node skills/visual-decision/scripts/serve.mjs samples/decisions.ko.json --keep`
-
-서버는 이 컴퓨터(127.0.0.1)에서만 듣고, 답과 기록은 프로젝트 폴더 밖으로 나가지 않습니다.
+화면에서 **결정 그만두기**를 누르거나, 화면을 닫고 1분이 지나거나, 제출 없이 1시간이 지나면 서버가 멈춥니다. 고르던 답은 브라우저에 남아 다음에 다시 열면 되살아납니다.
 
 ## 만드는 것
 
 | 위치 | 내용 | 지우는 법 |
 |---|---|---|
-| 프로젝트의 `.hus-visual-decision/` | `config.json`(설정), `pending/`(질문 파일), `answers/`(답 파일). `.gitignore`에 넣어 두세요 | 폴더를 지웁니다 |
-| 프로젝트의 `docs/decisions/` | 결정 기록과 목록 `README.md`. `recordDir`로 바꿉니다 | 사용자 문서입니다. 두거나 지웁니다 |
-| `127.0.0.1:<포트>`의 브라우저 저장소 | 작성 중인 답과 질문 파일의 해시. 키는 `hus-visual-decision:<질문 id>`. 포트마다 따로 저장되어 같은 포트, 같은 질문 파일에서만 되살아납니다. 제출하면 지워집니다 | `127.0.0.1`의 사이트 데이터를 지웁니다 |
+| 임시 폴더(예: `/tmp/hus-visual-decision/`) | Claude가 쓰는 질문 파일 | 시스템이 비우거나, 직접 지웁니다 |
+| `127.0.0.1:<포트>`의 브라우저 저장소 | 고르던 답. 키는 `hus-visual-decision:<질문 파일 이름>`. 제출하면 지워집니다 | `127.0.0.1`의 사이트 데이터를 지웁니다 |
+| 프로젝트 루트(git 루트, 없으면 작업 폴더)의 `.hus-visual-decision/decisions/` | 제출한 묶음마다 마크다운 파일 하나. 팀과 결정을 나누려면 커밋하고, 이 컴퓨터에만 두려면 `.hus-visual-decision/`을 `.gitignore`에 넣습니다 | 사용자 문서입니다. 두거나 지웁니다 |
 
-0.3.0 전에는 프로젝트 폴더가 `.decisions/`였습니다. `mv .decisions .hus-visual-decision`로 옮기면 됩니다.
-
-0.4.0 전에는 이 플러그인만 담은 마켓플레이스 `hack-user-skills-visual-decision`이 따로 있었습니다. 거기서 설치했다면 함께 쓰는 마켓플레이스에서 다시 설치합니다.
-
-```
-/plugin uninstall hack-user-skills-visual-decision@hack-user-skills-visual-decision
-/plugin marketplace remove hack-user-skills-visual-decision
-/plugin marketplace add hack-vibe-x/hack-user-skills
-/plugin install hack-user-skills-visual-decision@hack-user-skills
-```
+0.7.0 전에는 기록이 `docs/decisions/`에 쌓였고, `.hus-visual-decision/`에는 `config.json`, `pending/`, `answers/`도 있었습니다. 이것들은 이제 쓰지 않습니다. 예전 기록은 `mkdir -p .hus-visual-decision && mv docs/decisions .hus-visual-decision/decisions`로 옮기고, 나머지는 지우면 됩니다.
 
 ## 라이선스
 

@@ -15,7 +15,7 @@ Run `/plugin` to browse the list. To get new plugins and versions later: `/plugi
 
 | Plugin | What it does |
 |---|---|
-| [hack-user-skills-visual-decision](plugins/visual-decision/) | Asks decisions in a local web page with visuals and clear differences, then records finished decisions as documents |
+| [hack-user-skills-visual-decision](plugins/visual-decision/) | Questions Claude would ask in the terminal are asked in a local web page instead, with a visual for every option and the differences side by side. Answers are kept in `.hus-visual-decision/decisions/` |
 | [hack-user-skills-criteria-gap](plugins/criteria-gap/) | Records the judgement criteria you agree on with an AI, and finds where work was handed over without them |
 | [hack-user-skills-session-coach](plugins/session-coach/) | A daily diary written from yesterday's AI sessions, and a playbook of know-how pulled from sessions you pick |
 
@@ -57,7 +57,7 @@ hack-vibe-x가 만든 Claude Code 스킬과 훅입니다. 모든 플러그인이
 
 | 플러그인 | 하는 일 |
 |---|---|
-| [hack-user-skills-visual-decision](plugins/visual-decision/) | 결정이 필요할 때 그림과 차이 항목이 붙은 로컬 웹 화면으로 묻고, 끝난 결정을 문서로 남깁니다 |
+| [hack-user-skills-visual-decision](plugins/visual-decision/) | Claude가 터미널에서 물으려던 질문을 로컬 웹 화면으로 묻습니다. 선택지마다 그림이 붙고 차이가 나란히 보이며, 답은 `.hus-visual-decision/decisions/`에 남습니다 |
 | [hack-user-skills-criteria-gap](plugins/criteria-gap/) | AI와 합의한 판단 기준을 기록하고, 기준 없이 맡긴 곳을 찾아 묻습니다 |
 | [hack-user-skills-session-coach](plugins/session-coach/) | 전날의 AI 세션으로 쓰는 일기와, 고른 세션에서 뽑는 업무 노하우 |
 

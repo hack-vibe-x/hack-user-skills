@@ -310,6 +310,7 @@
       "tag": "실행 승인",
       "short": "main에 올리기",
       "noDelegate": true,
+      "ownAnswer": false,
       "q": "작업 브랜치를 어디까지 올릴까요?",
       "ctx": "올리면 되돌리기 번거로운 작업이라 실행 전에 여쭤요.",
       "facts": [

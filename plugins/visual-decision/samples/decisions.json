@@ -51,7 +51,7 @@
       ]
     },
     {
-      "id": "push", "type": "pick", "tag": "Approval", "short": "Push to main", "noDelegate": true,
+      "id": "push", "type": "pick", "tag": "Approval", "short": "Push to main", "noDelegate": true, "ownAnswer": false,
       "q": "How far should the work branch go?",
       "ctx": "Pushing is hard to undo, so we ask before doing it.",
       "facts": [["Commits", "25"], ["Unit tests", "835 pass"], ["UI tests", "142 pass"], ["Work in progress", "1 forms admin"]],

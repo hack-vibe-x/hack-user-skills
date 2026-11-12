@@ -49,6 +49,7 @@ kbd{font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid
 .tag.hard{background:var(--bad-soft);color:var(--bad)}
 h2{font-size:26px;line-height:1.3;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
 .ctx{color:var(--muted);margin:0 0 6px;max-width:68ch}
+.ctx code{font:12.5px ui-monospace,Menlo,monospace;overflow-wrap:anywhere}
 details.more{margin:0 0 4px;color:var(--muted);font-size:13.5px}
 details.more summary{cursor:pointer;width:max-content}
 details.more p{margin:6px 0 0;max-width:68ch}
@@ -212,15 +213,6 @@ h2:focus:not(:focus-visible){outline:0}
 .go{margin-top:16px;display:flex;gap:12px;align-items:center}
 .primary{background:var(--accent);color:var(--surface);border:0;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer}
 .primary:disabled{opacity:.4;cursor:not-allowed}
-.rec-doc{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.rec-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface2);font-size:13px}
-.rec-top code,.rec-body code{font:12px ui-monospace,Menlo,monospace;color:var(--muted)}
-.rec-top .ghost{padding:4px 10px;font-size:12.5px}
-.rec-body{padding:6px 20px 16px;max-width:76ch}
-.rec-body h3{font-size:18px;margin:14px 0 4px}
-.rec-body h4{font-size:14.5px;margin:18px 0 4px}
-.rec-body p{margin:0;color:var(--muted);font-size:13.5px}
-.rec-body li{font-size:13.5px;margin-left:18px;line-height:1.6}
 .vimg{display:block;width:100%}
 .vframe{display:block;width:100%;border:0;background:#fff;pointer-events:none}
 .err{margin:40px;color:var(--bad)}
@@ -234,6 +226,10 @@ pre{background:var(--surface2);border-radius:10px;padding:12px;font:12px/1.5 ui-
 .extra{margin-top:22px;display:grid;gap:12px}
 .fld{display:grid;gap:5px}
 .fld span{font-size:13px;font-weight:600}
+/* own answer under the options of a pick question */
+.own{margin-top:12px;border:1.5px dashed var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
+.own.sel{border-style:solid;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.own .txt{margin-top:6px}
 .cant{border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .cant-t{display:flex;justify-content:space-between;width:100%;border:0;background:none;padding:10px 12px;cursor:pointer;font-weight:600;font-size:13px;text-align:left}
 .cant-t i{font-style:normal;color:var(--muted)}
@@ -353,11 +349,13 @@ function commitDraft(d){ if(!d||!isDraft(d)) return false; const a=A(d.id);
 function isDone(d){ const a=S[d.id]; if(!a) return false; if(a.defer) return true;
   if(d.type==='batch') return d.items.every(i=>a.choices&&a.choices[i.id]);
   if(d.type==='multi') return !!a.choices;
+  if(d.type==='pick'&&a.own) return true;
   return a.choice!=null; }
 function answerText(d){ const a=S[d.id]; if(!a) return ''; if(a.defer) return T('ans.sentBack',{reason:reasonTitle(a.defer)});
+  if(d.type==='pick'&&a.own) return T('ans.own',{x:a.own});
   if(d.type==='pick'||d.type==='preview'){ const o=d.options.find(o=>o.key===a.choice); return o?o.label:''; }
   if(d.type==='multi') return a.choices? d.items.filter(i=>a.choices.includes(i.id)).map(i=>i.label).join(', ')||T('ans.nothing') : '';
-  if(d.type==='batch') return isDone(d)? d.items.map(i=>i.options.find(o=>o.key===a.choices[i.id]).label).join(' · ') : (a.choices?T('ans.chosen',{n:Object.keys(a.choices).length,m:d.items.length}):'');
+  if(d.type==='batch') return isDone(d)? d.items.map(i=>i.options.find(o=>o.key===a.choices[i.id])?.label??'').join(' · ') : (a.choices?T('ans.chosen',{n:Object.keys(a.choices).length,m:d.items.length}):'');
   if(d.type==='value') return a.choice!=null? a.choice+' '+(d.unit||'') : '';
   return ''; }
 const doneCount=()=>D.filter(isDone).length;
@@ -386,6 +384,8 @@ const tabFor=(key,list,chosen)=>key===(chosen!=null&&list.some(o=>o.key===chosen
 const stopsHtml=(d,i,draft)=>d.stops.filter(s=>s.label).map(s=>{ const on=d.stops[i]===s; return `<button class="${on?(draft?'draft':'sel'):''}" aria-pressed="${on&&!draft}" data-stop="${d.stops.indexOf(s)}">${esc(s.label)} ${esc(s.v)}</button>`; }).join('');
 const outsHtml=(d,i)=>(d.stops[i].outs||[]).map(o=>`<div class="out ${o.t||''}"><span>${esc(o.k)}</span><b>${esc(o.v)}</b>${o.p!=null?`<div class="viz" aria-hidden="true"><i style="width:${o.p}%"></i></div>`:''}</div>`).join('');
 const valueText=(d,i)=>`${d.stops[i].v} ${d.unit||''}${d.stops[i].label?' · '+d.stops[i].label:''}`.trim();
+// A pick question takes a typed answer of the person's own unless it says "ownAnswer": false.
+const ownOk=d=>d.type==='pick'&&d.ownAnswer!==false;
 const draftNote=(kind)=>`<div class="draft-note" id="draftnote"><span>${T('draft.'+kind)}</span><button class="ghost" data-confirm>${T('draft.confirm')}</button></div>`;
 
 function body(d){
@@ -397,7 +397,7 @@ function body(d){
       <div class="opt-v">${visual(o.visual)}${o.cap?`<div class="cap">${esc(o.cap)}</div>`:''}</div>
       ${dims.map((k,j)=>{ const c=(o.d||[])[j]||['','']; return `<div class="dim ${c[1]||''}"><span class="dk">${esc(k)}</span><span class="mark" aria-hidden="true">${mark(c[1])}</span><span class="dv">${esc(c[0])}</span></div>`; }).join('')}
       <div class="when">${esc(o.when)}</div></div>`).join('')}
-    </div>${d.same?`<div class="same">${esc(d.same)}</div>`:''}`; }
+    </div>${d.same?`<div class="same">${esc(d.same)}</div>`:''}${ownOk(d)?`<label class="own fld ${a.own?'sel':''}" id="ownbox"><span>${T('own.label')}</span><input class="txt" id="own" placeholder="${esc(T('own.ph'))}" value="${esc(a.own||'')}"></label>`:''}`; }
 
   if(d.type==='preview'){ const shown=(d.options.find(o=>o.key===a.choice)||recOf(d.options)).key; const h=+(d.preview&&d.preview.height)||320;
     return `<div class="pvwrap">${win(d.options.map(o=>`<iframe class="pvframe ${o.key===shown?'on':''}" data-pv="${esc(o.key)}" sandbox srcdoc="${esc(pvDoc(d,o))}" style="height:${h}px" tabindex="-1" aria-hidden="true"></iframe>`).join(''))}
@@ -416,7 +416,7 @@ function body(d){
 
   if(d.type==='batch'){ const ch=a.choices||{};
     return `<div class="batch-top"><span class="same" style="margin:0">${T('batch.chosen',{n:Object.keys(ch).length,m:d.items.length})}</span><button class="ghost" data-allrec>${T('batch.allrec')}</button></div>
-      <div class="rows">${d.items.map(i=>`<div class="row"><span class="q" id="bq-${esc(i.id)}">${esc(i.q)}</span><div class="seg" role="radiogroup" aria-labelledby="bq-${esc(i.id)}">${i.options.map(o=>`<button role="radio" aria-checked="${ch[i.id]===o.key}" tabindex="${tabFor(o.key,i.options,ch[i.id])}" class="${ch[i.id]===o.key?'sel':''}" data-seg="${esc(i.id)}:${esc(o.key)}"><b>${esc(o.label)}${o.rec?`<span class="r">${T('pick.rec')}</span>`:''}</b><small>${esc(o.sub)}</small></button>`).join('')}</div></div>`).join('')}</div>`; }
+      <div class="rows">${d.items.map(i=>`<div class="row"><span class="q" id="bq-${esc(i.id)}">${esc(i.q)}</span><div class="seg" role="radiogroup" aria-labelledby="bq-${esc(i.id)}">${i.options.map(o=>`<button role="radio" aria-checked="${ch[i.id]===o.key}" tabindex="${tabFor(o.key,i.options,ch[i.id])}" class="${ch[i.id]===o.key?'sel':''}" data-seg="${esc(i.id)}" data-key="${esc(o.key)}"><b>${esc(o.label)}${o.rec?`<span class="r">${T('pick.rec')}</span>`:''}</b><small>${esc(o.sub)}</small></button>`).join('')}</div></div>`).join('')}</div>`; }
 
   if(d.type==='value'){ const i=stopIdx(d); const draft=isDraft(d);
     return `<div class="val ${draft?'draft':''}" id="val"><div class="now"><span id="vnow">${esc(d.stops[i].v)}</span><small>${esc(d.unit)}</small>${draft?`<span class="draft-b" id="vdraft">${T('draft.badge')}</span>`:''}</div>
@@ -426,19 +426,17 @@ function body(d){
       <div class="outs" id="vouts">${outsHtml(d,i)}</div></div>`; }
   return '';
 }
-const mdHtml=md=>md.split('\n').map(l=>{ const t=esc(l.replace(/\\([<>])/g,'$1')).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1');
-  return l.startsWith('# ')?`<h3>${t.slice(2)}</h3>`:l.startsWith('## ')?`<h4>${t.slice(3)}</h4>`:l.startsWith('- ')?`<li>${t.slice(2)}</li>`:l.startsWith('&gt; ')?`<p>${t.slice(5)}</p>`:l?`<p>${t}</p>`:''; }).join('');
 
 function summary(){
   const n=doneCount(), all=n===D.length;
   return `<div class="kicker"><span class="tag">${T('sum.tag')}</span></div><h2 id="qh" tabindex="-1">${sent?T('sum.doneTitle'):all?T('sum.allTitle'):T('sum.leftTitle',{n:D.length-n})}</h2>
     <p class="ctx">${sent?T('sum.doneCtx'):T('sum.ctx')}</p>
+    ${sent&&sent.path?`<p class="ctx">${T('sum.saved',{path:`<code>${esc(sent.path)}</code>`})}</p>`:''}
     <div class="sum">${D.map((d,i)=>{ const a=S[d.id]||{}; const t=answerText(d);
       return `<button data-go="${i}" ${sent?'disabled':''}><span class="sq">${esc(d.short||d.q)}</span><span class="sa ${isDone(d)?'':'none'}">${isDone(d)?esc(t):T('sum.none')}${a.defer&&a.why?`<span class="sn">${T('sum.reason')}: ${esc(a.why)}</span>`:''}${a.note?`<span class="sn">${T('sum.note')}: ${esc(a.note)}</span>`:''}</span></button>`; }).join('')}</div>
     <div class="go"><button class="primary" data-send ${all&&!sent?'':'disabled'}>${sent?T('sum.submitted'):T('sum.submit')}</button>
       <span class="same" style="margin:0">${sent?'':T('sum.hint')}</span></div>
-    ${sent?`<div class="rec-doc"><div class="rec-top"><span><b>${T('rec.docTitle')}</b> <code>${esc(sent.path)}</code></span><span><button class="ghost" data-copy>${T('btn.copy')}</button></span></div>
-      <div class="rec-body">${mdHtml(sent.md)}</div></div>`:''}`;
+`;
 }
 const endView=()=>`<div class="kicker"><span class="tag hard">${T('end.tag')}</span></div><h2 id="qh" tabindex="-1">${T('end.'+ended+'.title')}</h2><p class="ctx">${T('end.ctx')}</p>`;
 function extras(d,a){
@@ -465,9 +463,9 @@ function renderStage(){
     <button class="primary" data-next>${nextLabel(d)}</button>`;
 }
 // Re-rendering replaces the elements, so keyboard focus is put back on the matching control.
-const FOCUS_KEYS=['pick','toggle','seg','stop','reason','allrec','defer','confirm','next','prev','send','copy','cancel'];
+const FOCUS_KEYS=['pick','toggle','seg','stop','reason','allrec','defer','confirm','next','prev','send','cancel'];
 function focusSig(){ const el=document.activeElement; if(!el||el===document.body) return null;
-  for(const k of FOCUS_KEYS) if(k in el.dataset) return `[data-${k}="${CSS.escape(el.dataset[k])}"]`;
+  for(const k of FOCUS_KEYS) if(k in el.dataset) return `[data-${k}="${CSS.escape(el.dataset[k])}"]`+('key' in el.dataset?`[data-key="${CSS.escape(el.dataset.key)}"]`:'');
   return el.id?'#'+CSS.escape(el.id):null; }
 function render(){ const sig=focusSig(); renderNav(); renderStage();
   if(sig){ const el=document.querySelector('#stage '+sig+',#bar '+sig+',#nav '+sig); if(el) el.focus({preventScroll:true}); } }
@@ -476,7 +474,7 @@ const focusHead=()=>{ const h=document.getElementById('qh'); if(h) h.focus({prev
 // Moving between questions never settles a draft. Only "Next" (which says so) or touching the draft does.
 function go(i){ if(locked()) return; panel=null; cur=Math.max(0,Math.min(D.length,i)); render(); window.scrollTo(0,0); focusHead(); }
 function next(){ const d=D[cur]; if(commitDraft(d)) announce(T('sr.picked',{x:answerText(d)})); go(cur+1); }
-function pick(key){ const d=D[cur]; const a=A(d.id); a.choice=key; delete a.defer; panel=null; save(); render(); const o=d.options.find(o=>o.key===key); if(o) announce(T('sr.picked',{x:o.label})); }
+function pick(key){ const d=D[cur]; const a=A(d.id); a.choice=key; delete a.own; delete a.defer; panel=null; save(); render(); const o=d.options.find(o=>o.key===key); if(o) announce(T('sr.picked',{x:o.label})); }
 function setStop(i,moveSlider){ const d=D[cur]; const wasDraft=isDraft(d); const a=A(d.id); a.choice=d.stops[i].v; delete a.defer; save();
   // Updated in place, not re-rendered, so a slider drag is not interrupted.
   document.getElementById('vnow').textContent=d.stops[i].v; document.getElementById('vouts').innerHTML=outsHtml(d,i); document.getElementById('vpre').innerHTML=stopsHtml(d,i,false);
@@ -504,7 +502,7 @@ function banner(on){ const b=document.getElementById('banner'); b.hidden=!on; b.
 function cleanSaved(saved){ const out={}; if(!saved||typeof saved!=='object') return out;
   for(const d of D){ const a=saved[d.id]; if(!a||typeof a!=='object') continue; const c={};
     if(reasonsFor(d).includes(a.defer)){ c.defer=a.defer; if(typeof a.why==='string'&&a.why) c.why=a.why; }
-    else if(d.type==='pick'||d.type==='preview'){ if(d.options.some(o=>o.key===a.choice)) c.choice=a.choice; }
+    else if(d.type==='pick'||d.type==='preview'){ if(d.options.some(o=>o.key===a.choice)) c.choice=a.choice; else if(ownOk(d)&&typeof a.own==='string'&&a.own.trim()) c.own=a.own; }
     else if(d.type==='multi'){ if(Array.isArray(a.choices)) c.choices=d.items.map(i=>i.id).filter(id=>a.choices.includes(id)); }
     else if(d.type==='batch'){ if(a.choices&&typeof a.choices==='object'){ c.choices={}; d.items.forEach(i=>{ if(i.options.some(o=>o.key===a.choices[i.id])) c.choices[i.id]=a.choices[i.id]; }); } }
     else if(d.type==='value'){ if(d.stops.some(s=>s.v===a.choice)) c.choice=a.choice; }
@@ -513,15 +511,14 @@ function cleanSaved(saved){ const out={}; if(!saved||typeof saved!=='object') re
   return out; }
 
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-go],[data-pick],[data-toggle],[data-seg],[data-allrec],[data-stop],[data-defer],[data-prev],[data-next],[data-send],[data-reason],[data-copy],[data-confirm],[data-cancel]'); if(!t||t.disabled) return;
-  if('copy' in t.dataset){ navigator.clipboard.writeText(sent.md).then(()=>{ t.textContent=T('btn.copied'); }).catch(()=>{ t.textContent=T('btn.copyFail'); }); return; }
+  const t=e.target.closest('[data-go],[data-pick],[data-toggle],[data-seg],[data-allrec],[data-stop],[data-defer],[data-prev],[data-next],[data-send],[data-reason],[data-confirm],[data-cancel]'); if(!t||t.disabled) return;
   if(locked()) return;
   const d=D[cur];
   if(t.dataset.go!=null) go(+t.dataset.go);
   else if(t.dataset.pick) pick(t.dataset.pick);
   else if(t.dataset.toggle){ const a=A(d.id); const s=new Set(multiSel(d)); const on=!s.has(t.dataset.toggle); on?s.add(t.dataset.toggle):s.delete(t.dataset.toggle); a.choices=d.items.map(i=>i.id).filter(x=>s.has(x)); delete a.defer; save(); render();
     const it=d.items.find(i=>i.id===t.dataset.toggle); announce(T(on?'sr.added':'sr.removed',{x:it.label,n:a.choices.length})); }
-  else if(t.dataset.seg){ const [i,k]=t.dataset.seg.split(':'); const a=A(d.id); (a.choices||(a.choices={}))[i]=k; delete a.defer; save(); render(); }
+  else if(t.dataset.seg){ const i=t.dataset.seg, k=t.dataset.key; const a=A(d.id); (a.choices||(a.choices={}))[i]=k; delete a.defer; save(); render(); }
   else if('allrec' in t.dataset){ const a=A(d.id); a.choices={}; d.items.forEach(i=>a.choices[i.id]=recOf(i.options).key); delete a.defer; save(); render(); announce(answerText(d)); }
   else if(t.dataset.stop){ setStop(+t.dataset.stop,true); }
   else if('confirm' in t.dataset){ commitDraft(d); render(); const h=document.getElementById('qh'); if(h) h.focus({preventScroll:true}); announce(T('sr.picked',{x:answerText(d)})); }
@@ -536,6 +533,10 @@ document.addEventListener('input',e=>{
   if(locked()) return;
   if(e.target.id==='vrange') setStop(+e.target.value);
   if(e.target.id==='dnote'){ const a=A(D[cur].id); a.why=e.target.value; if(!a.why) delete a.why; save(); }
+  if(e.target.id==='own'){ const d=D[cur], a=A(d.id); const v=e.target.value.trim(); if(v){ a.own=e.target.value; delete a.choice; delete a.defer; } else delete a.own; save();
+    // Updated in place, not re-rendered, so typing is not interrupted.
+    document.querySelectorAll('#stage [data-pick]').forEach(o=>{ o.classList.remove('sel'); o.setAttribute('aria-checked','false'); });
+    document.getElementById('ownbox').classList.toggle('sel',!!v); renderNav(); }
   if(e.target.id==='note'){ const a=A(D[cur].id); a.note=e.target.value; if(!a.note) delete a.note; save(); }
 });
 const showPv=key=>document.querySelectorAll('.pvframe').forEach(f=>f.classList.toggle('on',f.dataset.pv===key));

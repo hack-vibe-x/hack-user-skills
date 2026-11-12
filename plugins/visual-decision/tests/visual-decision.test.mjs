@@ -1,16 +1,19 @@
-// Run: node --test plugins/visual-decision/tests/*.test.mjs
+// Run: node --test plugins/visual-decision/tests/visual-decision.test.mjs
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { answersFor, buildRecord, cleanState, writePending } from "../skills/visual-decision/scripts/record.mjs";
-import { check, safeId, unanswered } from "../skills/visual-decision/scripts/validate.mjs";
+import { pickLang } from "../skills/visual-decision/scripts/i18n.mjs";
+import { answersFor, cleanState } from "../skills/visual-decision/scripts/answers.mjs";
+import { check, unanswered } from "../skills/visual-decision/scripts/validate.mjs";
+import { buildRecord, projectDir, writeRecord } from "../skills/visual-decision/scripts/record.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SERVE = join(here, "..", "skills", "visual-decision", "scripts", "serve.mjs");
+const ASK_HOOK = join(here, "..", "hooks", "ask-hook.mjs");
 const tmp = () => mkdtempSync(join(tmpdir(), "hus-visual-decision-test-"));
 
 const Q = {
@@ -32,8 +35,6 @@ test("both samples pass the check", () => {
 test("check reports what breaks the page", () => {
   assert.deepEqual(check(Q), []);
   const p = (q) => check(q).join("\n");
-  assert.match(p({ ...Q, id: "a/b" }), /may hold only/);
-  assert.match(p({ ...Q, id: ".." }), /may hold only/);
   assert.match(p({ decisions: [{ id: "s", type: "pick", q: "?", options: [{ key: "x", label: "X", visual: { type: "steps" } }] }] }), /steps array/);
   assert.match(p({ decisions: [{ id: "s", type: "pick", q: "?", options: [{ key: "x", label: "X" }, { key: "x", label: "Y" }] }] }), /unique/);
   assert.match(p({ decisions: [{ id: "s", type: "pick", q: "?", options: [{ key: "x", label: "X", rec: 1 }, { key: "y", label: "Y", rec: 1 }] }] }), /only one option/);
@@ -41,12 +42,40 @@ test("check reports what breaks the page", () => {
   assert.match(p({ decisions: [{ id: "s", type: "nope", q: "?" }] }), /type must be/);
   assert.match(p({ decisions: [] }), /empty/);
   assert.match(p({ ...Q, decisions: [{ ...Q.decisions[0], noDelegate: "yes" }] }), /noDelegate must be/);
-  assert.match(p({ ...Q, supersedes: "t" }), /own id/);
-  assert.match(p({ ...Q, supersedes: ["ok", "a/b"] }), /supersedes must be/);
-  assert.deepEqual(check({ ...Q, supersedes: ["older-batch"] }), []);
+  assert.match(p({ ...Q, decisions: [{ ...Q.decisions[0], ownAnswer: "no" }] }), /ownAnswer must be/);
   assert.match(p({ decisions: [{ id: "s", type: "preview", q: "?", preview: { html: "<b>x</b>", height: -1 }, options: [{ key: "x", label: "X" }] }] }), /height/);
-  assert.equal(safeId("my questions/v2"), "my-questions-v2");
-  assert.equal(safeId("décision 1"), "décision-1");
+});
+
+test("check catches value shapes the page would misdraw", () => {
+  const p = (q, o) => check(q, o).join("\n");
+  const pick = (over) => ({ decisions: [{ id: "s", type: "pick", q: "?", dims: ["Speed"], options: [{ key: "x", label: "X", d: [["fast", "good"]] }], ...over }] });
+  assert.equal(p(pick({})), "");
+  assert.match(p(pick({ options: [{ key: 1, label: "X", d: [["fast", "good"]] }] })), /key \(text\)/);
+  assert.match(p(pick({ options: [{ key: "x", label: "X", d: ["fast"] }] })), /each d cell/);
+  assert.match(p(pick({ options: [{ key: "x", label: "X", d: [["fast", "great"]] }] })), /each d cell/);
+  assert.match(p(pick({ facts: { Commits: "25" } })), /facts must be/);
+  assert.match(p({ decisions: [{ id: "s", type: "multi", q: "?", items: [{ id: 2, label: "I" }] }] }), /id \(text\)/);
+  assert.match(p({ decisions: [{ id: "s", type: "value", q: "?", stops: [{ v: 1, outs: { k: "a" } }] }] }), /outs must be/);
+  assert.match(p(pick({ options: [{ key: "x", label: "X", d: [["fast", "good"]], visual: { type: "steps", steps: ["a"], reach: "far" } }] })), /reach must be/);
+  // A batch key with ":" is fine (the page keeps item and key apart).
+  assert.equal(p({ decisions: [{ id: "s", type: "batch", q: "?", items: [{ id: "ratio", q: "Ratio", options: [{ key: "16:9", label: "16:9" }, { key: "4:3", label: "4:3" }] }] }] }), "");
+});
+
+test("check: images the page cannot show, and lang codes", () => {
+  const cwd = tmp();
+  writeFileSync(join(cwd, "shot.png"), "png");
+  writeFileSync(join(cwd, "shot.bmp"), "bmp");
+  const img = (src) => ({ decisions: [{ id: "s", type: "pick", q: "?", options: [{ key: "x", label: "X", visual: { type: "image", src } }] }] });
+  assert.deepEqual(check(img("shot.png"), { cwd }), []);
+  assert.match(check(img("shot.bmp"), { cwd }).join(), /cannot be shown/);
+  assert.match(check(img("missing.png"), { cwd }).join(), /cannot be shown/);
+  assert.deepEqual(check(img("missing.png")), [], "without cwd only the presence of src is checked");
+  assert.equal(pickLang("ko-KR"), "ko");
+  assert.equal(pickLang("ko_kr"), "ko");
+  assert.equal(pickLang("../x", "ko"), "ko");
+  assert.deepEqual(check({ ...Q, lang: "ko-KR" }), []);
+  assert.deepEqual(check({ ...Q, lang: "en-US" }), []);
+  assert.match(check({ ...Q, lang: "xx" }).join(), /lang "xx" has no locales file/);
 });
 
 test("cleanState drops answers that do not match the questions", () => {
@@ -56,6 +85,7 @@ test("cleanState drops answers that do not match the questions", () => {
   assert.deepEqual(unanswered(Q, FULL), []);
   assert.deepEqual(cleanState(Q, { a: { defer: "info", why: "w", choice: "x" } }), { a: { defer: "info", why: "w" } });
   assert.deepEqual(cleanState(Q, { a: { defer: "made-up" } }), {});
+  assert.deepEqual(answersFor(Q, { a: { choice: "gone" } }).a, { choice: null });
 });
 
 test("noDelegate: handing a hard-to-undo decision to Claude is dropped", () => {
@@ -65,40 +95,81 @@ test("noDelegate: handing a hard-to-undo decision to Claude is dropped", () => {
   assert.deepEqual(unanswered(q, { ...FULL, a: { defer: "delegate" } }), ["a"]);
 });
 
-test("supersedes links the new record and the earlier one both ways", () => {
-  const cwd = tmp();
-  const dir = join(cwd, ".hus-visual-decision", "answers");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "20260102T000000-t.json"), JSON.stringify({ id: "t", answeredAt: "2026-01-02T00:00:00Z", questions: Q, state: { ...FULL, a: { defer: "options" } } }));
-  writeFileSync(join(dir, "20260102T010000-t2.json"), JSON.stringify({ id: "t2", answeredAt: "2026-01-02T01:00:00Z", questions: { ...Q, id: "t2", supersedes: "t" }, state: FULL }));
-  const written = writePending(cwd);
-  assert.equal(written.length, 2);
-  const [oldMd, newMd] = written.map((p) => readFileSync(join(cwd, p), "utf8"));
-  assert.match(newMd, /Decides again what was asked in \[t\]\(2026-01-02-t\.md\)/);
-  assert.match(oldMd, /Decided again later in \[t2 · 2026-01-02\]\(2026-01-02-t2\.md\)/);
-  // An id with no record yet is named, not linked.
-  assert.match(buildRecord({ ...Q, supersedes: "nowhere" }, FULL, "2026-01-02T00:00:00Z"), /`nowhere`/);
+test("own answer: a pick question takes typed text unless ownAnswer is false", () => {
+  const own = { ...FULL, a: { own: "  a chip instead  " } };
+  assert.deepEqual(cleanState(Q, own).a, { own: "a chip instead" });
+  assert.deepEqual(unanswered(Q, own), []);
+  assert.deepEqual(answersFor(Q, own).a, { choice: null, own: "a chip instead" });
+  assert.deepEqual(cleanState(Q, { ...FULL, a: { choice: "x", own: "typed" } }).a, { choice: "x" }, "a chosen option wins");
+  assert.deepEqual(unanswered(Q, { ...FULL, a: { own: "   " } }), ["a"], "blank text is no answer");
+  const off = { ...Q, decisions: Q.decisions.map((d) => (d.id === "a" ? { ...d, ownAnswer: false } : d)) };
+  assert.deepEqual(unanswered(off, own), ["a"]);
+  const pv = { decisions: [{ id: "p", type: "preview", q: "Color?", options: [{ key: "r", label: "Red" }] }] };
+  assert.deepEqual(unanswered(pv, { p: { own: "blue" } }), ["p"], "only pick questions take one");
 });
 
-test("records keep angle brackets visible and survive stale answers", () => {
-  const md = buildRecord(Q, FULL, "2026-01-02T03:04:05Z");
-  assert.match(md, /\\<Button\\>/);
-  assert.match(md, /\*\*Not chosen:\*\* Link — Speed slow/);
-  assert.doesNotThrow(() => buildRecord(Q, { a: { choice: "gone" }, c: { choices: { r1: "nope" } } }, "2026-01-02T00:00:00Z"));
-  assert.deepEqual(answersFor(Q, { a: { choice: "gone" } }).a, { choice: null });
+test("record: every answer shape, in the question file's language, kept at the git root", () => {
+  const q = { ...Q, title: "<T>", decisions: [...Q.decisions, { id: "e", type: "pick", q: "Own?", options: [{ key: "m", label: "M" }] }, { id: "f", type: "pick", q: "Hand?", options: [{ key: "m", label: "M", rec: true }] }] };
+  const state = { ...FULL, a: { choice: "y", note: "use <Chip> later" }, b: { defer: "info", why: "need <data>" }, e: { own: "something else" }, f: { defer: "delegate" } };
+  const md = buildRecord(q, state, new Date(2026, 0, 2));
+  for (const line of [
+    "# \\<T\\> · 2026-01-02",
+    "- **Answer:** Link\n- **Not chosen:** \\<Button\\>\n- **Additional comments:** use \\<Chip\\> later",
+    "- **Answer:** Sent back · I need more information\n- **Reason:** need \\<data\\>",
+    "- **Row:** K1",
+    "- **Answer:** 5",
+    "- **Answer:** Own answer: something else\n- **Not chosen:** M",
+    "- Claude goes with the recommended answer: M",
+  ])
+    assert.ok(md.includes(line), `${line}\n---\n${md}`);
+  const ko = JSON.parse(readFileSync(join(here, "..", "skills", "visual-decision", "locales", "ko.json"), "utf8"));
+  assert.ok(buildRecord({ ...Q, lang: "ko" }, FULL).includes(`- **${ko["rec.answer"]}:** \\<Button\\> (${ko["pick.rec"]})`));
+  const top = tmp();
+  mkdirSync(join(top, ".git"));
+  mkdirSync(join(top, "web"));
+  assert.equal(projectDir(join(top, "web")), top);
+  const p1 = writeRecord(join(top, "web"), "my batch/v2", Q, FULL, new Date(2026, 0, 2));
+  const p2 = writeRecord(top, "my batch/v2", Q, FULL, new Date(2026, 0, 2));
+  assert.equal(p1, join(top, ".hus-visual-decision", "decisions", "2026-01-02-my-batch-v2.md"));
+  assert.equal(p2, join(top, ".hus-visual-decision", "decisions", "2026-01-02-my-batch-v2-2.md"), "never overwritten");
 });
 
-test("writePending records the good answer files even when one is broken", () => {
-  const cwd = tmp();
-  const dir = join(cwd, ".hus-visual-decision", "answers");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "1-bad.json"), JSON.stringify({ id: "bad", questions: { decisions: "not a list" }, state: {} }));
-  writeFileSync(join(dir, "2-junk.json"), "{");
-  writeFileSync(join(dir, "3-t.json"), JSON.stringify({ id: "t", answeredAt: "2026-01-02T00:00:00Z", questions: Q, state: FULL }));
-  const written = writePending(cwd);
-  assert.equal(written.length, 1);
-  assert.deepEqual(writePending(cwd), [], "a second run writes nothing");
-  assert.ok(readdirSync(join(cwd, "docs", "decisions")).includes("README.md"));
+const runHook = (file, input) =>
+  new Promise((res) => {
+    const c = spawn(process.execPath, [join(here, "..", "hooks", file)], { env: { ...process.env, CLAUDE_PROJECT_DIR: "" } });
+    let s = "";
+    c.stdout.on("data", (b) => (s += b));
+    c.on("exit", (code) => res({ code, out: s }));
+    c.stdin.end(JSON.stringify(input));
+  });
+
+test("session hook: points to .hus-visual-decision/decisions only when records exist", async () => {
+  const top = tmp();
+  mkdirSync(join(top, ".git"));
+  mkdirSync(join(top, "web"));
+  let r = await runHook("session-hook.mjs", { cwd: join(top, "web") });
+  assert.equal(r.code, 0);
+  assert.equal(r.out, "", "no records: nothing is said");
+  mkdirSync(join(top, ".hus-visual-decision", "decisions"), { recursive: true });
+  for (let i = 1; i <= 7; i++) writeFileSync(join(top, ".hus-visual-decision", "decisions", `2026-01-0${i}-b${i}.md`), "# x");
+  writeFileSync(join(top, ".hus-visual-decision", "decisions", "README.md"), "not a record");
+  r = await runHook("session-hook.mjs", { cwd: join(top, "web") });
+  const h = JSON.parse(r.out).hookSpecificOutput;
+  assert.equal(h.hookEventName, "SessionStart");
+  assert.match(h.additionalContext, /\.hus-visual-decision\/decisions\/ \(2026-01-07-b7\.md, 2026-01-06-b6\.md, 2026-01-05-b5\.md, 2026-01-04-b4\.md, 2026-01-03-b3\.md, and 2 older\)/);
+});
+
+test("ask hook: every AskUserQuestion goes to the web page", async () => {
+  const out = await new Promise((res) => {
+    const c = spawn(process.execPath, [ASK_HOOK]);
+    let s = "";
+    c.stdout.on("data", (b) => (s += b));
+    c.on("exit", () => res(s));
+    c.stdin.end(JSON.stringify({ cwd: tmp(), tool_name: "AskUserQuestion", tool_input: { questions: [] } }));
+  });
+  const h = JSON.parse(out).hookSpecificOutput;
+  assert.equal(h.permissionDecision, "deny");
+  assert.match(h.permissionDecisionReason, /hack-user-skills-visual-decision:visual-decision/);
 });
 
 // Starts the server on a free port and resolves with its port once it is listening.
@@ -117,8 +188,9 @@ function serve(cwd, qfile, extra = []) {
   });
   return { child, ready, out: () => out };
 }
+const exited = (child) => new Promise((r) => (child.exitCode != null ? r(child.exitCode) : child.once("exit", (code) => r(code))));
 
-test("server: refuses Origin null, unknown answers and a second submit", async () => {
+test("server: refuses Origin null, unknown answers and a second submit, and writes one record", async () => {
   const cwd = tmp();
   const qfile = join(cwd, "q.json");
   writeFileSync(qfile, JSON.stringify(Q));
@@ -134,16 +206,40 @@ test("server: refuses Origin null, unknown answers and a second submit", async (
     assert.match(await stale.text(), /unanswered: a/);
     const both = await Promise.all([post({ state: FULL }), post({ state: FULL })]);
     assert.deepEqual(both.map((r) => r.status).sort(), [200, 409]);
-    await new Promise((r) => s.child.once("exit", r));
+    assert.equal(await exited(s.child), 0);
     assert.equal(s.out().match(/Decisions are done/g)?.length, 1);
-    const files = readdirSync(join(cwd, ".hus-visual-decision", "answers"));
-    assert.equal(files.length, 1);
+    assert.match(s.out(), /- a: "x"\n- b: \["i2"\]\n- c: \{"r1":"k1"\}\n- d: 5/);
+    const rec = s.out().match(/Record: (\.hus-visual-decision\/decisions\/\d{4}-\d\d-\d\d-t\.md)/);
+    assert.ok(rec, s.out());
+    assert.match(readFileSync(join(cwd, rec[1]), "utf8"), /## 1\. Which\?\n\n- \*\*Answer:\*\* \\<Button\\> \(Recommended\)/);
   } finally {
     s.child.kill();
   }
 });
 
-const exited = (child) => new Promise((r) => (child.exitCode != null ? r(child.exitCode) : child.once("exit", (code) => r(code))));
+test("server: sent-back lines keep the comments, a delegated one names the answer, an own answer is quoted", async () => {
+  const cwd = tmp();
+  const qfile = join(cwd, "q.json");
+  const q = { ...Q, decisions: [...Q.decisions, { id: "e", type: "pick", q: "No rec?", options: [{ key: "m", label: "M" }, { key: "n", label: "N" }] }, { id: "f", type: "pick", q: "Own?", options: [{ key: "m", label: "M" }] }] };
+  writeFileSync(qfile, JSON.stringify(q));
+  const s = serve(cwd, qfile);
+  try {
+    const port = await s.ready;
+    const state = { ...FULL, a: { defer: "delegate" }, b: { defer: "options", note: "keep the logo" }, c: { defer: "delegate" }, e: { defer: "delegate" }, f: { own: "Neither: use a chip" } };
+    const r = await fetch(`http://127.0.0.1:${port}/api/submit`, { method: "POST", body: JSON.stringify({ state }) });
+    assert.equal(r.status, 200);
+    assert.equal(await exited(s.child), 0);
+    const out = s.out();
+    assert.match(out, /- a: sent back \(delegate\) — Go with the recommended "x"\. Tell the user what you chose\./);
+    assert.match(out, /- b: sent back \(options\) .* · additional comments: keep the logo/);
+    assert.match(out, /- c: sent back \(delegate\) — There is no recommended option: choose one yourself\./);
+    assert.match(out, /- e: sent back \(delegate\) — There is no recommended option/);
+    assert.match(out, /- f: own answer \(none of the options\) — "Neither: use a chip"/);
+    assert.match(out, /1 question\(s\) need to be asked again/);
+  } finally {
+    s.child.kill();
+  }
+});
 
 test("server: hands out the file hash and refuses answers made for another version", async () => {
   const cwd = tmp();
@@ -161,9 +257,9 @@ test("server: hands out the file hash and refuses answers made for another versi
   }
 });
 
-test("server: Cancel on the page ends the wait with exit 3 and no answer file", async () => {
+test("server: Cancel on the page ends the wait with exit 3", async () => {
   const cwd = tmp();
-  const qfile = join(cwd, "q.json");
+  const qfile = join(tmp(), "q.json");
   writeFileSync(qfile, JSON.stringify(Q));
   const s = serve(cwd, qfile);
   try {
@@ -172,7 +268,7 @@ test("server: Cancel on the page ends the wait with exit 3 and no answer file", 
     assert.equal((await fetch(`http://127.0.0.1:${port}/api/cancel`, { method: "POST" })).status, 200);
     assert.equal(await exited(s.child), 3);
     assert.match(s.out(), /^Decisions cancelled\./);
-    assert.throws(() => readdirSync(join(cwd, ".hus-visual-decision", "answers")));
+    assert.ok(s.out().includes(`Question file: ${qfile}`), s.out());
   } finally {
     s.child.kill();
   }
@@ -232,10 +328,8 @@ test("--check validates without opening a page; bad JSON gets a readable error",
     });
   writeFileSync(join(cwd, "ok.json"), JSON.stringify(Q));
   writeFileSync(join(cwd, "bad.json"), "{ nope");
-  writeFileSync(join(cwd, "id.json"), JSON.stringify({ ...Q, id: "../x" }));
   assert.equal((await run(["ok.json", "--check"])).code, 0);
   const bad = await run(["bad.json", "--check"]);
   assert.equal(bad.code, 2);
   assert.match(bad.err, /not valid JSON/);
-  assert.equal((await run(["id.json", "--check"])).code, 2);
 });

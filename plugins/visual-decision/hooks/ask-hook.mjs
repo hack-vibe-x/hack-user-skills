@@ -1,25 +1,17 @@
 #!/usr/bin/env node
-// PreToolUse(AskUserQuestion) hook: redirects a decision that was about to be asked in the terminal to the web page.
-// Off by default. It only acts when <working dir>/.hus-visual-decision/config.json contains {"askHook": true}.
-import { config } from "../skills/visual-decision/scripts/record.mjs";
-
-let input = {};
+// PreToolUse(AskUserQuestion) hook: a question that was about to be asked in the terminal is asked in the web page instead.
+// On whenever the plugin is installed; disable the plugin to ask in the terminal again.
+// The input is read and not used, so the caller is never left writing into a closed pipe.
 try {
-  let text = "";
-  for await (const chunk of process.stdin) text += chunk;
-  input = JSON.parse(text);
+  for await (const _ of process.stdin);
 } catch {}
-const cwd = input.cwd || process.cwd();
-if (config(cwd).askHook !== true) process.exit(0);
-
 console.log(
   JSON.stringify({
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
       permissionDecision: "deny",
       permissionDecisionReason:
-        "This project collects decisions in a web page. Instead of AskUserQuestion, use the hack-user-skills-visual-decision:visual-decision skill: write the same question as a question file and open it. Give every option a visual and difference rows, and continue with the answers once they come back.",
+        "Ask this in the web page instead: use the hack-user-skills-visual-decision:visual-decision skill with the same question, then continue with the answers. If no page can be opened here (claude -p, a remote or SSH session), ask in plain text.",
     },
   }),
 );
-process.exit(0);

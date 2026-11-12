@@ -3,12 +3,10 @@
 `samples/decisions.json` (English) and `samples/decisions.ko.json` (Korean) contain all five decision types.
 
 ```json
-{ "id": "lead-list-layout", "lang": "en", "title": "Lead list screen", "supersedes": "lead-list", "decisions": [ ... ] }
+{ "lang": "en", "title": "Lead list screen", "decisions": [ ... ] }
 ```
 
-`id` becomes part of the record file name (the question file name if missing). `title` is the title of the page and the record. `lang` picks the UI language (`en`, `ko`, or any `locales/<code>.json`).
-
-`supersedes` (optional) is the `id` of an earlier batch, or a list of them, that this one asks again (for example after a "sent back"). The new record links to the earlier record, and the earlier record gets a line pointing to the new one.
+`title` is the title of the page. `lang` picks the UI language (`en`, `ko`, or any `locales/<code>.json`); a region such as `ko-KR` uses `ko`. A code with no locale file is reported by `--check`.
 
 Answers in progress are kept in the browser together with a hash of the question file. If the file changes at all, they are dropped, so answers for an old version never come back.
 
@@ -26,6 +24,8 @@ Answers in progress are kept in the browser together with a hash of the question
 | `facts` | | Chips for the current state. `[["Commits","25"],["Tests","835 pass"]]` |
 | `pattern` | | A note shown under the decision. For samples only; leave it out in real use |
 | `noDelegate` | | `true` for an approval before a hard-to-undo action. The page hides "Decide for me" and the server refuses it, so the person must pick or send it back for more information or other options |
+
+Option `key`s and item `id`s are text (`"1"`, not `1`) and may hold any characters, `:` included.
 
 ## Which type
 
@@ -53,6 +53,7 @@ Answers in progress are kept in the browser together with a hash of the question
 
 - `d` follows `dims`: same order, same count. Each cell is `[value, "good" | "bad" | ""]`.
 - `when` is one "choose this when…" line. `cap` is the caption under the visual.
+- Under the options the person may type an answer of their own instead ("None of these?"). It comes back as `own answer (none of the options) — "…"`. Add `"ownAnswer": false` to the decision when only the listed options make sense (for example yes/no approvals).
 
 ### visual
 
@@ -61,7 +62,7 @@ Answers in progress are kept in the browser together with a hash of the question
 | `screen` | `layout`: `table` `cards` `split` | A skeleton of a common screen layout |
 | `button` | `text` | Button copy placed on a real button |
 | `html` | `html`, `height` (px) | A small design you draw yourself. Rendered in an isolated frame; scripts do not run |
-| `image` | `src` (file path) | A screenshot or mock image. Only files inside the working dir or a temp dir |
+| `image` | `src` (file path) | A screenshot or mock image: png, jpg, gif, webp or svg, inside the working dir or `/tmp`. A relative path starts at the working dir. `--check` reports a file the page cannot show |
 | `grid` | `cols`, `rows`, `mark` (cell numbers to paint red), `big` | Comparing counts or sizes (cells, table size) |
 | `steps` | `steps` (names), `reach` (how far it goes, from 0) | How far along a flow it goes |
 
@@ -116,7 +117,9 @@ List the values a person can pick as `stops`, and write the result for each valu
 
 ```
 - layout: "split" · additional comments: Make the detail area wider
+- name: own answer (none of the options) — "Lead inbox"
 - cta: sent back (options) — Claude will come up with other options and ask again. Why: I'd like shorter ones too
+- perm: sent back (delegate) — Go with the recommended "ask". Tell the user what you chose.
 - scope: ["forms","dm"]
 - small: {"sort":"new"}
 - limit: 200

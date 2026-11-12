@@ -10,7 +10,7 @@
     {
       "name": "hack-user-skills-visual-decision",
       "source": "./plugins/visual-decision",
-      "description": "Asks decisions in a local web page with visuals and clear differences, then records finished decisions as documents. Skill and hooks for Claude Code.",
+      "description": "Questions Claude would ask in the terminal are asked in a local web page instead, with a visual for every option and the differences side by side. Answers are kept in .hus-visual-decision/decisions. Skill and hook for Claude Code.",
       "category": "productivity"
     },
     {
