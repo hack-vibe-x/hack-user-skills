@@ -23,17 +23,38 @@ Write the questions in the language the user is using. Set `"lang"` at the top o
 1. **Collect what to ask.** Include decisions you will need soon, not only the one that blocks you now, in one batch. Do not ask what you can check yourself in the code or docs, or what has a clear convention.
 2. **Write the question file** at `<working dir>/.hus-visual-decision/pending/<batch-name>.json`. Read [references/schema.md](references/schema.md) and follow it. The batch name is a short descriptive slug (e.g. `lead-list-layout`); it becomes the record file name.
    - Mark one option `rec: true` if you recommend it. The reason should show in `when` or in the difference rows.
+   - Approval before a hard-to-undo action (deploy, delete, sending outside, pushing to a shared branch): add `"noDelegate": true` to that decision. The page then hides "Decide for me", so the person has to pick or send it back.
+   - Asking again what an earlier batch sent back: add `"supersedes": "<earlier batch id>"` at the top. The page drops answers kept for any other version of a file, and the new record links to the old one.
    - 2–4 options. If there are more, cut them first.
    - Need a design? Attach it as `html` (a small HTML snippet) or `image` (a screenshot file in the working dir or the scratchpad).
-3. **Open the page.** From the working directory, in the background (the person may take a while):
+3. **Check, then open the page.** First check the file in the foreground; it exits at once and lists anything to fix (exit 0 = valid):
+
+   ```bash
+   node <this skill's folder>/scripts/serve.mjs .hus-visual-decision/pending/<batch-name>.json --check
+   ```
+
+   Then open it from the working directory, in the background (the person may take a while):
 
    ```bash
    node <this skill's folder>/scripts/serve.mjs .hus-visual-decision/pending/<batch-name>.json
    ```
 
-   The browser opens, and when the person presses Submit the script exits and prints their answers. If the question file has missing values, it does not open and tells you what to fix.
+   The browser opens, and when the person presses Submit the script exits and prints their answers. The top-level `id` becomes part of file names, so use only letters, digits, `.`, `_` and `-`.
+
+   The script does not wait forever. It stops after `--timeout <minutes>` (default 60, `0` = no limit), when the person presses Cancel on the page, or when the page has been closed for `--grace <seconds>` (default 60; a reload inside that time is fine).
 4. **Wait.** Tell the user in one line that the page is open. Work on anything that does not depend on the answers. Do not guess the answers and proceed.
-5. **Read the answers and continue.** The output has one line per question id.
+5. **Read the result and continue.** The exit code and the first line of stdout say how it ended:
+
+   | Exit | First line | What to do |
+   |---|---|---|
+   | 0 | `Decisions are done. Answer file: …` | Read the answers below and continue |
+   | 3 | `Decisions cancelled. …` | The person chose not to answer. Stop the work that depends on these decisions, say so in one line, and do not open the page again unless they ask |
+   | 4 | `Decisions timed out. …` | Tell the user in one line and offer to open the same file again. Choices made so far come back in the browser |
+   | 5 | `Decisions not submitted. The page was closed …` | Same as 4 |
+   | 2 | (stderr) the fixes the file needs | Fix the question file and open it again |
+   | 1 | (stderr) a server error | Report it; do not guess the answers |
+
+   After exit 0 the output has one line per question id.
    - A chosen value: follow it. If there are additional comments, apply them.
    - `sent back (info)`: find out more, then open only that question again.
    - `sent back (options)`: write new options that fit the stated reason and open only that question again.
@@ -41,7 +62,7 @@ Write the questions in the language the user is using. Set `"lang"` at the top o
 6. **The hook writes the record.** Answers pile up in `.hus-visual-decision/answers/`. When the turn ends, the Stop hook writes `docs/decisions/<date>-<batch-name>.md` and adds one line to `docs/decisions/README.md`. Without hooks, run it yourself:
 
    ```bash
-   node <plugin folder>/hooks/record-hook.mjs --cwd .
+   node <this skill's folder>/../../hooks/record-hook.mjs --cwd .
    ```
 
 ## Hooks
@@ -56,5 +77,6 @@ Write the questions in the language the user is using. Set `"lang"` at the top o
 ## Do not
 
 - Call AskUserQuestion from inside this skill.
-- Treat `delegate` as approval for a hard-to-undo action (deploy, delete, sending outside). For those, the person must pick an answer themselves.
+- Treat `delegate` as approval for a hard-to-undo action (deploy, delete, sending outside). Mark those `noDelegate`; the person must pick an answer themselves.
+- Treat a cancel, a time-out or a closed page as an answer. Nothing was decided.
 - Edit answer files or record documents by hand.

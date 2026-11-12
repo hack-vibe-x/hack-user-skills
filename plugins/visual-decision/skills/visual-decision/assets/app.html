@@ -30,7 +30,7 @@ kbd{font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid
 .nav .prog{margin:0 8px 14px;font-size:12px;color:var(--muted)}
 .nav .track{height:4px;border-radius:2px;background:var(--line);margin-top:6px;overflow:hidden}
 .nav .track i{display:block;height:100%;background:var(--accent);transition:width .2s}
-.nav button{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;width:100%;text-align:left;border:0;background:none;padding:8px;border-radius:8px;cursor:pointer;align-items:start}
+.nav button{position:relative;display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;width:100%;text-align:left;border:0;background:none;padding:8px;border-radius:8px;cursor:pointer;align-items:start}
 .nav button:hover{background:var(--surface2)}
 .nav button.cur{background:var(--surface);box-shadow:0 0 0 1px var(--line)}
 .nav .dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--mk2);margin-top:3px;display:grid;place-items:center;font-size:10px;color:#fff}
@@ -46,6 +46,7 @@ kbd{font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid
 .stage{flex:1;padding:36px 40px 24px;max-width:1080px;width:100%;margin:0 auto}
 .kicker{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:10px}
 .tag{background:var(--accent-soft);color:var(--accent);font-weight:600;padding:2px 8px;border-radius:99px}
+.tag.hard{background:var(--bad-soft);color:var(--bad)}
 h2{font-size:26px;line-height:1.3;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
 .ctx{color:var(--muted);margin:0 0 6px;max-width:68ch}
 details.more{margin:0 0 4px;color:var(--muted);font-size:13.5px}
@@ -61,7 +62,9 @@ details.more p{margin:6px 0 0;max-width:68ch}
 .opts{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));column-gap:14px;margin-top:22px}
 .opt{display:grid;grid-row:span var(--rows);grid-template-rows:subgrid;background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:14px 14px 12px;cursor:pointer;position:relative;outline:0;transition:border-color .12s, box-shadow .12s}
 .opt:hover{border-color:var(--mk2)}
-.opt:focus-visible{box-shadow:0 0 0 3px var(--accent-soft)}
+.opt:focus-visible,.pvopt:focus-visible,.item:focus-visible,button:focus-visible,h2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2:focus:not(:focus-visible){outline:0}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .opt.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .opt-h{display:flex;gap:8px;align-items:center;padding-bottom:10px}
 .opt-h b{font-size:16px;line-height:1.3;flex:1}
@@ -78,7 +81,6 @@ details.more p{margin:6px 0 0;max-width:68ch}
 .win .mk{border-radius:0;background:var(--surface)}
 .win .mk-card,.win .mk-split .l div,.win .mk-split .r{background:var(--surface2)}
 .win .mk-split .r .blk{background:var(--mk)}
-.win .pv{border:0;border-radius:0}
 .opt-v .mx-wrap,.opt-v .pipe{background:none;padding:4px}
 .cap{font-size:12px;color:var(--muted);text-align:center;margin-top:6px}
 .dim{border-top:1px solid var(--line);padding:8px 0;display:grid;grid-template-columns:14px 1fr;column-gap:6px;align-content:start}
@@ -128,15 +130,8 @@ details.more p{margin:6px 0 0;max-width:68ch}
 
 /* one big preview + option switching */
 .pvwrap{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin-top:22px;align-items:start}
-.pv{background:#fff;color:#1c1b18;border:1px solid var(--line);border-radius:14px;padding:26px 26px 20px}
-.pv-badge{display:inline-block;font-size:11.5px;font-weight:700;color:var(--pv);border:1.5px solid var(--pv);border-radius:99px;padding:1px 8px}
-.pv h3{font-size:22px;line-height:1.3;margin:10px 0 6px}
-.pv p{margin:0 0 14px;color:#5d5a52;font-size:14px}
-.pv a{color:var(--pv);text-decoration:underline}
-.pv-btn{display:inline-block;background:var(--pv);color:#fff;font-weight:700;border-radius:8px;padding:9px 16px;font-size:14px}
-.pv-chart{display:flex;align-items:flex-end;gap:6px;height:64px;margin-top:20px;border-top:1px solid #eceae4;padding-top:12px}
-.pv-chart i{flex:1;background:var(--pv);border-radius:3px 3px 0 0;opacity:.85}
-.pv-chart i:nth-child(odd){opacity:.35}
+.pvframe{display:none;width:100%;border:0;background:#fff;pointer-events:none}
+.pvframe.on{display:block}
 .pvopts{display:flex;flex-direction:column;gap:10px}
 .pvopt{display:grid;grid-template-columns:34px 1fr auto;gap:4px 10px;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;outline:0}
 .pvopt:hover{border-color:var(--mk2)}
@@ -157,6 +152,13 @@ details.more p{margin:6px 0 0;max-width:68ch}
 .items{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .item{display:grid;grid-template-columns:22px 1fr 120px 44px;gap:12px;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer;outline:0}
 .item.sel{border-color:var(--accent)}
+/* a recommended item or value laid out ahead of time, not chosen yet */
+.item.draft{border-style:dashed;border-color:var(--accent)}
+.item.draft .box{border-color:var(--accent);color:var(--accent)}
+.draft-note{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:12px;padding:9px 12px;border:1px dashed var(--accent);border-radius:10px;background:var(--accent-soft);font-size:13px}
+.draft-note .ghost{padding:5px 11px;font-weight:600;color:var(--accent);border-color:var(--accent)}
+.now .draft-b{font-size:12px;font-weight:600;color:var(--accent);border:1px dashed var(--accent);border-radius:99px;padding:1px 8px;margin-left:10px;vertical-align:middle;letter-spacing:0}
+.val.draft .now span:first-child{color:var(--muted)}
 .item .box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--mk2);display:grid;place-items:center;color:#fff;font-size:12px}
 .item.sel .box{background:var(--accent);border-color:var(--accent)}
 .item b{font-size:15px} .item small{display:block;color:var(--muted);font-size:12.5px}
@@ -189,6 +191,7 @@ details.more p{margin:6px 0 0;max-width:68ch}
 .presets{display:flex;gap:6px;flex-wrap:wrap}
 .presets button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 11px;font-size:13px;cursor:pointer}
 .presets button.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.presets button.draft{border-style:dashed;border-color:var(--accent);color:var(--accent)}
 .outs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
 .out{background:var(--surface2);border-radius:10px;padding:10px 12px}
 .out span{font-size:12px;color:var(--muted);display:block}
@@ -236,7 +239,8 @@ pre{background:var(--surface2);border-radius:10px;padding:12px;font:12px/1.5 ui-
 .cant-t i{font-style:normal;color:var(--muted)}
 .cant.open{padding-bottom:12px}
 .cant p{margin:0 12px 8px;font-size:12.5px;color:var(--muted)}
-.reasons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 12px}
+.reasons{display:grid;grid-template-columns:repeat(var(--n,3),1fr);gap:8px;margin:0 12px}
+.cant .must{margin:0 12px 8px;font-size:12.5px;color:var(--bad)}
 .cant .txt{margin:8px 12px 0;width:calc(100% - 24px)}
 .bar .defer.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 .bar-in{position:relative}
@@ -247,9 +251,12 @@ pre{background:var(--surface2);border-radius:10px;padding:12px;font:12px/1.5 ui-
 .reason small{font-size:12.5px;color:var(--muted)}
 .dim-all{opacity:.4}
 .keys{font-size:12px;color:var(--muted);white-space:nowrap}
+.nav .nav-cancel{display:block;width:auto;margin:6px 8px 0;padding:6px 8px;font-size:12.5px;color:var(--muted)}
+.nav .nav-cancel:hover{color:var(--bad);background:var(--bad-soft)}
+.banner{position:sticky;top:0;z-index:5;background:var(--bad-soft);color:var(--bad);border-bottom:1px solid var(--line);padding:8px 16px;font-size:13px;text-align:center}
 
 @media (max-width:860px){
-  .app{grid-template-columns:1fr}
+  .app{grid-template-columns:minmax(0,1fr)}
   .nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:12px}
   .nav .list{display:flex;gap:4px;overflow-x:auto}
   .nav .list button{min-width:150px}
@@ -274,23 +281,29 @@ pre{background:var(--surface2);border-radius:10px;padding:12px;font:12px/1.5 ui-
 </head>
 <body>
 <div class="app">
-  <aside class="nav" id="nav"></aside>
-  <div class="main">
+  <nav class="nav" id="nav"></nav>
+  <main class="main">
+    <div class="banner" id="banner" role="alert" hidden></div>
     <div class="stage" id="stage"></div>
     <div class="bar"><div class="bar-in" id="bar"></div></div>
-  </div>
+  </main>
 </div>
+<div class="sr" id="live" role="status" aria-live="polite"></div>
 
 <script>
-/* Questions come from the server (/api/questions, with the UI strings for the chosen language); answers go to /api/submit. */
+/* Questions come from the server (/api/questions, with the UI strings for the chosen language); answers go to /api/submit.
+   /api/live is held open while the page is open, so the server can tell when the tab is gone. */
 const rep=(n,f)=>Array.from({length:n},(_,i)=>f(i)).join('');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let META={}, D=[], S={}, KEY='vd', cur=0, sent=null, panel=null, visited=false;
+let META={}, D=[], S={}, KEY='vd', cur=0, sent=null, ended=null, panel=null, live=null;
 const T=(k,v)=>String((META.strings&&META.strings[k])??k).replace(/\{(\w+)\}/g,(m,n)=>v&&n in v?v[n]:m);
 const REASON_KEYS=['info','options','delegate'];
+const reasonsFor=d=>d.noDelegate?REASON_KEYS.filter(k=>k!=='delegate'):REASON_KEYS;
 const reasonTitle=k=>T('reason.'+k+'.title'), reasonDesc=k=>T('reason.'+k+'.desc');
+const locked=()=>!!(sent||ended);
+function announce(msg){ const el=document.getElementById('live'); el.textContent=''; setTimeout(()=>{ el.textContent=msg; },30); }
 
-const win=h=>`<div class="win"><div class="win-bar"><i></i><i></i><i></i><span>${T('win.preview')}</span></div>${h}</div>`;
+const win=h=>`<div class="win"><div class="win-bar" aria-hidden="true"><i></i><i></i><i></i><span>${T('win.preview')}</span></div>${h}</div>`;
 const mkTop='<div class="mk-top"><i></i><i></i></div>';
 const SCREENS={
   table:`<div class="mk">${mkTop}<div class="mk-tr h"><i></i><i></i><i></i><i></i></div>${rep(6,()=>'<div class="mk-tr"><i></i><i></i><i></i><i></i></div>')}</div>`,
@@ -306,17 +319,36 @@ function visual(v){
   if(v.type==='grid') return `<div class="mx-wrap"><div class="mx ${v.big?'big':''}" style="--c:${+v.cols};${v.cols>20?'--g:1.5px':''}">${rep(v.cols*(v.rows||1),i=>`<i class="${(v.mark||[]).includes(i)?'x':''}"></i>`)}</div></div>`;
   if(v.type==='steps') return `<div class="pipe">${v.steps.map((x,i)=>`${i?`<em class="${i<=v.reach?'on':''}"></em>`:''}<span class="${i<=v.reach?'on':'stop'}">${esc(x)}</span>`).join('')}</div>`;
   if(v.type==='image') return framed(`<img class="vimg" src="/file?path=${encodeURIComponent(v.src)}" alt="">`);
-  if(v.type==='html') return framed(`<iframe class="vframe" sandbox srcdoc="${esc(v.html)}" style="height:${+v.height||180}px"></iframe>`);
+  if(v.type==='html') return framed(`<iframe class="vframe" sandbox srcdoc="${esc(v.html)}" style="height:${+v.height||180}px" tabindex="-1" aria-hidden="true"></iframe>`);
   return '';
 }
-const builtinPreview=()=>`<span class="pv-badge">${T('pv.badge')}</span><h3>${T('pv.title')}</h3><p>${T('pv.body')}<a>${T('pv.link')}</a></p><span class="pv-btn">${T('pv.button')}</span><div class="pv-chart">${[40,62,35,80,55,92,70,48].map(h=>`<i style="height:${h}%"></i>`).join('')}</div>`;
+// The preview of a "preview" decision runs in its own sandboxed frame (no scripts, no access to this page), one frame per option.
+const PV_CSS=`*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#1c1b18;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif}
+.pv{padding:26px 26px 20px}.pv-badge{display:inline-block;font-size:11.5px;font-weight:700;color:var(--pv);border:1.5px solid var(--pv);border-radius:99px;padding:1px 8px}
+.pv h3{font-size:22px;line-height:1.3;margin:10px 0 6px}.pv p{margin:0 0 14px;color:#5d5a52;font-size:14px}.pv a{color:var(--pv);text-decoration:underline}
+.pv-btn{display:inline-block;background:var(--pv);color:#fff;font-weight:700;border-radius:8px;padding:9px 16px;font-size:14px}
+.pv-chart{display:flex;align-items:flex-end;gap:6px;height:64px;margin-top:20px;border-top:1px solid #eceae4;padding-top:12px}
+.pv-chart i{flex:1;background:var(--pv);border-radius:3px 3px 0 0;opacity:.85}.pv-chart i:nth-child(odd){opacity:.35}`;
+const builtinPreview=()=>`<span class="pv-badge">${esc(T('pv.badge'))}</span><h3>${esc(T('pv.title'))}</h3><p>${esc(T('pv.body'))}<a>${esc(T('pv.link'))}</a></p><span class="pv-btn">${esc(T('pv.button'))}</span><div class="pv-chart">${[40,62,35,80,55,92,70,48].map(h=>`<i style="height:${h}%"></i>`).join('')}</div>`;
+const vars=o=>Object.entries(o.vars||{'--pv':o.color||'#3b4bd8'});
+const pvDoc=(d,o)=>`<!doctype html><meta charset="utf-8"><style>${PV_CSS}:root{${vars(o).map(v=>v.join(':')).join(';')}}</style><div class="pv">${(d.preview&&d.preview.html)||builtinPreview()}</div>`;
 
-const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} };
+// Saved answers carry the hash of the question file they belong to, so answers for another version never come back.
+const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify({hash:META.hash,S})); }catch(e){} };
 const A=id=>S[id]||(S[id]={});
 const recOf=list=>list.find(o=>o.rec)||list[0];
-const multiSel=d=>{ const a=S[d.id]; return a&&a.choices?a.choices:d.items.filter(i=>i.rec).map(i=>i.id); };
+const recItems=d=>d.items.filter(i=>i.rec).map(i=>i.id);
+// multi and value questions show the recommendation ahead of time. Until the person acts on it, it is a draft, not an answer.
+function isDraft(d){ const a=S[d.id]||{}; if(a.defer) return false;
+  if(d.type==='multi') return !a.choices;
+  if(d.type==='value') return a.choice==null;
+  return false; }
+const multiSel=d=>{ const a=S[d.id]; return a&&a.choices?a.choices:recItems(d); };
 const stopIdx=d=>{ const a=S[d.id]; const i=a&&a.choice!=null?d.stops.findIndex(s=>s.v===a.choice):-1; return i>=0?i:d.stops.indexOf(recOf(d.stops)); };
-const vars=o=>Object.entries(o.vars||{'--pv':o.color});
+function commitDraft(d){ if(!d||!isDraft(d)) return false; const a=A(d.id);
+  if(d.type==='multi') a.choices=recItems(d);
+  if(d.type==='value') a.choice=d.stops[stopIdx(d)].v;
+  save(); return true; }
 
 function isDone(d){ const a=S[d.id]; if(!a) return false; if(a.defer) return true;
   if(d.type==='batch') return d.items.every(i=>a.choices&&a.choices[i.id]);
@@ -334,148 +366,211 @@ function contrast(hex){ if(!/^#[0-9a-f]{6}$/i.test(hex||'')) return null; const 
 function renderNav(){
   const n=doneCount();
   document.getElementById('nav').innerHTML=`<h1>${esc(META.title||T('nav.title'))} · ${D.length}</h1>
-    <div class="prog">${T('nav.progress',{n,m:D.length})}<div class="track"><i style="width:${n/D.length*100}%"></i></div></div>
-    <div class="list">${D.map((d,i)=>{ const a=S[d.id]||{}; const cls=a.defer?'defer':isDone(d)?'done':'';
-      return `<button data-go="${i}" class="${cls} ${i===cur?'cur':''}"><span class="dot">${a.defer?'↩':isDone(d)?'✓':''}</span><span><span class="t">${d.short||d.q}</span><span class="a">${esc(answerText(d))||d.tag||''}</span></span></button>`; }).join('')}
-    <hr><button data-go="${D.length}" class="${cur===D.length?'cur':''}"><span class="dot" style="border-style:dashed"></span><span><span class="t">${T('nav.review')}</span><span class="a">${n===D.length?T('nav.all'):T('nav.left',{n:D.length-n})}</span></span></button></div>`;
+    <div class="prog">${T('nav.progress',{n,m:D.length})}<div class="track" aria-hidden="true"><i style="width:${n/D.length*100}%"></i></div></div>
+    <div class="list">${D.map((d,i)=>{ const a=S[d.id]||{}; const done=isDone(d); const cls=a.defer?'defer':done?'done':'';
+      const sub=answerText(d)||(isDraft(d)?T('nav.draft'):'')||d.tag||'';
+      return `<button data-go="${i}" class="${cls} ${i===cur?'cur':''}" ${i===cur?'aria-current="step"':''}><span class="dot" aria-hidden="true">${a.defer?'↩':done?'✓':''}</span><span><span class="t">${esc(d.short||d.q)}</span><span class="a">${esc(sub)}</span>${done?'':`<span class="sr">, ${T('sr.open')}</span>`}</span></button>`; }).join('')}
+    <hr><button data-go="${D.length}" class="${cur===D.length?'cur':''}" ${cur===D.length?'aria-current="step"':''}><span class="dot" style="border-style:dashed" aria-hidden="true"></span><span><span class="t">${T('nav.review')}</span><span class="a">${n===D.length?T('nav.all'):T('nav.left',{n:D.length-n})}</span></span></button></div>
+    ${locked()?'':`<button class="nav-cancel" data-cancel>${T('nav.cancel')}</button>`}`;
 }
 function head(d){
-  return `<div class="kicker">${d.tag?`<span class="tag">${d.tag}</span>`:''}<span>${cur+1} / ${D.length}</span></div>
-  <h2>${d.q}</h2>${d.ctx?`<p class="ctx">${d.ctx}</p>`:''}
-  ${d.more?`<details class="more"><summary>${T('head.more')}</summary><p>${d.more}</p></details>`:''}
-  ${d.facts?`<div class="facts">${d.facts.map(f=>`<span>${f[0]} <b>${f[1]}</b></span>`).join('')}</div>`:''}`;
+  return `<div class="kicker">${d.tag?`<span class="tag">${esc(d.tag)}</span>`:''}${d.noDelegate?`<span class="tag hard">${T('head.noDelegate')}</span>`:''}<span>${cur+1} / ${D.length}</span></div>
+  <h2 id="qh" tabindex="-1">${esc(d.q)}</h2>${d.ctx?`<p class="ctx">${esc(d.ctx)}</p>`:''}
+  ${d.more?`<details class="more"><summary>${T('head.more')}</summary><p>${esc(d.more)}</p></details>`:''}
+  ${d.facts?`<div class="facts">${d.facts.map(f=>`<span>${esc(f[0])} <b>${esc(f[1])}</b></span>`).join('')}</div>`:''}`;
 }
 const mark=t=>t==='good'?'＋':t==='bad'?'－':'·';
 const recBadge=()=>`<span class="rec">${T('pick.rec')}</span>`;
-const stopsHtml=(d,i)=>d.stops.filter(s=>s.label).map(s=>`<button class="${d.stops[i]===s?'sel':''}" data-stop="${d.stops.indexOf(s)}">${s.label} ${s.v}</button>`).join('');
-const outsHtml=(d,i)=>(d.stops[i].outs||[]).map(o=>`<div class="out ${o.t||''}"><span>${o.k}</span><b>${o.v}</b>${o.p!=null?`<div class="viz"><i style="width:${o.p}%"></i></div>`:''}</div>`).join('');
+// Only the chosen radio (or the first one) is in the tab order; arrow keys move within the group.
+const tabFor=(key,list,chosen)=>key===(chosen!=null&&list.some(o=>o.key===chosen)?chosen:list[0].key)?0:-1;
+const stopsHtml=(d,i,draft)=>d.stops.filter(s=>s.label).map(s=>{ const on=d.stops[i]===s; return `<button class="${on?(draft?'draft':'sel'):''}" aria-pressed="${on&&!draft}" data-stop="${d.stops.indexOf(s)}">${esc(s.label)} ${esc(s.v)}</button>`; }).join('');
+const outsHtml=(d,i)=>(d.stops[i].outs||[]).map(o=>`<div class="out ${o.t||''}"><span>${esc(o.k)}</span><b>${esc(o.v)}</b>${o.p!=null?`<div class="viz" aria-hidden="true"><i style="width:${o.p}%"></i></div>`:''}</div>`).join('');
+const valueText=(d,i)=>`${d.stops[i].v} ${d.unit||''}${d.stops[i].label?' · '+d.stops[i].label:''}`.trim();
+const draftNote=(kind)=>`<div class="draft-note" id="draftnote"><span>${T('draft.'+kind)}</span><button class="ghost" data-confirm>${T('draft.confirm')}</button></div>`;
 
 function body(d){
   const a=S[d.id]||{};
-  if(d.type==='pick'){ const dims=d.dims||[]; return `<div class="opts" role="radiogroup" style="--n:${d.options.length};--rows:${dims.length+3}">
-    ${d.options.map((o,i)=>`<div class="opt ${a.choice===o.key?'sel':''}" role="radio" aria-checked="${a.choice===o.key}" tabindex="0" data-pick="${o.key}">
-      <span class="check">✓</span>
-      <div class="opt-h"><kbd>${i+1}</kbd><b>${o.label}</b>${o.rec?recBadge():''}</div>
-      <div class="opt-v">${visual(o.visual)}${o.cap?`<div class="cap">${o.cap}</div>`:''}</div>
-      ${dims.map((k,j)=>{ const c=(o.d||[])[j]||['','']; return `<div class="dim ${c[1]||''}"><span class="dk">${k}</span><span class="mark">${mark(c[1])}</span><span class="dv">${c[0]}</span></div>`; }).join('')}
-      <div class="when">${o.when||''}</div></div>`).join('')}
-    </div>${d.same?`<div class="same">${d.same}</div>`:''}`; }
+  if(d.type==='pick'){ const dims=d.dims||[]; return `<div class="opts" role="radiogroup" aria-labelledby="qh" style="--n:${d.options.length};--rows:${dims.length+3}">
+    ${d.options.map((o,i)=>`<div class="opt ${a.choice===o.key?'sel':''}" role="radio" aria-checked="${a.choice===o.key}" tabindex="${tabFor(o.key,d.options,a.choice)}" data-pick="${esc(o.key)}" aria-label="${esc(o.label)}${o.rec?' ('+esc(T('pick.rec'))+')':''}">
+      <span class="check" aria-hidden="true">✓</span>
+      <div class="opt-h"><kbd aria-hidden="true">${i+1}</kbd><b>${esc(o.label)}</b>${o.rec?recBadge():''}</div>
+      <div class="opt-v">${visual(o.visual)}${o.cap?`<div class="cap">${esc(o.cap)}</div>`:''}</div>
+      ${dims.map((k,j)=>{ const c=(o.d||[])[j]||['','']; return `<div class="dim ${c[1]||''}"><span class="dk">${esc(k)}</span><span class="mark" aria-hidden="true">${mark(c[1])}</span><span class="dv">${esc(c[0])}</span></div>`; }).join('')}
+      <div class="when">${esc(o.when)}</div></div>`).join('')}
+    </div>${d.same?`<div class="same">${esc(d.same)}</div>`:''}`; }
 
-  if(d.type==='preview'){ const shown=d.options.find(o=>o.key===a.choice)||recOf(d.options);
-    return `<div class="pvwrap">${win(`<div class="pv" id="pv" style="${vars(shown).map(v=>v.join(':')).join(';')}">${(d.preview&&d.preview.html)||builtinPreview()}</div>`)}
-      <div class="pvopts" role="radiogroup">${d.options.map((o,i)=>{ const c=contrast(o.color); return `<div class="pvopt ${a.choice===o.key?'sel':''}" role="radio" aria-checked="${a.choice===o.key}" tabindex="0" data-pick="${o.key}" data-hover="${o.key}">
-        <span class="sw" style="background:${o.color||'var(--mk)'}"></span><b>${o.label} ${o.rec?recBadge():''}</b><kbd>${i+1}</kbd>
-        <span class="line">${o.desc||''}${c?` · ${T('prev.contrast')} <em class="${c>=4.5?'good':'bad'}">${c.toFixed(1)} : 1 ${c>=4.5?T('prev.ok'):T('prev.bad')}</em>`:''}</span></div>`; }).join('')}</div></div>`; }
+  if(d.type==='preview'){ const shown=(d.options.find(o=>o.key===a.choice)||recOf(d.options)).key; const h=+(d.preview&&d.preview.height)||320;
+    return `<div class="pvwrap">${win(d.options.map(o=>`<iframe class="pvframe ${o.key===shown?'on':''}" data-pv="${esc(o.key)}" sandbox srcdoc="${esc(pvDoc(d,o))}" style="height:${h}px" tabindex="-1" aria-hidden="true"></iframe>`).join(''))}
+      <div class="pvopts" role="radiogroup" aria-labelledby="qh">${d.options.map((o,i)=>{ const c=contrast(o.color); return `<div class="pvopt ${a.choice===o.key?'sel':''}" role="radio" aria-checked="${a.choice===o.key}" tabindex="${tabFor(o.key,d.options,a.choice)}" data-pick="${esc(o.key)}" data-hover="${esc(o.key)}">
+        <span class="sw" style="background:${esc(o.color||'var(--mk)')}" aria-hidden="true"></span><b>${esc(o.label)} ${o.rec?recBadge():''}</b><kbd aria-hidden="true">${i+1}</kbd>
+        <span class="line">${esc(o.desc)}${c?` · ${T('prev.contrast')} <em class="${c>=4.5?'good':'bad'}">${c.toFixed(1)} : 1 ${c>=4.5?T('prev.ok'):T('prev.bad')}</em>`:''}</span></div>`; }).join('')}</div></div>`; }
 
-  if(d.type==='multi'){ const sel=multiSel(d); const total=d.items.filter(i=>sel.includes(i.id)).reduce((s,i)=>s+(i.cost||0),0); const u=d.unit||''; const over=d.budget!=null&&total>d.budget; const mx=Math.max(...d.items.map(i=>i.cost||0))||1;
+  if(d.type==='multi'){ const draft=isDraft(d); const sel=multiSel(d); const total=d.items.filter(i=>sel.includes(i.id)).reduce((s,i)=>s+(i.cost||0),0); const u=esc(d.unit||''); const over=d.budget!=null&&total>d.budget; const mx=Math.max(...d.items.map(i=>i.cost||0))||1;
     const diff=d.budget==null?'':over?T('multi.over',{x:+(total-d.budget).toFixed(1),u}):total<d.budget?T('multi.left',{x:+(d.budget-total).toFixed(1),u}):T('multi.exact');
-    return `${d.budget!=null?`<div class="meter ${over?'over':''}"><div class="top"><span>${T('multi.selected',{n:sel.length})}</span><span><b>${total}${u}</b> / ${d.budget}${u} · ${diff}</span></div>
-      <div class="bar"><i style="width:${Math.min(100,total/d.budget*100)}%"></i></div></div>`:''}
-      <div class="items">${d.items.map(i=>`<div class="item ${sel.includes(i.id)?'sel':''}" role="checkbox" aria-checked="${sel.includes(i.id)}" tabindex="0" data-toggle="${i.id}">
-        <span class="box">${sel.includes(i.id)?'✓':''}</span><span><b>${i.label}</b> ${i.rec?recBadge():''}<small>${i.sub||''}</small></span>
-        <span class="cost">${i.cost!=null?`<i style="width:${i.cost/mx*100}%"></i>`:''}</span><span class="d">${i.cost!=null?i.cost+u:''}</span></div>`).join('')}</div>`; }
+    return `${d.budget!=null?`<div class="meter ${over?'over':''}"><div class="top"><span>${draft?T('multi.draftSel',{n:sel.length}):T('multi.selected',{n:sel.length})}</span><span><b>${total}${u}</b> / ${d.budget}${u} · ${diff}</span></div>
+      <div class="bar" aria-hidden="true"><i style="width:${Math.min(100,total/d.budget*100)}%"></i></div></div>`:''}
+      ${draft?draftNote('multi'):''}
+      <div class="items" role="group" aria-labelledby="qh">${d.items.map(i=>{ const on=sel.includes(i.id); const cls=on?(draft?'draft':'sel'):''; return `<div class="item ${cls}" role="checkbox" aria-checked="${on&&!draft}" tabindex="0" data-toggle="${esc(i.id)}">
+        <span class="box" aria-hidden="true">${on?'✓':''}</span><span><b>${esc(i.label)}</b> ${i.rec?recBadge():''}<small>${esc(i.sub)}</small></span>
+        <span class="cost" aria-hidden="true">${i.cost!=null?`<i style="width:${i.cost/mx*100}%"></i>`:''}</span><span class="d">${i.cost!=null?i.cost+u:''}</span></div>`; }).join('')}</div>`; }
 
   if(d.type==='batch'){ const ch=a.choices||{};
     return `<div class="batch-top"><span class="same" style="margin:0">${T('batch.chosen',{n:Object.keys(ch).length,m:d.items.length})}</span><button class="ghost" data-allrec>${T('batch.allrec')}</button></div>
-      <div class="rows">${d.items.map(i=>`<div class="row"><span class="q">${i.q}</span><div class="seg">${i.options.map(o=>`<button class="${ch[i.id]===o.key?'sel':''}" data-seg="${i.id}:${o.key}"><b>${o.label}${o.rec?`<span class="r">${T('pick.rec')}</span>`:''}</b><small>${o.sub||''}</small></button>`).join('')}</div></div>`).join('')}</div>`; }
+      <div class="rows">${d.items.map(i=>`<div class="row"><span class="q" id="bq-${esc(i.id)}">${esc(i.q)}</span><div class="seg" role="radiogroup" aria-labelledby="bq-${esc(i.id)}">${i.options.map(o=>`<button role="radio" aria-checked="${ch[i.id]===o.key}" tabindex="${tabFor(o.key,i.options,ch[i.id])}" class="${ch[i.id]===o.key?'sel':''}" data-seg="${esc(i.id)}:${esc(o.key)}"><b>${esc(o.label)}${o.rec?`<span class="r">${T('pick.rec')}</span>`:''}</b><small>${esc(o.sub)}</small></button>`).join('')}</div></div>`).join('')}</div>`; }
 
-  if(d.type==='value'){ const i=stopIdx(d);
-    return `<div class="val"><div class="now"><span id="vnow">${d.stops[i].v}</span><small>${d.unit||''}</small></div>
-      <input type="range" id="vrange" min="0" max="${d.stops.length-1}" step="1" value="${i}">
-      <div class="presets" id="vpre">${stopsHtml(d,i)}</div>
+  if(d.type==='value'){ const i=stopIdx(d); const draft=isDraft(d);
+    return `<div class="val ${draft?'draft':''}" id="val"><div class="now"><span id="vnow">${esc(d.stops[i].v)}</span><small>${esc(d.unit)}</small>${draft?`<span class="draft-b" id="vdraft">${T('draft.badge')}</span>`:''}</div>
+      <input type="range" id="vrange" min="0" max="${d.stops.length-1}" step="1" value="${i}" aria-labelledby="qh" aria-valuetext="${esc(valueText(d,i))}">
+      <div class="presets" id="vpre">${stopsHtml(d,i,draft)}</div>
+      ${draft?draftNote('value'):''}
       <div class="outs" id="vouts">${outsHtml(d,i)}</div></div>`; }
   return '';
 }
-const mdHtml=md=>md.split('\n').map(l=>{ const t=esc(l).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`(.+?)`/g,'<code>$1</code>');
-  return l.startsWith('# ')?`<h3>${t.slice(2)}</h3>`:l.startsWith('## ')?`<h4>${t.slice(3)}</h4>`:l.startsWith('- ')?`<li>${t.slice(2)}</li>`:l?`<p>${t}</p>`:''; }).join(''); 
+const mdHtml=md=>md.split('\n').map(l=>{ const t=esc(l.replace(/\\([<>])/g,'$1')).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/\[([^\]]+)\]\([^)]*\)/g,'$1');
+  return l.startsWith('# ')?`<h3>${t.slice(2)}</h3>`:l.startsWith('## ')?`<h4>${t.slice(3)}</h4>`:l.startsWith('- ')?`<li>${t.slice(2)}</li>`:l.startsWith('&gt; ')?`<p>${t.slice(5)}</p>`:l?`<p>${t}</p>`:''; }).join('');
 
 function summary(){
   const n=doneCount(), all=n===D.length;
-  return `<div class="kicker"><span class="tag">${T('sum.tag')}</span></div><h2>${sent?T('sum.doneTitle'):all?T('sum.allTitle'):T('sum.leftTitle',{n:D.length-n})}</h2>
+  return `<div class="kicker"><span class="tag">${T('sum.tag')}</span></div><h2 id="qh" tabindex="-1">${sent?T('sum.doneTitle'):all?T('sum.allTitle'):T('sum.leftTitle',{n:D.length-n})}</h2>
     <p class="ctx">${sent?T('sum.doneCtx'):T('sum.ctx')}</p>
     <div class="sum">${D.map((d,i)=>{ const a=S[d.id]||{}; const t=answerText(d);
-      return `<button data-go="${i}" ${sent?'disabled':''}><span class="sq">${d.short||d.q}</span><span class="sa ${isDone(d)?'':'none'}">${isDone(d)?esc(t):T('sum.none')}${a.defer&&a.why?`<span class="sn">${T('sum.reason')}: ${esc(a.why)}</span>`:''}${a.note?`<span class="sn">${T('sum.note')}: ${esc(a.note)}</span>`:''}</span></button>`; }).join('')}</div>
+      return `<button data-go="${i}" ${sent?'disabled':''}><span class="sq">${esc(d.short||d.q)}</span><span class="sa ${isDone(d)?'':'none'}">${isDone(d)?esc(t):T('sum.none')}${a.defer&&a.why?`<span class="sn">${T('sum.reason')}: ${esc(a.why)}</span>`:''}${a.note?`<span class="sn">${T('sum.note')}: ${esc(a.note)}</span>`:''}</span></button>`; }).join('')}</div>
     <div class="go"><button class="primary" data-send ${all&&!sent?'':'disabled'}>${sent?T('sum.submitted'):T('sum.submit')}</button>
       <span class="same" style="margin:0">${sent?'':T('sum.hint')}</span></div>
     ${sent?`<div class="rec-doc"><div class="rec-top"><span><b>${T('rec.docTitle')}</b> <code>${esc(sent.path)}</code></span><span><button class="ghost" data-copy>${T('btn.copy')}</button></span></div>
       <div class="rec-body">${mdHtml(sent.md)}</div></div>`:''}`;
 }
+const endView=()=>`<div class="kicker"><span class="tag hard">${T('end.tag')}</span></div><h2 id="qh" tabindex="-1">${T('end.'+ended+'.title')}</h2><p class="ctx">${T('end.ctx')}</p>`;
 function extras(d,a){
-  const open=panel||a.defer;
+  const open=panel||a.defer; const keys=reasonsFor(d);
   return `<div class="extra">
     <label class="fld"><span>${T('extra.label')}</span><input class="txt" id="note" placeholder="${esc(T('extra.ph'))}" value="${esc(a.note||'')}"></label>
     <div class="cant ${open?'open':''}">
-      <button class="cant-t" data-defer aria-expanded="${!!open}">${T('cant.title')} <i>${open?'▴':'▾'}</i></button>
-      ${open?`<p>${T('cant.help')}</p>
-        <div class="reasons">${REASON_KEYS.map(k=>`<button class="reason ${a.defer===k?'sel':''}" data-reason="${k}"><b>${reasonTitle(k)}</b><small>${reasonDesc(k)}</small></button>`).join('')}</div>
-        ${a.defer?`<input class="txt" id="dnote" placeholder="${esc(T('cant.ph'))}" value="${esc(a.why||'')}">`:''}`:''}
+      <button class="cant-t" data-defer aria-expanded="${!!open}" aria-controls="cantbody">${T('cant.title')} <i aria-hidden="true">${open?'▴':'▾'}</i></button>
+      <div id="cantbody">${open?`<p>${T('cant.help')}</p>${d.noDelegate?`<p class="must">${T('cant.noDelegate')}</p>`:''}
+        <div class="reasons" style="--n:${keys.length}">${keys.map(k=>`<button class="reason ${a.defer===k?'sel':''}" aria-pressed="${a.defer===k}" data-reason="${k}"><b>${reasonTitle(k)}</b><small>${reasonDesc(k)}</small></button>`).join('')}</div>
+        ${a.defer?`<input class="txt" id="dnote" aria-label="${esc(T('cant.ph'))}" placeholder="${esc(T('cant.ph'))}" value="${esc(a.why||'')}">`:''}`:''}</div>
     </div></div>`;
 }
+const nextLabel=d=>{ const last=cur===D.length-1; return isDraft(d)?T(last?'bar.confirmReview':'bar.confirmNext'):T(last?'bar.review':'bar.next'); };
 function renderStage(){
   const st=document.getElementById('stage'), bar=document.getElementById('bar');
+  if(ended){ st.innerHTML=endView(); bar.innerHTML=''; return; }
   if(cur>=D.length){ st.innerHTML=summary(); bar.innerHTML=sent?'':`<button class="ghost" data-prev>${T('bar.prev')}</button><span style="flex:1"></span>`; return; }
   const d=D[cur], a=S[d.id]||{};
-  st.innerHTML=head(d)+`<div class="${a.defer?'dim-all':''}">${body(d)}</div>`+extras(d,a)+(d.pattern?`<div class="pattern"><b>${T('note.label')}</b> · ${d.pattern}</div>`:'');
+  st.innerHTML=head(d)+`<div class="${a.defer?'dim-all':''}">${body(d)}</div>`+extras(d,a)+(d.pattern?`<div class="pattern"><b>${T('note.label')}</b> · ${esc(d.pattern)}</div>`:'');
   bar.innerHTML=`<button class="ghost" data-prev ${cur?'':'disabled'}>${T('bar.prev')}</button>
-    <span class="keys" style="flex:1;text-align:center">${d.options?'<kbd>1</kbd>~<kbd>'+d.options.length+'</kbd> '+T('key.choose')+' · ':''}<kbd>←</kbd><kbd>→</kbd> ${T('key.move')} · <kbd>⏎</kbd> ${T('key.next')}</span>
+    <span class="keys" style="flex:1;text-align:center" aria-hidden="true">${d.options?'<kbd>1</kbd>~<kbd>'+d.options.length+'</kbd> '+T('key.choose')+' · ':''}<kbd>←</kbd><kbd>→</kbd> ${T('key.move')} · <kbd>⏎</kbd> ${T('key.next')}</span>
     <span class="sp" style="flex:1"></span>
-    <button class="primary" data-next>${cur===D.length-1?T('bar.review'):T('bar.next')}</button>`;
+    <button class="primary" data-next>${nextLabel(d)}</button>`;
 }
-function render(){ renderNav(); renderStage(); }
+// Re-rendering replaces the elements, so keyboard focus is put back on the matching control.
+const FOCUS_KEYS=['pick','toggle','seg','stop','reason','allrec','defer','confirm','next','prev','send','copy','cancel'];
+function focusSig(){ const el=document.activeElement; if(!el||el===document.body) return null;
+  for(const k of FOCUS_KEYS) if(k in el.dataset) return `[data-${k}="${CSS.escape(el.dataset[k])}"]`;
+  return el.id?'#'+CSS.escape(el.id):null; }
+function render(){ const sig=focusSig(); renderNav(); renderStage();
+  if(sig){ const el=document.querySelector('#stage '+sig+',#bar '+sig+',#nav '+sig); if(el) el.focus({preventScroll:true}); } }
+const focusHead=()=>{ const h=document.getElementById('qh'); if(h) h.focus({preventScroll:true}); };
 
-function go(i){ if(sent) return; commitDefaults(); panel=null; cur=Math.max(0,Math.min(D.length,i)); render(); window.scrollTo(0,0); }
-// Types with a pre-selected value commit that value when the person presses "Next".
-function commitDefaults(){ const d=D[cur]; if(!d||!visited) return; const a=A(d.id); if(a.defer) return;
-  if(d.type==='multi'&&!a.choices) a.choices=multiSel(d);
-  if(d.type==='value'&&a.choice==null) a.choice=d.stops[stopIdx(d)].v; save(); }
-function pick(key){ const a=A(D[cur].id); a.choice=key; delete a.defer; panel=null; save(); render(); }
-function setStop(i,moveSlider){ const d=D[cur]; const a=A(d.id); a.choice=d.stops[i].v; delete a.defer; save();
-  document.getElementById('vnow').textContent=d.stops[i].v; document.getElementById('vouts').innerHTML=outsHtml(d,i); document.getElementById('vpre').innerHTML=stopsHtml(d,i);
-  if(moveSlider) document.getElementById('vrange').value=i; renderNav(); }
+// Moving between questions never settles a draft. Only "Next" (which says so) or touching the draft does.
+function go(i){ if(locked()) return; panel=null; cur=Math.max(0,Math.min(D.length,i)); render(); window.scrollTo(0,0); focusHead(); }
+function next(){ const d=D[cur]; if(commitDraft(d)) announce(T('sr.picked',{x:answerText(d)})); go(cur+1); }
+function pick(key){ const d=D[cur]; const a=A(d.id); a.choice=key; delete a.defer; panel=null; save(); render(); const o=d.options.find(o=>o.key===key); if(o) announce(T('sr.picked',{x:o.label})); }
+function setStop(i,moveSlider){ const d=D[cur]; const wasDraft=isDraft(d); const a=A(d.id); a.choice=d.stops[i].v; delete a.defer; save();
+  // Updated in place, not re-rendered, so a slider drag is not interrupted.
+  document.getElementById('vnow').textContent=d.stops[i].v; document.getElementById('vouts').innerHTML=outsHtml(d,i); document.getElementById('vpre').innerHTML=stopsHtml(d,i,false);
+  const r=document.getElementById('vrange'); if(moveSlider) r.value=i; r.setAttribute('aria-valuetext',valueText(d,i));
+  if(wasDraft){ ['draftnote','vdraft'].forEach(id=>{ const el=document.getElementById(id); if(el) el.remove(); }); document.getElementById('val').classList.remove('draft'); const nb=document.querySelector('[data-next]'); if(nb) nb.textContent=nextLabel(d); }
+  if(moveSlider) announce(T('sr.picked',{x:valueText(d,i)}));
+  renderNav(); }
+let sending=false;
 async function send(){
-  try{ const r=await fetch('/api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({state:S})});
-    if(!r.ok) throw new Error(await r.text()); sent=await r.json(); try{ localStorage.removeItem(KEY); }catch(e){} render(); }
+  if(sending||locked()) return; sending=true;
+  const btn=document.querySelector('[data-send]'); if(btn) btn.disabled=true;
+  try{ const r=await fetch('/api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({state:S,hash:META.hash})});
+    if(!r.ok) throw new Error(await r.text()); sent=await r.json(); if(live) live.close(); try{ localStorage.removeItem(KEY); }catch(e){} render(); focusHead(); announce(T('sum.doneTitle')); }
+  catch(e){ alert(T('err.submit')+'\n'+e.message); if(btn) btn.disabled=false; }
+  finally{ sending=false; }
+}
+async function cancel(){
+  if(locked()||!confirm(T('cancel.confirm'))) return;
+  try{ const r=await fetch('/api/cancel',{method:'POST'}); if(!r.ok) throw new Error(await r.text()); end('cancelled'); }
   catch(e){ alert(T('err.submit')+'\n'+e.message); }
 }
+function end(reason){ if(sent||ended) return; ended=reason; if(live) live.close(); banner(false); render(); focusHead(); announce(T('end.'+reason+'.title')); }
+function banner(on){ const b=document.getElementById('banner'); b.hidden=!on; b.textContent=on?T('offline'):''; }
+// Answers saved in this browser may come from an earlier version of the question file. Keep only those that still match.
+function cleanSaved(saved){ const out={}; if(!saved||typeof saved!=='object') return out;
+  for(const d of D){ const a=saved[d.id]; if(!a||typeof a!=='object') continue; const c={};
+    if(reasonsFor(d).includes(a.defer)){ c.defer=a.defer; if(typeof a.why==='string'&&a.why) c.why=a.why; }
+    else if(d.type==='pick'||d.type==='preview'){ if(d.options.some(o=>o.key===a.choice)) c.choice=a.choice; }
+    else if(d.type==='multi'){ if(Array.isArray(a.choices)) c.choices=d.items.map(i=>i.id).filter(id=>a.choices.includes(id)); }
+    else if(d.type==='batch'){ if(a.choices&&typeof a.choices==='object'){ c.choices={}; d.items.forEach(i=>{ if(i.options.some(o=>o.key===a.choices[i.id])) c.choices[i.id]=a.choices[i.id]; }); } }
+    else if(d.type==='value'){ if(d.stops.some(s=>s.v===a.choice)) c.choice=a.choice; }
+    if(typeof a.note==='string'&&a.note) c.note=a.note;
+    if(Object.keys(c).length) out[d.id]=c; }
+  return out; }
 
 document.addEventListener('click',e=>{
-  const t=e.target.closest('[data-go],[data-pick],[data-toggle],[data-seg],[data-allrec],[data-stop],[data-defer],[data-prev],[data-next],[data-send],[data-reason],[data-copy]'); if(!t||t.disabled) return;
+  const t=e.target.closest('[data-go],[data-pick],[data-toggle],[data-seg],[data-allrec],[data-stop],[data-defer],[data-prev],[data-next],[data-send],[data-reason],[data-copy],[data-confirm],[data-cancel]'); if(!t||t.disabled) return;
   if('copy' in t.dataset){ navigator.clipboard.writeText(sent.md).then(()=>{ t.textContent=T('btn.copied'); }).catch(()=>{ t.textContent=T('btn.copyFail'); }); return; }
-  if(sent) return;
+  if(locked()) return;
   const d=D[cur];
-  if(t.dataset.go!=null){ visited=false; go(+t.dataset.go); }
+  if(t.dataset.go!=null) go(+t.dataset.go);
   else if(t.dataset.pick) pick(t.dataset.pick);
-  else if(t.dataset.toggle){ const a=A(d.id); const s=new Set(multiSel(d)); s.has(t.dataset.toggle)?s.delete(t.dataset.toggle):s.add(t.dataset.toggle); a.choices=d.items.map(i=>i.id).filter(x=>s.has(x)); delete a.defer; save(); render(); }
+  else if(t.dataset.toggle){ const a=A(d.id); const s=new Set(multiSel(d)); const on=!s.has(t.dataset.toggle); on?s.add(t.dataset.toggle):s.delete(t.dataset.toggle); a.choices=d.items.map(i=>i.id).filter(x=>s.has(x)); delete a.defer; save(); render();
+    const it=d.items.find(i=>i.id===t.dataset.toggle); announce(T(on?'sr.added':'sr.removed',{x:it.label,n:a.choices.length})); }
   else if(t.dataset.seg){ const [i,k]=t.dataset.seg.split(':'); const a=A(d.id); (a.choices||(a.choices={}))[i]=k; delete a.defer; save(); render(); }
-  else if('allrec' in t.dataset){ const a=A(d.id); a.choices={}; d.items.forEach(i=>a.choices[i.id]=recOf(i.options).key); delete a.defer; save(); render(); }
+  else if('allrec' in t.dataset){ const a=A(d.id); a.choices={}; d.items.forEach(i=>a.choices[i.id]=recOf(i.options).key); delete a.defer; save(); render(); announce(answerText(d)); }
   else if(t.dataset.stop){ setStop(+t.dataset.stop,true); }
+  else if('confirm' in t.dataset){ commitDraft(d); render(); const h=document.getElementById('qh'); if(h) h.focus({preventScroll:true}); announce(T('sr.picked',{x:answerText(d)})); }
   else if(t.dataset.reason){ const a=A(d.id); if(a.defer===t.dataset.reason) delete a.defer; else a.defer=t.dataset.reason; panel=true; save(); render(); const dn=document.getElementById('dnote'); if(dn) dn.focus(); }
   else if('defer' in t.dataset){ const a=A(d.id); if(panel||a.defer){ panel=null; delete a.defer; save(); } else panel=true; render(); }
-  else if('prev' in t.dataset){ visited=false; go(cur-1); }
-  else if('next' in t.dataset){ visited=true; go(cur+1); }
+  else if('prev' in t.dataset){ go(cur-1); }
+  else if('next' in t.dataset){ next(); }
   else if('send' in t.dataset){ send(); }
+  else if('cancel' in t.dataset){ cancel(); }
 });
 document.addEventListener('input',e=>{
+  if(locked()) return;
   if(e.target.id==='vrange') setStop(+e.target.value);
   if(e.target.id==='dnote'){ const a=A(D[cur].id); a.why=e.target.value; if(!a.why) delete a.why; save(); }
   if(e.target.id==='note'){ const a=A(D[cur].id); a.note=e.target.value; if(!a.note) delete a.note; save(); }
 });
-const setPv=o=>{ const pv=document.getElementById('pv'); if(pv&&o) vars(o).forEach(v=>pv.style.setProperty(v[0],v[1])); };
-document.addEventListener('mouseover',e=>{ const t=e.target.closest('[data-hover]'); if(t) setPv(D[cur].options.find(o=>o.key===t.dataset.hover)); });
-document.addEventListener('mouseout',e=>{ const t=e.target.closest('[data-hover]'); if(!t||t.contains(e.relatedTarget)) return; const d=D[cur], a=S[d.id]||{}; setPv(d.options.find(o=>o.key===a.choice)||recOf(d.options)); });
+const showPv=key=>document.querySelectorAll('.pvframe').forEach(f=>f.classList.toggle('on',f.dataset.pv===key));
+const chosenPv=()=>{ const d=D[cur], a=S[d.id]||{}; return (d.options.find(o=>o.key===a.choice)||recOf(d.options)).key; };
+document.addEventListener('mouseover',e=>{ const t=e.target.closest('[data-hover]'); if(t) showPv(t.dataset.hover); });
+document.addEventListener('mouseout',e=>{ const t=e.target.closest('[data-hover]'); if(!t||t.contains(e.relatedTarget)) return; showPv(chosenPv()); });
 document.addEventListener('keydown',e=>{
-  if(sent) return;
+  if(locked()) return;
   const inField=e.target.matches('input');
-  if(e.key==='Enter'&&!e.target.matches('button')){ e.preventDefault(); const r=e.target.closest('[data-pick],[data-toggle]'); if(r&&document.activeElement===r){ r.click(); return; } if(cur<D.length){ visited=true; go(cur+1); } return; }
-  if(e.key===' '&&e.target.matches('[role]')){ e.preventDefault(); e.target.click(); return; }
+  // Arrow keys inside an option group move between its options (radios also select, as native radios do).
+  const grp=!inField&&e.target.closest('[role=radiogroup],[role=group]');
+  if(grp&&/^Arrow(Up|Down|Left|Right)$/.test(e.key)){
+    const items=[...grp.querySelectorAll('[role=radio],[role=checkbox]')]; const i=items.indexOf(e.target.closest('[role=radio],[role=checkbox]'));
+    if(i>=0){ e.preventDefault(); const n=items[(i+(e.key==='ArrowRight'||e.key==='ArrowDown'?1:-1)+items.length)%items.length]; n.focus(); if(n.getAttribute('role')==='radio') n.click(); return; }
+  }
+  if(e.key==='Enter'&&!e.target.matches('button,summary')){ e.preventDefault(); const r=e.target.closest('[data-pick],[data-toggle]'); if(r&&document.activeElement===r){ r.click(); return; } if(cur<D.length) next(); return; }
+  if(e.key===' '&&e.target.matches('div[role]')){ e.preventDefault(); e.target.click(); return; }
   if(inField||e.metaKey||e.ctrlKey||e.altKey) return;
   const d=D[cur];
   if(d&&d.options&&/^[1-9]$/.test(e.key)&&d.options[+e.key-1]) pick(d.options[+e.key-1].key);
-  if(e.key==='ArrowRight'){ visited=false; go(cur+1); }
-  if(e.key==='ArrowLeft'){ visited=false; go(cur-1); }
+  if(e.key==='ArrowRight') go(cur+1);
+  if(e.key==='ArrowLeft') go(cur-1);
 });
+// The open stream tells the server this tab is still here. If the server stops waiting, it says why before it goes.
+function connect(){
+  if(!window.EventSource) return;
+  live=new EventSource('/api/live');
+  live.addEventListener('open',()=>banner(false));
+  live.addEventListener('end',ev=>{ let r='closed'; try{ r=JSON.parse(ev.data).reason; }catch(e){} end(r); });
+  live.addEventListener('error',()=>{ if(!sent&&!ended) banner(true); });
+}
 fetch('/api/questions').then(r=>r.json()).then(q=>{ META=q; D=q.decisions; KEY='hus-visual-decision:'+q.id; document.title=q.title||T('nav.title'); document.documentElement.lang=q.lang||'en';
-  try{ S=JSON.parse(localStorage.getItem(KEY)||'{}'); }catch(e){} render(); })
+  document.getElementById('nav').setAttribute('aria-label',T('nav.title'));
+  try{ const saved=JSON.parse(localStorage.getItem(KEY)||'null'); if(saved&&saved.hash===q.hash) S=cleanSaved(saved.S); else if(saved) localStorage.removeItem(KEY); }catch(e){}
+  render(); connect(); })
   .catch(e=>{ document.getElementById('stage').innerHTML=`<p class="err">${esc(T("err.load"))}: ${esc(e.message)}</p>`; });
 </script>
 </body>

@@ -1,7 +1,7 @@
 // Builds the decision record (markdown) and the summary Claude reads, from the questions and the answers.
 // Used by the server and by the record hook.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, appendFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { makeT, pickLang } from "./i18n.mjs";
 
 export const REASON_KEYS = ["info", "options", "delegate"];
@@ -16,14 +16,58 @@ function contrast(hex) {
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
   return 1.05 / (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] + 0.05);
 }
-const strip = (s) => String(s ?? "").replace(/<[^>]+>/g, "");
+// Text fields are plain text. Escape angle brackets so a label like <Button> stays visible in Markdown.
+const strip = (s) => String(s ?? "").replace(/[<>]/g, "\\$&");
+
+const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+const str = (v) => (typeof v === "string" && v ? v : undefined);
+
+// Keeps only answers that match the questions: known option keys, item ids and stop values.
+// A stale or hand-made state (for example an option key from an earlier version of the question file) is dropped, not trusted.
+export function cleanState(q, S) {
+  const out = {};
+  if (!isObj(S)) return out;
+  for (const d of q.decisions || []) {
+    const a = S[d.id];
+    if (!isObj(a)) continue;
+    const c = {};
+    // A decision marked noDelegate (hard to undo) cannot be handed to Claude; that answer is dropped.
+    if (REASON_KEYS.includes(a.defer) && !(a.defer === "delegate" && d.noDelegate)) {
+      c.defer = a.defer;
+      if (str(a.why)) c.why = a.why;
+    } else if (d.type === "pick" || d.type === "preview") {
+      if ((d.options || []).some((o) => o.key === a.choice)) c.choice = a.choice;
+    } else if (d.type === "multi") {
+      if (Array.isArray(a.choices)) c.choices = (d.items || []).map((i) => i.id).filter((id) => a.choices.includes(id));
+    } else if (d.type === "batch") {
+      if (isObj(a.choices)) {
+        c.choices = {};
+        for (const i of d.items || []) if ((i.options || []).some((o) => o.key === a.choices[i.id])) c.choices[i.id] = a.choices[i.id];
+      }
+    } else if (d.type === "value") {
+      if ((d.stops || []).some((s) => s.v === a.choice)) c.choice = a.choice;
+    }
+    if (str(a.note)) c.note = a.note;
+    if (Object.keys(c).length) out[d.id] = c;
+  }
+  return out;
+}
+
+// Whether a cleaned answer settles the question.
+export function isDone(d, a) {
+  if (!a) return false;
+  if (a.defer) return true;
+  if (d.type === "batch") return !!a.choices && (d.items || []).every((i) => a.choices[i.id] != null);
+  if (d.type === "multi") return Array.isArray(a.choices);
+  return a.choice != null;
+}
 
 // One decision as record lines: what was chosen, the differences that backed it, and what was not chosen.
 function lines(d, a, t) {
   const B = (key) => `**${t(key)}:**`;
   const rec = (o) => (o.rec ? t("rec.recommended") : "");
   const L = [];
-  if (!a) return [`- ${B("rec.undecided")} ${t("rec.noAnswer")}`];
+  if (!isDone(d, a)) return [`- ${B("rec.undecided")} ${t("rec.noAnswer")}`];
   if (a.defer) {
     L.push(`- ${B("rec.undecided")} ${t(`reason.${a.defer}.title`)} → ${t(`reason.${a.defer}.desc`)}`);
     if (a.why) L.push(`- ${B("rec.reason")} ${a.why}`);
@@ -69,17 +113,24 @@ function lines(d, a, t) {
   return L;
 }
 
-export function buildRecord(q, S, at) {
+export const supersededIds = (q) => [].concat(q?.supersedes ?? []).filter((x) => typeof x === "string" && x);
+
+// links: { <earlier batch id>: <relative path to its record> } for the ones that were found.
+export function buildRecord(q, state, at, links = {}) {
+  const S = cleanState(q, state);
   const t = makeT(pickLang(q.lang));
   const ds = q.decisions;
   const back = ds.filter((d) => S[d.id]?.defer).length;
   const L = [`# ${q.title || t("rec.title")} · ${day(at)}`, "", t("rec.summary", { done: ds.length - back, total: ds.length, back }), ""];
+  const prev = supersededIds(q).map((id) => (links[id] ? `[${id}](${links[id]})` : `\`${id}\``));
+  if (prev.length) L.push(`> ${t("rec.supersedes", { list: prev.join(", ") })}`, "");
   ds.forEach((d, i) => L.push(`## ${i + 1}. ${strip(d.q)}`, "", ...lines(d, S[d.id], t), ""));
   return L.join("\n");
 }
 
 // The answers Claude reads: per question id, the chosen value, why it was sent back, and any note.
-export function answersFor(q, S) {
+export function answersFor(q, state) {
+  const S = cleanState(q, state);
   const out = {};
   for (const d of q.decisions) {
     const a = S[d.id] || {};
@@ -109,32 +160,63 @@ export function recordPathFor(cwd, session) {
   return path;
 }
 
+const readSession = (file) => {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch {
+    return null;
+  }
+};
+
+// The latest recorded batch with this id, as an absolute record path.
+function recordOf(cwd, dir, id) {
+  let best = null;
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json"))) {
+    const s = readSession(join(dir, f));
+    if (s?.id !== id || !s.recordPath) continue;
+    const path = join(cwd, s.recordPath);
+    if (existsSync(path) && (!best || String(s.answeredAt) > best.at)) best = { at: String(s.answeredAt), path };
+  }
+  return best?.path ?? null;
+}
+
 // Finds answered batches that have no record yet and writes them as documents. Returns the paths written.
+// Files are handled in name order (they start with a time stamp), so an earlier batch is recorded before one that supersedes it.
 export function writePending(cwd) {
   const dir = join(cwd, DATA_DIR, "answers");
   if (!existsSync(dir)) return [];
   const written = [];
-  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json"))) {
+  for (const f of readdirSync(dir).filter((x) => x.endsWith(".json")).sort()) {
     const file = join(dir, f);
-    let s;
+    const s = readSession(file);
+    if (!s || s.recordedAt || !s.questions || !Array.isArray(s.questions.decisions) || !s.state) continue;
+    // One broken answer file must not stop the others from being recorded.
     try {
-      s = JSON.parse(readFileSync(file, "utf8"));
-    } catch {
-      continue;
+      const t = makeT(pickLang(s.questions.lang));
+      const out = recordDir(cwd);
+      mkdirSync(out, { recursive: true });
+      const path = recordPathFor(cwd, s);
+      const earlier = {};
+      for (const id of supersededIds(s.questions)) {
+        const old = recordOf(cwd, dir, id);
+        if (old) earlier[id] = old;
+      }
+      const links = Object.fromEntries(Object.entries(earlier).map(([id, p]) => [id, relative(dirname(path), p)]));
+      writeFileSync(path, buildRecord(s.questions, s.state, s.answeredAt, links));
+      // The earlier record points forward to this one, so reading either shows the chain.
+      for (const old of Object.values(earlier)) {
+        appendFileSync(old, `\n> ${t("rec.supersededBy", { link: `[${s.id} · ${day(s.answeredAt)}](${relative(dirname(old), path)})` })}\n`);
+      }
+      const index = join(out, "README.md");
+      if (!existsSync(index)) writeFileSync(index, `# ${t("rec.idx.title")}\n\n${t("rec.idx.intro")}\n\n`);
+      appendFileSync(index, `- ${day(s.answeredAt)} · [${strip(s.questions.title || s.id)}](${relative(out, path)}) · ${t("rec.idx.line", { n: s.questions.decisions.length })}\n`);
+      s.recordedAt = new Date().toISOString();
+      s.recordPath = relative(cwd, path);
+      writeFileSync(file, JSON.stringify(s, null, 1));
+      written.push(s.recordPath);
+    } catch (e) {
+      console.error(`[hus-visual-decision] Could not record ${f}: ${e.message}`);
     }
-    if (s.recordedAt || !s.questions || !s.state) continue;
-    const t = makeT(pickLang(s.questions.lang));
-    const out = recordDir(cwd);
-    mkdirSync(out, { recursive: true });
-    const path = recordPathFor(cwd, s);
-    writeFileSync(path, buildRecord(s.questions, s.state, s.answeredAt));
-    const index = join(out, "README.md");
-    if (!existsSync(index)) writeFileSync(index, `# ${t("rec.idx.title")}\n\n${t("rec.idx.intro")}\n\n`);
-    appendFileSync(index, `- ${day(s.answeredAt)} · [${s.questions.title || s.id}](${relative(out, path)}) · ${t("rec.idx.line", { n: s.questions.decisions.length })}\n`);
-    s.recordedAt = new Date().toISOString();
-    s.recordPath = relative(cwd, path);
-    writeFileSync(file, JSON.stringify(s, null, 1));
-    written.push(s.recordPath);
   }
   return written;
 }

@@ -25,6 +25,11 @@ Requires Node.js 18 or later. There are no packages to install. The `hack-user-s
 | `skills/visual-decision/` | The skill, the decision page, the server, the question file format, and the language files |
 | `hooks/` | A hook that redirects questions to the web page and a hook that writes the records |
 | `samples/` | `decisions.json` (English) and `decisions.ko.json` (Korean) with all five decision types |
+| `tests/` | Tests for the question check, the answer clean-up, the records and the server. Run `node --test tests/*.test.mjs` |
+
+Check a question file without opening a page: add `--check`.
+
+The server does not wait forever. It stops when you press **Cancel these decisions** on the page, when the page has been closed for a minute (`--grace <seconds>`), or after an hour without a submit (`--timeout <minutes>`, `0` for no limit). Nothing is sent to Claude in those cases, and your choices so far stay in the browser for the next time the page opens.
 
 Try the sample from this folder (`plugins/visual-decision/`): `node skills/visual-decision/scripts/serve.mjs samples/decisions.json --keep`
 
@@ -36,7 +41,7 @@ The server listens on 127.0.0.1 only. Answers and records stay in your project f
 |---|---|---|
 | `.hus-visual-decision/` in your project | `config.json` (settings), `pending/` (question files), `answers/` (answer files). Add it to `.gitignore` | Delete the folder |
 | `docs/decisions/` in your project | Decision records and an index `README.md`. Change it with `recordDir` | Your documents; keep or delete them |
-| Browser storage for `127.0.0.1` | Answers in progress, under `hus-visual-decision:<question id>`. Removed on submit | Clear site data for `127.0.0.1` |
+| Browser storage for `127.0.0.1:<port>` | Answers in progress, under `hus-visual-decision:<question id>`, with a hash of the question file. Kept per port, so they come back only on the same port, and only for the same file. Removed on submit | Clear site data for `127.0.0.1` |
 
 Before 0.3.0 the project folder was `.decisions/`. Move it with `mv .decisions .hus-visual-decision`.
 
@@ -82,6 +87,11 @@ Node.js 18 이상이 필요합니다. 따로 깔 패키지는 없습니다. `hac
 | `skills/visual-decision/` | 스킬 본문, 결정 화면, 서버, 질문 파일 형식, 언어 파일 |
 | `hooks/` | 질문을 웹으로 돌리는 훅, 기록을 쌓는 훅 |
 | `samples/` | 다섯 가지 결정 유형이 모두 들어 있는 `decisions.json`(영어)과 `decisions.ko.json`(한국어) |
+| `tests/` | 질문 검사, 답 정리, 기록, 서버 테스트. `node --test tests/*.test.mjs`로 돌립니다 |
+
+화면을 띄우지 않고 질문 파일만 검사하려면 `--check`를 붙입니다.
+
+서버는 끝없이 기다리지 않습니다. 화면의 **결정 그만두기**를 누르거나, 화면을 닫고 1분이 지나거나(`--grace <초>`), 제출 없이 1시간이 지나면(`--timeout <분>`, `0`이면 제한 없음) 멈춥니다. 이때 Claude에게 넘어가는 답은 없고, 지금까지 고른 것은 브라우저에 남아 다음에 화면을 열면 되살아납니다.
 
 샘플 보기(이 폴더 `plugins/visual-decision/`에서): `node skills/visual-decision/scripts/serve.mjs samples/decisions.ko.json --keep`
 
@@ -93,7 +103,7 @@ Node.js 18 이상이 필요합니다. 따로 깔 패키지는 없습니다. `hac
 |---|---|---|
 | 프로젝트의 `.hus-visual-decision/` | `config.json`(설정), `pending/`(질문 파일), `answers/`(답 파일). `.gitignore`에 넣어 두세요 | 폴더를 지웁니다 |
 | 프로젝트의 `docs/decisions/` | 결정 기록과 목록 `README.md`. `recordDir`로 바꿉니다 | 사용자 문서입니다. 두거나 지웁니다 |
-| `127.0.0.1`의 브라우저 저장소 | 작성 중인 답. 키는 `hus-visual-decision:<질문 id>`. 제출하면 지워집니다 | `127.0.0.1`의 사이트 데이터를 지웁니다 |
+| `127.0.0.1:<포트>`의 브라우저 저장소 | 작성 중인 답과 질문 파일의 해시. 키는 `hus-visual-decision:<질문 id>`. 포트마다 따로 저장되어 같은 포트, 같은 질문 파일에서만 되살아납니다. 제출하면 지워집니다 | `127.0.0.1`의 사이트 데이터를 지웁니다 |
 
 0.3.0 전에는 프로젝트 폴더가 `.decisions/`였습니다. `mv .decisions .hus-visual-decision`로 옮기면 됩니다.
 

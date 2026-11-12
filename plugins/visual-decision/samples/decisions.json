@@ -51,7 +51,7 @@
       ]
     },
     {
-      "id": "push", "type": "pick", "tag": "Approval", "short": "Push to main",
+      "id": "push", "type": "pick", "tag": "Approval", "short": "Push to main", "noDelegate": true,
       "q": "How far should the work branch go?",
       "ctx": "Pushing is hard to undo, so we ask before doing it.",
       "facts": [["Commits", "25"], ["Unit tests", "835 pass"], ["UI tests", "142 pass"], ["Work in progress", "1 forms admin"]],
@@ -80,7 +80,7 @@
     {
       "id": "scope", "type": "multi", "tag": "Scope", "short": "This week's scope",
       "q": "Pick what goes into this week.",
-      "ctx": "You have 5 days. A recommended set is already selected.",
+      "ctx": "You have 5 days. A recommended set is laid out; keep it or change it.",
       "pattern": "A pick-several decision. The total changes as you choose, so you can see when it overflows.",
       "budget": 5, "unit": " days",
       "items": [

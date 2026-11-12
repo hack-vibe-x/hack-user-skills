@@ -3,10 +3,14 @@
 `samples/decisions.json` (English) and `samples/decisions.ko.json` (Korean) contain all five decision types.
 
 ```json
-{ "id": "lead-list-layout", "lang": "en", "title": "Lead list screen", "decisions": [ ... ] }
+{ "id": "lead-list-layout", "lang": "en", "title": "Lead list screen", "supersedes": "lead-list", "decisions": [ ... ] }
 ```
 
 `id` becomes part of the record file name (the question file name if missing). `title` is the title of the page and the record. `lang` picks the UI language (`en`, `ko`, or any `locales/<code>.json`).
+
+`supersedes` (optional) is the `id` of an earlier batch, or a list of them, that this one asks again (for example after a "sent back"). The new record links to the earlier record, and the earlier record gets a line pointing to the new one.
+
+Answers in progress are kept in the browser together with a hash of the question file. If the file changes at all, they are dropped, so answers for an old version never come back.
 
 ## Common to every decision
 
@@ -21,6 +25,7 @@
 | `more` | | Longer background, folded away |
 | `facts` | | Chips for the current state. `[["Commits","25"],["Tests","835 pass"]]` |
 | `pattern` | | A note shown under the decision. For samples only; leave it out in real use |
+| `noDelegate` | | `true` for an approval before a hard-to-undo action. The page hides "Decide for me" and the server refuses it, so the person must pick or send it back for more information or other options |
 
 ## Which type
 
@@ -73,6 +78,7 @@ One big preview with the options swapped in.
 ```
 
 - Inside the preview HTML, `var(--pv)` becomes the option's `color`. To change other values, give the option `"vars": {"--pv": "...", "--radius": "..."}`.
+- The preview is drawn in an isolated frame, one per option; scripts do not run and the page's own styles do not reach it. The classes `pv-badge`, `pv-btn` and `pv-chart` are available inside it. `preview.height` sets the frame height in px (default 320).
 - Without `preview`, a built-in preview (badge, title, link, button, bars) is used.
 - If `color` is a 6-digit hex, the contrast of white text on it is computed and shown.
 
@@ -83,7 +89,7 @@ One big preview with the options swapped in.
   "items": [ { "id": "forms", "label": "Forms admin", "sub": "No-code forms", "cost": 2, "rec": true } ] }
 ```
 
-Items with `rec` start selected. `budget` and `cost` are optional (the total bar disappears without them).
+Items with `rec` are laid out ahead of time with dashed lines, but they are not an answer yet. The question counts as decided once the person toggles an item, presses "Keep this", or presses "Keep this and go on". Moving to another question in the list does not decide it. `budget` and `cost` are optional (the total bar disappears without them).
 
 ## batch
 
@@ -104,7 +110,7 @@ Give each item one `rec` ("Pick all recommended" uses it). `sub` says what diffe
     { "v": 200, "label": "Recommended", "rec": true, "outs": [ { "k": "Time to finish", "v": "6 days", "t": "", "p": 25 } ] } ] }
 ```
 
-List the values a person can pick as `stops`, and write the result for each value (`outs`) ahead of time. A stop with `label` becomes a quick-pick button. `p` is a bar length (0–100).
+List the values a person can pick as `stops`, and write the result for each value (`outs`) ahead of time. A stop with `label` becomes a quick-pick button. `p` is a bar length (0–100). The slider starts on the `rec` stop as a draft; like `multi`, it becomes the answer only when the person moves it, picks a stop, or keeps it.
 
 ## What comes back
 
