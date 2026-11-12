@@ -21,6 +21,7 @@ If the hook was turned on with `hack-user-skills-criteria-gap:criteria-init`, a 
 - If a confirmed criterion in the block applies to the request, apply it without asking and state `Applied criteria: ...`.
 - If the block says the criteria this prompt needs are not listed, ask only the one criterion that blocks the work, before starting. The list in the block may be a filtered part, so look up the record directly with `hack-user-skills-criteria-gap:criteria` when needed.
 - Without the hook, or with it off, this skill works the same way by hand.
+- With both the hook and the question card on: the hook's one question before the work still goes in the chat, because the request cannot start without it. The card's rule below ("do not also ask about gaps in the chat") covers gaps found after a turn, not that one question.
 
 ## Card answers
 If the question card was turned on with `hack-user-skills-criteria-gap:criteria-init`, the plugin asks about gaps (an omitted premise, a distinction, understanding a principle, a criterion) in a card above the prompt after a turn ends. A `[hus-criteria-gap]` note in the context says so. In that session, do not also ask about gaps in the chat: the same gap would be asked twice.

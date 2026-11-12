@@ -28,7 +28,8 @@ MAX_LISTED = 8
 MAX_TEXT = 160
 STATE_KEEP_DAYS = 7
 HERE = Path(__file__).resolve().parent
-PATTERN_KEYS = ("delegation", "request_form", "direction", "long_output", "count_units", "criteria_words")
+PATTERN_KEYS = ("delegation", "request_form", "direction", "long_output", "count_units", "criteria_words",
+                "ask_endings", "unit_particles", "verb_fillers", "verb_endings")
 
 
 # ---------- prompt patterns (patterns*.json) ----------
@@ -50,8 +51,33 @@ def load_patterns(folder=HERE):
             if isinstance(values, list):
                 merged[key] += [v.lower() for v in values if isinstance(v, str) and v]
     units = sorted(merged["count_units"], key=len, reverse=True)
-    merged["count_re"] = re.compile(r"\d+\s*(?:" + "|".join(map(re.escape, units)) + r")(?![a-z])") if units else None
+    # After a count unit, only the end of a word or a listed particle may follow,
+    # so a unit that is the first letter of a longer word (a month, an improvement) does not count.
+    particles = "|".join(map(re.escape, merged["unit_particles"]))
+    tail = r"(?=$|[\W\d_]" + (f"|(?:{particles})" if particles else "") + ")"
+    merged["count_re"] = re.compile(r"\d+\s*(?:" + "|".join(map(re.escape, units)) + r")" + tail) if units else None
+    for key in PATTERN_KEYS:
+        merged[key + "_re"] = word_re(merged[key], merged)
     return merged
+
+
+def word_re(words, pat):
+    """One regex for a word list. A word in Latin letters must start a word ("plan" matches "planning",
+    not "explanation"). A word ending in "~" is a noun that becomes a verb only with an ending from
+    verb_endings (optionally after a word from verb_fillers): it matches the verb, not the bare noun."""
+    fillers = "|".join(map(re.escape, pat.get("verb_fillers", [])))
+    endings = "|".join(map(re.escape, pat.get("verb_endings", [])))
+    verb = (r"\s?" + (rf"(?:(?:{fillers})\s?)?" if fillers else "") + rf"(?:{endings})") if endings else None
+    parts = []
+    for w in words:
+        if w.endswith("~"):
+            if verb:
+                parts.append(re.escape(w[:-1]) + verb)
+        elif re.match(r"[a-z]", w):
+            parts.append(r"(?<![a-z])" + re.escape(w))
+        else:
+            parts.append(re.escape(w))
+    return re.compile("|".join(parts)) if parts else None
 
 
 PATTERNS = load_patterns()
@@ -60,6 +86,7 @@ PATTERNS = load_patterns()
 # ---------- file format (references/format.md) ----------
 
 def parse_file(text):
+    text = text.lstrip("﻿").replace("\r\n", "\n")
     meta, body = {}, text
     if text.startswith("---\n"):
         end = text.find("\n---", 4)
@@ -154,17 +181,23 @@ def load_criteria(folders, today):
                 continue
             seen.add(key)
             item = {"area": one_line(key[0], 40), "decision": one_line(key[1], 40),
+                    "keywords": [k.strip() for k in str(meta.get("keywords", "")).split(",") if k.strip()],
                     "body": one_line(body), "scope": "project" if folder == folders[0] else "global"}
-            if status == "confirmed" and not is_stale(meta, today):
+            inferred = meta.get("source") == "ai-inferred"
+            if status == "confirmed" and not inferred and not is_stale(meta, today):
                 confirmed.append(item)
             else:
-                item["why"] = "draft" if status == "draft" else "past its review date"
+                item["why"] = ("draft" if status == "draft" else
+                               "inferred by the AI, not confirmed by the user" if inferred else "past its review date")
                 recheck.append(item)
     return confirmed, recheck
 
 
 # ---------- session state ----------
 
+# One file per session: turn (requests seen), delegations (detected), injected (times context was
+# added), fires (times it said the needed criteria are missing; capped by max_per_session), last_fire.
+# skills/criteria-init/scripts/criteria_status.py reads these.
 def state_file(session_id, data_dir):
     sid = re.sub(r"[^A-Za-z0-9_-]", "-", session_id or "unknown")[:80]
     return Path(data_dir) / "sessions" / f"{sid}.json"
@@ -175,10 +208,11 @@ def load_state(path):
         state = json.loads(path.read_text(encoding="utf-8"))
         if isinstance(state, dict):
             return {"turn": int(state.get("turn", 0)), "delegations": int(state.get("delegations", 0)),
-                    "fires": int(state.get("fires", 0)), "last_fire": int(state.get("last_fire", -999))}
+                    "injected": int(state.get("injected", 0)), "fires": int(state.get("fires", 0)),
+                    "last_fire": int(state.get("last_fire", -999))}
     except (ValueError, OSError, TypeError):
         pass
-    return {"turn": 0, "delegations": 0, "fires": 0, "last_fire": -999}
+    return {"turn": 0, "delegations": 0, "injected": 0, "fires": 0, "last_fire": -999}
 
 
 def save_state(path, state):
@@ -227,20 +261,40 @@ def last_assistant_text(transcript_path):
     return ""
 
 
-def has_any(text, words):
-    return any(w in text for w in words)
+def has_any(text, pat, key):
+    rx = pat.get(key + "_re")
+    return bool(rx.search(text)) if rx else False
 
 
 def is_delegation(prompt, pat=PATTERNS):
     p = prompt.lower()
-    if not has_any(p, pat["delegation"]):
+    if not has_any(p, pat, "delegation"):
         return False
-    return has_any(p, pat["request_form"]) or len(prompt) >= 30
+    asks_politely = has_any(p, pat, "request_form")
+    # "What do you think of the plan?" is a question, not work handed over.
+    if p.rstrip().endswith(("?", "？")) and not asks_politely:
+        return False
+    return asks_politely or len(prompt) >= 30
+
+
+def last_paragraph(text):
+    """The final paragraph without Markdown emphasis or a trailing parenthetical, where a question to the user sits."""
+    for para in reversed(re.split(r"\n\s*\n", text.strip())):
+        tail = re.sub(r"[*_`>]+", "", para).strip()
+        tail = re.sub(r"\s*[(（][^()（）]*[)）]$", "", tail).strip()
+        if tail:  # a paragraph that was only an aside is skipped
+            return tail
+    return ""
 
 
 def is_asking_criteria(text, pat=PATTERNS):
-    """True when the previous assistant message asks the user about criteria."""
-    return has_any(text.lower(), pat["criteria_words"]) and text.rstrip().endswith(("?", "？"))
+    """True when the previous assistant message ends by asking the user about criteria,
+    so the user's next prompt is an answer, not a new delegation."""
+    tail = last_paragraph(text).lower()
+    if not tail:
+        return False
+    asks = "?" in tail or "？" in tail or has_any(tail, pat, "ask_endings")
+    return asks and has_any(tail, pat, "criteria_words")
 
 
 def signals(prompt, first, pat=PATTERNS):
@@ -248,16 +302,27 @@ def signals(prompt, first, pat=PATTERNS):
     found = []
     if first:
         found.append("first delegation in this session")
-    if has_any(p, pat["direction"]):
+    if has_any(p, pat, "direction"):
         found.append("a decision that changes direction")
-    if has_any(p, pat["long_output"]) or (pat["count_re"] and pat["count_re"].search(p)):
+    if has_any(p, pat, "long_output") or (pat["count_re"] and pat["count_re"].search(p)):
         found.append("long output")
     return found
 
 
+def norm(s):
+    return " ".join(re.sub(r"[-_/]+", " ", str(s).lower()).split())
+
+
 def matches(item, prompt):
-    p = prompt.lower()
-    return any(len(v) >= 2 and v.lower() in p for v in (item["area"], item["decision"]))
+    """A criterion matches when its area, decision, or one of its keywords is in the prompt.
+    Hyphens and underscores count as spaces, so the decision "source-filter" matches "source filter".
+    A word in Latin letters needs two characters or more; one syllable of another script is enough."""
+    p = norm(prompt)
+    for v in (item["area"], item["decision"], *item.get("keywords", [])):
+        v = norm(v)
+        if v and (len(v) >= 2 or not v.isascii()) and v in p:
+            return True
+    return False
 
 
 def fmt(item):
@@ -271,12 +336,15 @@ def build_context(event, home=None, data_dir=None, today=None):
     data_dir = data_dir or os.environ.get("CLAUDE_PLUGIN_DATA") or str(Path(tempfile.gettempdir()) / TEMP_DIR)
     prompt = str(event.get("prompt") or event.get("user_prompt") or "").strip()
 
-    project_dir = find_project_dir(event.get("cwd") or os.getcwd(), home)
     global_dir = home / DATA_DIR
+    project_dir = find_project_dir(event.get("cwd") or os.getcwd(), home)
+    if project_dir is not None and project_dir.resolve() == global_dir.resolve():
+        project_dir = None  # walking up from a folder under HOME reached the global folder; it is not a project
     cfg = load_config(project_dir, global_dir if global_dir.is_dir() else None)
     if cfg["enabled"] is not True:
         return None
-    if len(prompt) < 10 or prompt.startswith("/"):
+    # Slash commands and this plugin's own messages (card answers start with "[hus-criteria-gap") are not delegations.
+    if len(prompt) < 10 or prompt.startswith(("/", TAG[:-1])):
         return None
 
     spath = state_file(event.get("session_id"), data_dir)
@@ -330,6 +398,7 @@ def build_context(event, home=None, data_dir=None, today=None):
         elif hit:
             lines.append("This project's rule: if the criteria above do not cover every judgement in this prompt, "
                          "the missing one is checked with the user before the work.")
+        state["injected"] += 1
         return "\n".join(lines)[:4000]
     finally:
         save_state(spath, state)

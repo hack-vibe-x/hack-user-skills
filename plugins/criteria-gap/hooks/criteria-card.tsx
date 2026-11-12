@@ -84,7 +84,8 @@ async function findDirs($: EngineInterface): Promise<Dirs> {
   }
   const global = homeDir && (await $.fs.exists(`${homeDir}/${DATA_DIR}`)) ? `${homeDir}/${DATA_DIR}` : null
 
-  return { project, global }
+  // Walking up from a folder under HOME reaches ~/.hus-criteria-gap/ itself; that is the global folder, not a project.
+  return { project: project === global ? null : project, global }
 }
 
 // The project's config.json if it has one, else the global one. A broken file counts as off.
@@ -117,20 +118,143 @@ async function loadSettings($: EngineInterface): Promise<Settings> {
   }
 }
 
-// Only the confirmed lines of INDEX.md, so the judge does not ask what is already settled.
-async function confirmedIndex($: EngineInterface, dirs: Dirs): Promise<string[]> {
-  const lines: string[] = []
-  for (const dir of [dirs.project, dirs.global === dirs.project ? null : dirs.global]) {
-    if (!dir || !(await $.fs.exists(`${dir}/INDEX.md`))) continue
-    try {
-      const text = await $.fs.read(`${dir}/INDEX.md`)
-      lines.push(...text.split('\n').filter(l => l.includes('· confirmed ·')))
-    } catch {
-      // An unreadable INDEX.md adds nothing.
+// ---------- the criteria record (same rules as load_criteria in criteria_hook.py) ----------
+
+// Without review_after, a confirmed criterion is due for a recheck this many days after confirmed_at.
+const REVIEW_DAYS = 90
+const MAX_KNOWN = 15
+
+// Front matter as criteria_hook.py's parse_file reads it: `key: value`, a quoted value as JSON,
+// otherwise a trailing ` # comment` cut off.
+function parseCriterion(text: string): { meta: Record<string, string>; body: string } {
+  const src = text.replace(/^﻿/, '').replace(/\r\n/g, '\n')
+  const meta: Record<string, string> = {}
+  let body = src
+  if (src.startsWith('---\n')) {
+    const end = src.indexOf('\n---', 4)
+    if (end !== -1) {
+      for (const line of src.slice(4, end).split('\n')) {
+        const at = line.indexOf(':')
+        if (at === -1) continue
+        let value = line.slice(at + 1).trim()
+        if (value.startsWith('"')) {
+          try {
+            value = String(JSON.parse(value))
+          } catch {
+            // Kept as written.
+          }
+        } else {
+          value = value.split(/\s+#/)[0]!.trim()
+        }
+        meta[line.slice(0, at).trim()] = value
+      }
+      body = src.slice(end + 4).replace(/^\n+/, '')
     }
   }
 
-  return lines.slice(0, 15).map(l => clip(l.trim(), 200))
+  return { meta, body: body.trim() }
+}
+
+// YYYY-MM-DD as a day number, or null when it is not a real date.
+function dayNumber(value: string | undefined): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '')
+  if (!m) return null
+  const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  if (new Date(ms).toISOString().slice(0, 10) !== value) return null
+
+  return ms / 86_400_000
+}
+
+// Today on this computer's calendar, as a day number.
+async function today($: EngineInterface): Promise<number> {
+  const d = new Date(await $.clock.now())
+
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86_400_000
+}
+
+// Past review_after, or REVIEW_DAYS after confirmed_at without one; with neither date, stale.
+function isStale(meta: Record<string, string>, now: number): boolean {
+  let due = dayNumber(meta.review_after)
+  if (due === null) {
+    const confirmed = dayNumber(meta.confirmed_at)
+    if (confirmed === null) return true
+    due = confirmed + REVIEW_DAYS
+  }
+
+  return due < now
+}
+
+// The confirmed criteria of the record, read from the criterion files themselves (INDEX.md is a
+// summary for people and can lag behind). A draft, an AI-inferred criterion or one past its review
+// date is not confirmed. For the same area and decision the project wins over the global folder.
+async function confirmedCriteria($: EngineInterface, dirs: Dirs): Promise<string[]> {
+  const now = await today($)
+  const seen = new Set<string>()
+  const lines: string[] = []
+  for (const [dir, scope] of [
+    [dirs.project, 'project'],
+    [dirs.global === dirs.project ? null : dirs.global, 'global'],
+  ] as const) {
+    if (!dir) continue
+    let names: string[]
+    try {
+      names = (await $.fs.list(dir))
+        .filter(f => f.kind === 'file' && f.name.endsWith('.md') && f.name !== 'INDEX.md')
+        .map(f => f.name)
+        .sort()
+    } catch {
+      continue
+    }
+    for (const name of names) {
+      let parsed: ReturnType<typeof parseCriterion>
+      try {
+        parsed = parseCriterion(await $.fs.read(`${dir}/${name}`))
+      } catch {
+        continue
+      }
+      const { meta, body } = parsed
+      if (meta.status !== 'confirmed' && meta.status !== 'draft') continue
+      const key = `${meta.area ?? ''}\u0000${meta.decision ?? ''}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      if (meta.status !== 'confirmed' || meta.source === 'ai-inferred' || isStale(meta, now)) continue
+      lines.push(`[${clip(oneLine(meta.area), 40)}/${clip(oneLine(meta.decision), 40)}] ${clip(oneLine(body), 160)} (${scope})`)
+    }
+  }
+
+  return lines.slice(0, MAX_KNOWN)
+}
+
+// ---------- the judge's quote ----------
+
+// For comparing a quote with the prompt: one script form, one kind of quotation mark, no case, single spaces.
+const normQuote = (s: string) =>
+  s
+    .normalize('NFKC')
+    .replace(/[‘’‚‛′]/g, "'")
+    .replace(/[“”„‟″«»]/g, '"')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+
+// The judge has to quote the user's own words. True when every piece of the quote (split where the
+// judge left words out with "…" or "...") is in the prompt, in order. Quotation marks around the
+// quote do not count.
+function isQuoteInPrompt(quote: string, prompt: string): boolean {
+  const text = normQuote(prompt)
+  const pieces = normQuote(quote)
+    .split(/…|\.{3,}/)
+    .map(p => p.replace(/^[\s"'`「『]+|[\s"'`」』]+$/g, ''))
+    .filter(Boolean)
+  if (pieces.length === 0) return false
+  let from = 0
+  for (const piece of pieces) {
+    const at = text.indexOf(piece, from)
+    if (at === -1) return false
+    from = at + piece.length
+  }
+
+  return true
 }
 
 // ---------- strings a person reads (hooks/locales/<code>.json) ----------
@@ -206,7 +330,7 @@ How to write the question:
 - One question, at most 120 characters, written in the language the user writes in, politely. Concrete enough that the user can answer in their own words.
 - Do not reveal the AI's answer or the criterion the AI used. The user should say what they think first.
 - options: when multiple choice fits, 2 to 4 options that do not overlap, each at most 40 characters, in the user's language. "principle" and "distinction" are usually multiple choice; "premise" and "criterion" are usually free answers, so leave options empty. Do not add "don't know"; the card has its own.
-- quote: the user's words exactly as written, at most 60 characters. why: why it is worth asking now, at most 40 characters.
+- quote: the user's words exactly as written, at most 60 characters, copied from the user's message (not from the AI's answer). It is checked against the message, and a question whose quote is not there is dropped. why: why it is worth asking now, at most 40 characters.
 
 Output one JSON object and nothing else.
 {"ask":false,"kind":"premise|distinction|principle|criterion","question":"","options":[],"quote":"","why":""}`
@@ -287,7 +411,7 @@ async function judge($: EngineInterface, snap: TurnSnapshot, settings: Settings,
     force || (before.asked < settings.max_per_session && snap.turn - before.lastAskTurn > settings.cooldown_turns)
   if (!isAllowed) return 'none'
 
-  const known = await confirmedIndex($, settings.dirs)
+  const known = await confirmedCriteria($, settings.dirs)
   const res = await $.model.complete({
     model: QUESTION_MODEL,
     system: judgeSystem(settings.intensity),
@@ -296,7 +420,10 @@ async function judge($: EngineInterface, snap: TurnSnapshot, settings: Settings,
     effort: 'low',
   })
   const verdict = res.isAnswered ? parseVerdict(res.text, snap.turn) : null
-  const question = verdict?.question ?? null
+  // A quote that is not in the user's message means the question does not rest on their words.
+  const proposed = verdict?.question ?? null
+  const isQuoted = proposed === null || isQuoteInPrompt(proposed.quote, snap.prompt)
+  const question = isQuoted ? proposed : null
   const after = await update($, card, c =>
     !question || c.question ? c : { ...c, question, asked: c.asked + 1, lastAskTurn: snap.turn },
   )
@@ -307,6 +434,7 @@ async function judge($: EngineInterface, snap: TurnSnapshot, settings: Settings,
     ok: verdict !== null,
     ...(res.isAnswered ? (verdict ? {} : { why: 'unparsed', text: clip(res.text, 300) }) : { why: res.reason }),
     question,
+    ...(isQuoted ? {} : { dropped: 'quote-not-in-prompt', rejected: proposed }),
     tokens: res.usage,
   })
   if (!verdict) return 'failed'
@@ -336,8 +464,15 @@ async function reply($: EngineInterface, answer: string) {
   const q = (await read($, card)).question
   if (!q || !answer.trim()) return
   await update($, card, c => ({ ...c, question: null }))
-  await logEvent($, 'question-answered', { kind: q.kind, question: q.question, turn: q.turn })
-  await $.prompt.submit({ text: answerPrompt($, q, answer.trim()) })
+  const text = answer.trim()
+  await logEvent($, 'question-answered', {
+    kind: q.kind,
+    question: q.question,
+    turn: q.turn,
+    answer: clip(text, 200),
+    unknown: text === DONT_KNOW || undefined,
+  })
+  await $.prompt.submit({ text: answerPrompt($, q, text) })
 }
 
 async function skip($: EngineInterface) {
@@ -431,7 +566,8 @@ export const register: Register = on => {
 
   on('prompt.submit', async ($, e, next) => {
     if (e.command) return next(e)
-    prompts.push(e.text)
+    // A card answer is this plugin's own message, not the user's words: keep it out of what the judge reads.
+    if (!e.text.startsWith(`[${SHORT}`)) prompts.push(e.text)
     if (HANGUL.test(e.text) && !(await read($, card)).isHangul) {
       await update($, card, c => ({ ...c, isHangul: true }))
     }
@@ -451,24 +587,30 @@ export const register: Register = on => {
     if (!settings.card) {
       // Turned off while a question waited: take it down. Turns are not counted while off.
       const c = await read($, card)
-      if (c.question) await update($, card, cur => ({ ...cur, question: null }))
+      if (c.question) {
+        await update($, card, cur => ({ ...cur, question: null }))
+        await logEvent($, 'question-withdrawn', { kind: c.question.kind, question: c.question.question, turn: c.question.turn })
+      }
       snap.turn = c.turn
       if (snap.prompt.trim()) lastSnap = snap
 
       return result
     }
 
+    let expired: GapQuestion | null = null
     const c = await update($, card, cur => {
       const turn = cur.turn + 1
-      const isStale = cur.question !== null && turn - cur.question.turn >= EXPIRE_TURNS
+      expired = cur.question !== null && turn - cur.question.turn >= EXPIRE_TURNS ? cur.question : null
 
-      return { ...cur, turn, question: isStale ? null : cur.question }
+      return { ...cur, turn, question: expired ? null : cur.question }
     })
+    const gone = expired as GapQuestion | null
+    if (gone) await logEvent($, 'question-expired', { kind: gone.kind, question: gone.question, turn: gone.turn })
     snap.turn = c.turn
     if (snap.prompt.trim()) lastSnap = snap
 
     // Judge outside this dispatch, so the turn ends without waiting on the model.
-    if (e.reason === 'answer') {
+    if (e.reason === 'answer' && snap.prompt.trim()) {
       $.clock.after(1, () => {
         void judge($, snap, settings)
       })

@@ -88,14 +88,15 @@ type Call = { model: string; system: string; prompt: string }
 
 // Stands for the engine beneath the plugin: a project at /proj, HOME at /home, session s1,
 // files from `files`, the language files above, the judge answering from `verdicts`.
-function engine(on: On, opts: { files?: Record<string, string>; verdicts?: string[] }) {
+function engine(on: On, opts: { files?: Record<string, string>; verdicts?: string[]; cwd?: string }) {
   const files: Record<string, string> = { ...opts.files }
   const verdicts = [...(opts.verdicts ?? [])]
   const sent: { text: string; context: readonly string[] }[] = []
   const calls: Call[] = []
+  const cwd = opts.cwd ?? '/proj'
   mock.env(on, { HOME: '/home' })
-  on('session.cwd', () => ({ value: '/proj' }))
-  on('session.root', () => ({ value: '/proj' }))
+  on('session.cwd', () => ({ value: cwd }))
+  on('session.root', () => ({ value: cwd }))
   on('session.id', () => ({ value: 's1' }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
@@ -108,6 +109,18 @@ function engine(on: On, opts: { files?: Record<string, string>; verdicts?: strin
     if (locale) return { value: LOCALES[locale[1]!] ? JSON.stringify(LOCALES[locale[1]!]) : '' }
 
     return { value: files[e.path] ?? '' }
+  })
+  // The files and folders directly in a folder.
+  on('fs.list', (_, e) => {
+    const names = new Map<string, 'file' | 'dir'>()
+    for (const path of Object.keys(files)) {
+      if (!path.startsWith(`${e.path}/`)) continue
+      const rest = path.slice(e.path.length + 1)
+      const slash = rest.indexOf('/')
+      names.set(slash === -1 ? rest : rest.slice(0, slash), slash === -1 ? 'file' : 'dir')
+    }
+
+    return { value: [...names].map(([name, kind]) => ({ name, kind, size: 0, mtimeMs: 0 })) }
   })
   on('fs.write', (_, e) => {
     files[e.path] = e.text
@@ -356,4 +369,189 @@ test('each judgement and answer is a line in the judge log under ~/.hus-criteria
   const lines = (eng.files['/home/.hus-criteria-gap/judge-log/-proj/s1.jsonl'] ?? '').trim().split('\n').map(l => JSON.parse(l))
   expect(lines.map(l => l.event)).toEqual(['judge', 'question-answered'])
   expect(lines[0]).toMatchObject({ turn: 1, model: 'sonnet', ok: true, question: { kind: 'distinction' } })
+})
+
+test("a card answer is not the user's words: the turn it starts is not judged, and it never reaches the judge", async ($, on) => {
+  const clock = mock.clock(on)
+  const eng = engine(on, { files: config({ card: true, hook: { cooldown_turns: 0 } }), verdicts: [CHOICE, NONE] })
+  await start($)
+  await turn($, clock, 1, 'sum up why users leave')
+  const ui = await $.ui.mount({ ...BAND, surface: 'vscode' })
+  await ui.press({ key: 'gap-opt-1' })
+  await ui.unmount()
+  const answer = eng.sent.at(-1)?.text ?? ''
+  expect(answer.startsWith('[hus-criteria-gap answer]')).toBe(true)
+
+  // The kit keeps a plugin's own prompt from its own prompt.submit hook; the engine runs it through the
+  // plugin's other hooks, so hand it in here as the engine would, and end the turn it starts.
+  await ($ as any).prompt.submit({ text: answer, origin: { kind: 'plugin', name: 'hack-user-skills-criteria-gap' } })
+  await $.turn.complete(turnEnd(2, 'redid it for paying customers'))
+  await clock.advance(10)
+  expect(eng.calls.length).toBe(1)
+
+  await turn($, clock, 3, 'now draft the summary')
+  expect(eng.calls.length).toBe(2)
+  expect(eng.calls[1]?.prompt).toContain('now draft the summary')
+  expect(eng.calls[1]?.prompt.includes('[hus-criteria-gap answer]')).toBe(false)
+})
+
+test('a turn without a prompt is not judged', async ($, on) => {
+  const clock = mock.clock(on)
+  const eng = engine(on, { files: config({ card: true, hook: { cooldown_turns: 0 } }), verdicts: [CHOICE] })
+  await start($)
+  await $.turn.complete(turnEnd(1, 'an answer on its own'))
+  await clock.advance(10)
+  expect(eng.calls.length).toBe(0)
+  expect(await hasCard($)).toBe(false)
+})
+
+// ---------- the judge's quote ----------
+
+const NOV_12 = Date.UTC(2026, 10, 12, 3)
+const logOf = (eng: { files: Record<string, string> }, project = '-proj') =>
+  (eng.files[`/home/.hus-criteria-gap/judge-log/${project}/s1.jsonl`] ?? '')
+    .trim()
+    .split('\n')
+    .filter(Boolean)
+    .map(l => JSON.parse(l))
+
+test('a quote that is not in the user\'s message drops the question and is logged as dropped', async ($, on) => {
+  const clock = mock.clock(on)
+  // The quote is from the AI's answer, not from what the user wrote.
+  const fromAnswer = JSON.stringify({ ...JSON.parse(CHOICE), quote: 'an answer' })
+  const eng = engine(on, { files: config({ card: true, hook: { cooldown_turns: 0 } }), verdicts: [fromAnswer] })
+  await start($)
+  await turn($, clock, 1, 'sum up why users leave')
+  expect(eng.calls.length).toBe(1)
+  expect(await hasCard($)).toBe(false)
+  const [judged] = logOf(eng)
+  expect(judged).toMatchObject({ event: 'judge', ok: true, question: null, dropped: 'quote-not-in-prompt' })
+  expect(judged.rejected.quote).toBe('an answer')
+})
+
+test('a quote matches across case, spacing, curly quotation marks and a "…" where words were left out', async ($, on) => {
+  const clock = mock.clock(on)
+  const loose = JSON.stringify({ ...JSON.parse(CHOICE), quote: '“Sum up … users   leave”' })
+  const eng = engine(on, { files: ON, verdicts: [loose] })
+  await start($)
+  await turn($, clock, 1, 'sum up why users\nleave')
+  expect(await hasCard($)).toBe(true)
+  expect(logOf(eng)[0].dropped).toBeUndefined()
+})
+
+test('pieces of a quote out of order do not match', async ($, on) => {
+  const clock = mock.clock(on)
+  const shuffled = JSON.stringify({ ...JSON.parse(CHOICE), quote: 'users leave … sum up' })
+  engine(on, { files: ON, verdicts: [shuffled] })
+  await start($)
+  await turn($, clock, 1, 'sum up why users leave')
+  expect(await hasCard($)).toBe(false)
+})
+
+// ---------- the criteria the judge is told about ----------
+
+const criterionFile = (fields: Record<string, string>, body: string) =>
+  `---\n${Object.entries(fields)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n')}\n---\n\n${body}\n`
+
+const crit = (decision: string, extra: Record<string, string> = {}, body = `${decision} rule`) =>
+  criterionFile(
+    { id: `mag-${decision}-1`, area: 'magazine', decision, status: 'confirmed', source: 'user', confirmed_at: '2026-10-01', ...extra },
+    body,
+  )
+
+test('the judge is told the confirmed criteria from the files, not from INDEX.md, by the hook\'s rules', async ($, on) => {
+  const clock = mock.clock(on, { now: NOV_12 })
+  const eng = engine(on, {
+    files: {
+      ...ON,
+      '/proj/.hus-criteria-gap/mag-ok-1.md': crit('ok', { review_after: '2027-01-01 # a comment' }),
+      '/proj/.hus-criteria-gap/mag-inferred-1.md': crit('inferred', { source: 'ai-inferred' }),
+      '/proj/.hus-criteria-gap/mag-stale-1.md': crit('stale', { confirmed_at: '2026-01-01' }),
+      '/proj/.hus-criteria-gap/mag-draft-1.md': crit('draft', { status: 'draft' }),
+      '/proj/.hus-criteria-gap/mag-old-1.md': crit('old', { status: 'superseded' }),
+      // The same decision globally: the project's version wins.
+      '/home/.hus-criteria-gap/mag-ok-1.md': crit('ok', {}, 'the global wording'),
+      '/home/.hus-criteria-gap/mag-shared-1.md': crit('shared'),
+      // An INDEX.md that still calls the inferred and stale ones confirmed is not read.
+      '/proj/.hus-criteria-gap/INDEX.md':
+        '- [mag-inferred-1](mag-inferred-1.md) · magazine/inferred · confirmed · inferred rule\n' +
+        '- [mag-stale-1](mag-stale-1.md) · magazine/stale · confirmed · stale rule\n',
+    },
+    verdicts: [NONE],
+  })
+  await start($)
+  await turn($, clock, 1, 'plan a magazine')
+  const prompt = eng.calls[0]?.prompt ?? ''
+  const known = prompt.slice(prompt.indexOf('Confirmed criteria:'), prompt.indexOf("The user's message"))
+  expect(known).toContain('[magazine/ok] ok rule (project)')
+  expect(known).toContain('[magazine/shared] shared rule (global)')
+  for (const left of ['inferred', 'stale', 'draft', 'old', 'the global wording']) expect(known).not.toContain(left)
+})
+
+test('with no criterion files the judge is told there are none', async ($, on) => {
+  const clock = mock.clock(on, { now: NOV_12 })
+  const eng = engine(on, { files: ON, verdicts: [NONE] })
+  await start($)
+  await turn($, clock, 1, 'plan a magazine')
+  expect(eng.calls[0]?.prompt).toContain('Confirmed criteria:\n(none)')
+})
+
+test('in a folder under HOME the global folder is not taken for a project', async ($, on) => {
+  const clock = mock.clock(on, { now: NOV_12 })
+  const eng = engine(on, {
+    cwd: '/home/work',
+    files: { ...config({ card: true }, GLOBAL_CONFIG), '/home/.hus-criteria-gap/mag-ok-1.md': crit('ok') },
+    verdicts: [NONE],
+  })
+  await start($)
+  await turn($, clock, 1, 'plan a magazine')
+  expect(eng.calls.length).toBe(1)
+  expect(eng.calls[0]?.prompt).toContain('[magazine/ok] ok rule (global)')
+})
+
+// ---------- what the judge reads ----------
+
+test('a turn ended by something other than an answer is not judged', async ($, on) => {
+  const clock = mock.clock(on)
+  const eng = engine(on, { files: ON, verdicts: [CHOICE] })
+  await start($)
+  await $.prompt.submit({ text: 'sum up why users leave' })
+  await $.turn.complete({ ...turnEnd(1, ''), reason: 'aborted' as any, isAborted: true })
+  await clock.advance(10)
+  expect(eng.calls.length).toBe(0)
+})
+
+// ---------- the judge log ----------
+
+test('the log records "don\'t know", expiry, and a question withdrawn when the card is turned off', async ($, on) => {
+  const clock = mock.clock(on)
+  const files = config({ card: true, hook: { cooldown_turns: 0, max_per_session: 9 } })
+  const eng = engine(on, { files, verdicts: [CHOICE, FREE, NONE, CHOICE] })
+  await start($)
+  await turn($, clock, 1, 'sum up why users leave')
+  const ui = await $.ui.mount({ ...BAND, surface: 'vscode' })
+  await ui.press({ key: 'gap-unknown' })
+  await ui.unmount()
+  const answered = logOf(eng).find(l => l.event === 'question-answered')
+  expect(answered).toMatchObject({ kind: 'distinction', answer: "I don't know", unknown: true, turn: 1 })
+
+  // A question left alone for 3 turns goes, and the log says so.
+  await turn($, clock, 2, 'plan a magazine')
+  await turn($, clock, 3, 'keep going')
+  await turn($, clock, 4, 'keep going')
+  expect(await hasCard($)).toBe(true)
+  await turn($, clock, 5, 'keep going')
+  expect(await hasCard($)).toBe(false)
+  expect(logOf(eng).filter(l => l.event === 'question-expired')).toEqual([
+    expect.objectContaining({ kind: 'premise', turn: 2 }),
+  ])
+
+  // Turned off while a question waits: it is taken down and logged as withdrawn.
+  await turn($, clock, 6, 'sum up why users leave')
+  expect(await hasCard($)).toBe(true)
+  eng.files[PROJECT_CONFIG] = JSON.stringify({ card: false })
+  await turn($, clock, 7, 'keep going')
+  expect(logOf(eng).at(-1)).toMatchObject({ event: 'question-withdrawn', kind: 'distinction', turn: 6 })
 })

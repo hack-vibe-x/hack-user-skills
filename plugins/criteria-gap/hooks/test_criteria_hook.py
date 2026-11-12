@@ -23,7 +23,7 @@ def criterion(area, decision, body, status="confirmed", confirmed_at="2026-10-01
             f"confirmed_at: {confirmed_at}\nreview_after: {review_after}\nsupersedes:\nevidence:\n---\n\n{body}\n")
 
 
-class HookTest(unittest.TestCase):
+class Base(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="hus-criteria-gap-test-")
         self.home = Path(self.tmp.name) / "home"
@@ -48,6 +48,8 @@ class HookTest(unittest.TestCase):
             event["transcript_path"] = str(transcript)
         return ch.build_context(event, home=self.home, data_dir=self.data, today=TODAY)
 
+
+class HookTest(Base):
     # --- names ---
     def test_folder_and_tag_use_the_short_name(self):
         self.assertEqual(ch.DATA_DIR, ".hus-criteria-gap")
@@ -192,6 +194,14 @@ class HookTest(unittest.TestCase):
         self.assertFalse(strong(self.run_hook("Please evaluate the magazine sources", session="c")))  # turn 5 over limit
         self.assertFalse(strong(self.run_hook("Please summarize the magazine sources", session="c")))
 
+    def test_session_counters_for_the_status_script(self):
+        self.config(enabled=True, intensity="active", max_per_session=1, cooldown_turns=0)
+        self.run_hook("Please filter the magazine sources", session="n")   # added, and said criteria are missing
+        self.run_hook("What do you think?", session="n")                   # seen, not a delegation
+        self.run_hook("Please organize the magazine sources", session="n")  # added, past the cap
+        state = json.loads((self.data / "sessions" / "n.json").read_text(encoding="utf-8"))
+        self.assertEqual(state, {"turn": 3, "delegations": 2, "injected": 2, "fires": 1, "last_fire": 1})
+
     def test_sessions_are_independent(self):
         self.config(enabled=True, intensity="active", max_per_session=1, cooldown_turns=0)
         self.assertIn(ASK, self.run_hook("Please filter the sources", session="s1"))
@@ -202,6 +212,73 @@ class HookTest(unittest.TestCase):
         self.run_hook("Please filter the sources", session=os.path.join(os.pardir, os.pardir, "etc", "x"))
         self.assertTrue(any((self.data / "sessions").glob("*.json")))
         self.assertFalse((Path(self.tmp.name) / "etc").exists())
+
+
+class FixesTest(Base):
+    """Cases that used to misfire."""
+
+    def test_card_answer_is_not_a_delegation(self):
+        self.config(enabled=True, intensity="active")
+        answer = ("[hus-criteria-gap answer]\nKind: missing criterion\nQuestion: How should the plan rank sources?\n"
+                  "My answer: primary sources first. Please plan it that way")
+        self.assertIsNone(self.run_hook(answer))
+
+    def test_english_words_must_start_a_word(self):
+        for prompt in ("I need an explanation of this error message today",
+                       "Show me a preview of the page layout right now",
+                       "Frankly this looks fine to me, thanks for the work"):
+            self.assertFalse(ch.is_delegation(prompt), prompt)
+        self.assertTrue(ch.is_delegation("Please plan the planning session"))
+
+    def test_a_question_without_a_request_is_not_a_delegation(self):
+        self.assertFalse(ch.is_delegation("What do you think about the plan for the next quarter?"))
+        self.assertTrue(ch.is_delegation("Can you plan the next quarter?"))
+
+    def test_more_delegation_verbs(self):
+        for prompt in ("Please pick three sources", "Please prioritize these tasks", "Please brainstorm names"):
+            self.assertTrue(ch.is_delegation(prompt), prompt)
+
+    def test_criteria_question_forms_are_protected(self):
+        for text in ("For this magazine, from what level does a statement count as 'fact'? You can say 'I don't know'.",
+                     "**What are your criteria for sources?**\n\n(Say 'not sure' if you need candidates.)",
+                     "Let me know the criteria you use for picking sources."):
+            self.assertTrue(ch.is_asking_criteria(text), text)
+        self.assertFalse(ch.is_asking_criteria("What next?"))
+        self.assertFalse(ch.is_asking_criteria("Here are the criteria I used.\n\nAnything else?"))
+
+    def test_bom_and_crlf_files_are_read(self):
+        self.config(enabled=True, intensity="active")
+        self.add("a.md", "﻿" + criterion("magazine", "sources", "Primary only").replace("\n", "\r\n"))
+        self.assertIn("Primary only", self.run_hook("Please filter the magazine sources"))
+
+    def test_ai_inferred_is_not_confirmed(self):
+        self.config(enabled=True, intensity="active")
+        self.add("a.md", criterion("magazine", "sources", "Guessed rule").replace("source: user", "source: ai-inferred"))
+        out = self.run_hook("Please filter the magazine sources")
+        self.assertIn("inferred by the AI", out)
+        self.assertIn(ASK, out)
+
+    def test_slug_decision_and_keywords_match(self):
+        self.assertTrue(ch.matches({"area": "zine", "decision": "source-filter"}, "Please do the source filter"))
+        self.assertTrue(ch.matches({"area": "zine", "decision": "x", "keywords": ["newsletter"]}, "Write the newsletter"))
+        self.assertFalse(ch.matches({"area": "z", "decision": "q"}, "a z q prompt"))
+
+    def test_keywords_come_from_the_file(self):
+        self.config(enabled=True, intensity="active")
+        self.add("a.md", criterion("zine", "picks", "Primary only").replace("status:", "keywords: newsletter, digest\nstatus:"))
+        out = self.run_hook("Please write the weekly digest")
+        self.assertIn("Confirmed criteria that look related", out)
+
+    def test_global_folder_is_not_taken_for_a_project(self):
+        # Working in a folder under HOME with no project folder: ~/.hus-criteria-gap is global, not project.
+        self.config(folder=self.home / ch.DATA_DIR, enabled=True, intensity="active")
+        self.add("a.md", criterion("magazine", "sources", "Primary only"), folder=self.home / ch.DATA_DIR)
+        work = self.home / "work"
+        work.mkdir()
+        event = {"prompt": "Please filter the magazine sources", "cwd": str(work), "session_id": "g"}
+        out = ch.build_context(event, home=self.home, data_dir=self.data, today=TODAY)
+        self.assertIn("(global)", out)
+        self.assertNotIn("(project)", out)
 
 
 class PatternTest(unittest.TestCase):
@@ -242,7 +319,17 @@ class KoreanPromptTest(unittest.TestCase):
 
     def test_asking_criteria(self):
         self.assertTrue(ch.is_asking_criteria(KO["asking_criteria"]))
+        for text in KO["asking_criteria_more"]:
+            self.assertTrue(ch.is_asking_criteria(text), text)
         self.assertFalse(ch.is_asking_criteria(KO["not_asking_criteria"]))
+
+    def test_count_units_need_an_ending_or_particle(self):
+        for prompt in KO["not_long_output"]:
+            self.assertNotIn("long output", ch.signals(prompt, first=False), prompt)
+
+    def test_one_syllable_area_matches(self):
+        c = KO["one_syllable_area"]
+        self.assertTrue(ch.matches({"area": c["area"], "decision": c["decision"]}, c["prompt"]))
 
     def test_korean_criterion_is_matched_and_kept_as_written(self):
         with tempfile.TemporaryDirectory(prefix="hus-criteria-gap-test-") as tmp:

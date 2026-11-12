@@ -1,6 +1,6 @@
 ---
 name: criteria-init
-description: Turns the criteria check hook (before delegating) and the criteria question card (a question about a gap in your thinking, shown above the prompt after a turn) on or off, and shows their status. Both are off by default and run only in the projects, or globally, where this skill turned them on. Use when the user says "criteria init", "turn on the criteria check", "turn the hook on", "turn the hook off", "turn on the question card", "turn off the question card", "criteria check status", "change the check intensity", "기준 점검 켜줘", "훅 켜줘", "훅 꺼줘", "질문 카드 켜줘", "질문 카드 꺼줘", "기준 점검 상태", "점검 강도 바꿔줘". Saving and looking up criteria is the criteria skill; the gap-finding procedure is the criteria-gap skill.
+description: Turns the criteria check hook (before delegating) and the criteria question card (a question about a gap in your thinking, shown above the prompt after a turn) on or off, and shows their status. Both are off by default and run only in the projects, or globally, where this skill turned them on. Use when the user says "criteria init", "turn on the criteria check", "turn the hook on", "turn the hook off", "turn on the question card", "turn off the question card", "criteria check status", "change the check intensity", "기준 점검 켜줘", "훅 켜줘", "훅 꺼줘", "질문 카드 켜줘", "질문 카드 꺼줘", "기준 점검 상태", "점검 강도 바꿔줘", "criteria log summary", "how often did the card ask", "판정 기록 요약", "질문 카드 기록 보여줘". Saving and looking up criteria is the criteria skill; the gap-finding procedure is the criteria-gap skill.
 license: Apache-2.0
 ---
 
@@ -43,13 +43,23 @@ Ask one thing at a time.
 3. **Intensity**: `light` (default) or `active`. Explain each in one line. Skip if the file already has one and the user did not ask to change it.
 4. Write the settings file. If it exists, read it and change only the keys asked for (`card`, the `hook` keys), keeping everything else. Create the record folder if it is missing.
 5. If the project is a git repository, ask whether to add `.hus-criteria-gap/` to `.gitignore`. Personal criteria could end up in the repository. Do not change the file without consent.
-6. Report: where and with which settings each is on, what it does (the hook: looks up the record only for delegating requests, at most N interventions per session; the card: at most N questions per session, one Sonnet call on turns where it may ask, `/criteria-check` to check now, a log of each judgement in `~/.hus-criteria-gap/judge-log/`), and how to turn it off.
+6. Report: where and with which settings each is on, what it does (the hook: looks up the record only for delegating requests, at most N interventions per session; the card: at most N questions per session, one Sonnet call on turns where it may ask, `/criteria-check` to check now, a log of each judgement and answer in `~/.hus-criteria-gap/judge-log/`), how to see the status and a summary of the log later, and how to turn it off.
 
 ## Turn off
 Set `card` (the card) or `hook.enabled` (the hook) to `false` in the settings file. Do not delete the file. Because the project file overrides the global one, this also works to keep one on globally and off in one project.
 
 ## Status
-Read the project and global settings files and show, for the hook and the card separately, the values that actually apply here (on or off, intensity, limits, `lang` if set) and which file they came from. How many times either already stepped in this session cannot be known.
+Run `python3 <skill>/scripts/criteria_status.py status` from the working folder (`<skill>` is this skill's folder). It shows, for the hook and the card separately, the values that actually apply here (on or off, intensity, limits, `lang` if set) and which file they came from, and how many times each stepped in during this session:
+- the hook: requests seen, delegating requests, times it added criteria, and times it said criteria were missing out of `max_per_session`;
+- the card: turns judged, questions shown out of `max_per_session`, answered (and how many "don't know"), skipped, expired, questions dropped because the quote was not in the user's message, failed judgements, and the question waiting above the prompt, if any.
+
+It finds this session by `$CLAUDE_CODE_SESSION_ID`; when that is not set it says it used the most recent session. Show the result in the user's language. Without `python3`, read the settings files yourself and say the counts cannot be shown.
+
+## Record summary
+When the user asks how the card or the hook has been doing, run `python3 <skill>/scripts/criteria_status.py summary` (this project, last 30 days; `--days 0` for all time, `--all` for every project). It reads the judge log and the hook's session counters and shows how often the card judged and asked, what became of the questions (answered, "don't know", skipped, expired, withdrawn, still open), counts by kind, tokens, and the questions the user missed ("don't know", skipped, or left to expire). Present it in the user's language, then:
+- name the kind that was missed most, with one or two of its questions;
+- if many questions were skipped or expired, or many were dropped for a quote that was not there, suggest `light` intensity or a lower `max_per_session`; if almost none were shown, `active` may suit them better. Change nothing without asking.
+- if a missed question looks like a criterion worth keeping, offer to go through it with `hack-user-skills-criteria-gap:criteria-gap`.
 
 ## What not to do
 - Do not turn either on unless the user asked.

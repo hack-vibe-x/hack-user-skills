@@ -12,7 +12,8 @@ The storage format is in `references/format.md`. Read it first.
 Criteria are the user's content. Write them in the language the user speaks, in their own words. Do not translate them.
 
 ## What it does
-- **List**: read `INDEX.md` and show the criteria by area, with their status (confirmed, draft, superseded, retired).
+- **List**: read `INDEX.md` and show the criteria by area, with their status (confirmed, draft, superseded, retired). Mark the confirmed ones that are AI-inferred or past their review date as needing a recheck.
+- **Check**: when the user asks to check the record, or `INDEX.md` looks out of date, run `scripts/criteria_index.py check` and report what it found.
 - **Show**: show one criterion file. If it replaced older versions, link those too.
 - **Add**: write down the criterion as the user said it. Source is `user`.
 - **Change**: never overwrite a file. Make a new version file, link it with `supersedes`, and set the old file to `superseded`.
@@ -22,7 +23,7 @@ Criteria are the user's content. Write them in the language the user speaks, in 
 ## Rules
 - **Only criteria the user confirmed become `confirmed`.** If the AI added anything, ask "Is this your criterion?" before saving (check 2 below). Use `draft` only when the user says "save it, but don't confirm it yet".
 - Keep the user's wording as much as possible. Do not change the meaning by summarising.
-- Update `INDEX.md` every time a file changes.
+- Every time a file changes, rebuild `INDEX.md` and check the folder with `scripts/criteria_index.py` (see `references/format.md`). Do not edit `INDEX.md` by hand. If `check` finds an error, fix it before reporting; if it warns that a confirmed criterion is AI-inferred or past its review date, tell the user and offer to recheck it.
 - If a `confirmed` criterion already exists for the same area and decision and the user asks to add a new one, ask whether to treat it as a change.
 
 ## Checks before saving (every save, always)

@@ -1,7 +1,7 @@
 {
   "name": "hack-user-skills-criteria-gap",
   "description": "Records the judgement criteria you agree on with an AI, and finds where work was handed over without them. Skills, an opt-in hook, and an opt-in question card.",
-  "version": "0.3.0",
+  "version": "0.5.0",
   "author": {
     "name": "hack-vibe-x"
   },
