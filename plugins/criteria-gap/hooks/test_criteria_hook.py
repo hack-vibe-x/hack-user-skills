@@ -132,6 +132,7 @@ class HookTest(Base):
         self.assertIn("There are no confirmed criteria", out)
         self.assertIn(ASK, out)
         self.assertIn("go ahead for now", out)
+        self.assertIn(ch.ASK_RULE, out)
 
     def test_matching_confirmed_criterion_is_injected_without_strong_nudge(self):
         self.config(enabled=True, intensity="active")
@@ -141,6 +142,10 @@ class HookTest(Base):
         self.assertIn("Applied criteria", out)
         self.assertNotIn("There are no confirmed criteria", out)
         self.assertNotIn(ASK, out)
+        # A criterion that covers part of the request: the open part is still asked the user's way, and a criterion
+        # from another area is not taken as confirmed for this one.
+        self.assertIn(ch.ASK_RULE, out)
+        self.assertIn("holds only for its own area", out)
 
     def test_unrelated_criterion_is_listed_but_still_nudges(self):
         self.config(enabled=True, intensity="active")

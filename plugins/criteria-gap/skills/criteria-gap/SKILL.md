@@ -19,7 +19,8 @@ Talk to the user in the language they use. Criteria are written in the user's wo
 ## When the hook is on
 If the hook was turned on with `hack-user-skills-criteria-gap:criteria-init`, a `[hus-criteria-gap]` block arrives in the context with each delegating request. It starts steps 3–5 of this skill for you.
 - If a confirmed criterion in the block applies to the request, apply it without asking and state `Applied criteria: ...`.
-- If the block says the criteria this prompt needs are not listed, ask only the one criterion that blocks the work, before starting. The list in the block may be a filtered part, so look up the record directly with `hack-user-skills-criteria-gap:criteria` when needed.
+- A criterion in the block holds only for its own area. If the request is for a different area (another page, channel or audience), ask whether it applies before using it.
+- If the block says the criteria this prompt needs are not listed, or the listed ones leave a judgement open, ask only the one criterion that blocks the work, before starting, as in step 5: the user writes it first, and candidates come only after "I don't know". The list in the block may be a filtered part, so look up the record directly with `hack-user-skills-criteria-gap:criteria` when needed.
 - Without the hook, or with it off, this skill works the same way by hand.
 - With both the hook and the question card on: the hook's one question before the work still goes in the chat, because the request cannot start without it. The card's rule below ("do not also ask about gaps in the chat") covers gaps found after a turn, not that one question.
 
@@ -91,6 +92,6 @@ Include confirmed criteria in later requests, and state them in one line at the 
 - Do not decide criteria for the user. Candidates and temporary criteria are proposals only; the user saves and confirms.
 - Do not take a short "yes" or "save it" as confirming a criterion.
 - Do not make a gap without a quote to back it.
-- Do not ask several criteria at once.
+- Do not ask several criteria at once, or a criterion together with whether to save another one. One question per message.
 - Do not save temporary criteria or treat them as confirmed.
 - Do not save what the AI added without asking the user.

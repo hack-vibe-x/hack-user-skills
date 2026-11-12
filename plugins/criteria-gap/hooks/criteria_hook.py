@@ -25,6 +25,13 @@ SKILL_GAP = "hack-user-skills-criteria-gap:criteria-gap"
 DEFAULTS = {"enabled": False, "intensity": "light", "max_per_session": 3, "cooldown_turns": 3}
 REVIEW_DAYS = 90
 MAX_LISTED = 8
+# How the one question is asked. Without it Claude tended to list its own candidates and a recommendation first,
+# or ask two things at once, when confirmed criteria covered part of the request.
+ASK_RULE = ("How to ask: one question in the message and nothing else (whether to save or confirm a criterion is "
+            "asked later, on its own). Let the user state the criterion in their own words first: do not show "
+            "candidates, a recommendation, or the criterion you would use until they say they don't know. "
+            "After 'I don't know', show 2-3 candidates with a short example each and let them pick or rewrite one; "
+            "do not pick one yourself and do the work, unless they say 'go ahead for now'.")
 MAX_TEXT = 160
 STATE_KEEP_DAYS = 7
 HERE = Path(__file__).resolve().parent
@@ -395,9 +402,14 @@ def build_context(event, home=None, data_dir=None, today=None):
                          f"follow the {SKILL_GAP} skill and ask the user only the one criterion that blocks the work, "
                          f"before starting. If the user chooses 'go ahead for now', the work goes on with a temporary "
                          f"criterion that is named as temporary and not saved.")
+            lines.append(ASK_RULE)
         elif hit:
+            lines.append("This project's rule: each criterion above holds only for its own area (the part before '/'). "
+                         "One whose area differs from what this prompt is for is not confirmed for it: ask whether it "
+                         "applies before using it.")
             lines.append("This project's rule: if the criteria above do not cover every judgement in this prompt, "
                          "the missing one is checked with the user before the work.")
+            lines.append(ASK_RULE)
         state["injected"] += 1
         return "\n".join(lines)[:4000]
     finally:
