@@ -20,6 +20,7 @@ command access reading it while nobody watches could follow instructions hidden 
 import argparse
 import datetime
 import getpass
+import glob
 import hashlib
 import json
 import os
@@ -451,7 +452,7 @@ spent = []
 
 
 def ask_claude(state, system, prompt, cwd):
-    cmd = [state["runner"], "-p", "--model", state.get("model") or DEFAULT_MODEL,
+    cmd = [live_runner(state), "-p", "--model", state.get("model") or DEFAULT_MODEL,
            "--tools", "", "--setting-sources", "", "--strict-mcp-config", "--disable-slash-commands",
            "--no-session-persistence", "--max-budget-usd", MAX_BUDGET_USD,
            "--system-prompt", system, "--output-format", "json"]
@@ -820,11 +821,42 @@ def stable_path(path):
     return os.path.realpath(path) if "_multishells" in path else os.path.abspath(path)
 
 
-def find_runner():
+# Editors that install Claude Code as an extension keep a claude program inside the extension folder, which is not on PATH.
+EXTENSION_FOLDERS = (".vscode", ".vscode-insiders", ".cursor")
+
+
+def find_claude():
+    """The claude command on PATH, else the newest one inside an editor's Claude Code extension, else None."""
     path = shutil.which("claude")
+    if path:
+        return stable_path(path)
+    found = []
+    for folder in EXTENSION_FOLDERS:
+        pattern = os.path.join(os.path.expanduser("~"), folder, "extensions", "anthropic.claude-code-*", "resources", "native-binary", "claude")
+        for candidate in glob.glob(pattern):
+            version = re.search(r"anthropic\.claude-code-(\d+(?:\.\d+)*)", candidate)
+            if os.access(candidate, os.X_OK) and version:
+                found.append((tuple(int(n) for n in version.group(1).split(".")), candidate))
+    return max(found)[1] if found else None
+
+
+def live_runner(state):
+    """The stored claude path, or a new search when it is gone: an extension folder carries its version, so an update moves it."""
+    path = state.get("runner")
+    if path and os.access(path, os.X_OK):
+        return path
+    path = find_claude()
     if not path:
-        raise SystemExit("%s The claude command was not found. The diary is written with claude -p." % PREFIX)
-    return {"runner": stable_path(path), "runner_kind": "claude"}
+        raise RuntimeError("the claude command was not found (it was at %s); install Claude Code or open the editor once" % (state.get("runner") or "nowhere"))
+    state["runner"] = path
+    return path
+
+
+def find_runner():
+    path = find_claude()
+    if not path:
+        raise SystemExit("%s The claude command was not found, neither on PATH nor in a VS Code or Cursor Claude Code extension. The diary is written with claude -p, so install Claude Code first." % PREFIX)
+    return {"runner": path, "runner_kind": "claude"}
 
 
 def plist_data(python, script, runner):

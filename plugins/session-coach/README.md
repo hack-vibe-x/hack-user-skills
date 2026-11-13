@@ -19,7 +19,7 @@ A plugin for looking back on your AI work sessions, in Claude Code and Codex. It
 
 Open a new session after installing. Everything is off by default.
 
-**Requirements:** `python3` (tried with 3.9 and 3.14). The automatic diary can be turned on only on macOS, and it writes with the `claude` command logged in on this computer.
+**Requirements:** Python 3.9 or later (tried with 3.9 and 3.14). If the computer has none, Claude says so when a session starts and asks what you want: install it for you (only when Homebrew is on the computer; no `sudo`, no administrator password), send you the install command, not now, or do not ask again. Nothing is installed until you choose. The check is `hooks/env-check.sh`; it installs nothing itself. It looks on PATH first, then where pyenv, mise, asdf and Homebrew keep Python. The hook is written for macOS and Linux (it starts with `sh`); Windows is not supported. The automatic diary can be turned on only on macOS, and it writes with the `claude` command logged in on this computer. If that command is not on PATH, the one inside the VS Code or Cursor Claude Code extension is used.
 
 For Codex, `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill session-diary --skill session-playbook` (not tried).
 
@@ -103,6 +103,7 @@ Tests (fake records and a fake HOME only; they never register a launchd job):
 ```bash
 (cd skills/session-diary/scripts && HOME="$(mktemp -d)" python3 -m unittest -v test_day_sessions test_diary_auto)
 (cd skills/session-playbook/scripts && HOME="$(mktemp -d)" python3 -m unittest -v test_sessions)
+(cd hooks && python3 -m unittest -v test_env_check)
 claude plugin test .
 ```
 
@@ -114,6 +115,7 @@ claude plugin test .
 | `~/.hus-session-coach/session-diary/.auto/` | `state.json` (settings, and where the copy came from), `lock`, `app/` (the copy of the scripts the job runs), `plan-seen` (the date of the last plan shown on screen), `logs/auto.log` and `logs/launchd.log` | Deleted with the folder above |
 | `~/.hus-session-coach/session-playbook/` | Know-how files `<date>-<topic>.md` and `.last-list.json` (each conversation's last list, kept two weeks) | Delete the folder |
 | `~/.hus-session-coach/session-compass/judge-log/<project>/<session id>.jsonl` | The compass judge log, one file per session | Delete the folder |
+| `~/.hus-session-coach/no-env-check` | Only if you choose "do not ask again": an empty file that stops the Python check | Delete the file |
 | launchd job `io.github.hack-vibe-x.hus-session-coach.session-diary` and `~/Library/LaunchAgents/io.github.hack-vibe-x.hus-session-coach.session-diary.plist` | Runs the diary on the hour and at login | Turn it off: say "turn off the session diary", or run `python3 ~/.hus-session-coach/session-diary/.auto/app/scripts/diary_auto.py off` |
 
 The mod also keeps the goal, the path, the diary card, the plan on screen and the screen language as session values of `hack-user-skills-session-coach` (`compass`, `diary`, `lang`), held by Claude Code for that session only. On disk it writes only the judge log and `plan-seen`, and through `diary_auto.py sync` the job's copy.
@@ -172,7 +174,7 @@ AI와 한 작업 세션을 돌아보는 플러그인입니다. Claude Code와 Co
 
 설치한 뒤 새 세션을 엽니다. 기본은 모두 꺼져 있습니다.
 
-**필요한 것:** `python3`(3.9와 3.14에서 시험함). 자동 일기는 macOS에서만 켤 수 있고, 이 컴퓨터에 로그인된 `claude` 명령으로 씁니다.
+**필요한 것:** Python 3.9 이상(3.9와 3.14에서 시험함). 컴퓨터에 없으면 세션을 시작할 때 Claude가 알리고 무엇을 할지 묻습니다: 대신 설치(Homebrew가 있을 때만, `sudo`와 관리자 비밀번호 없이), 설치 명령 보내 주기, 지금은 넘어가기, 다시 묻지 않기. 고르기 전에는 아무것도 설치하지 않습니다. 점검은 `hooks/env-check.sh`가 하고, 이 스크립트는 아무것도 설치하지 않습니다. PATH를 먼저 보고, 없으면 pyenv, mise, asdf, Homebrew가 Python을 두는 곳도 찾아봅니다. 훅은 macOS와 Linux용입니다(`sh`로 시작). Windows는 지원하지 않습니다. 자동 일기는 macOS에서만 켤 수 있고, 이 컴퓨터에 로그인된 `claude` 명령으로 씁니다. 이 명령이 PATH에 없으면 VS Code나 Cursor의 Claude Code 확장 안에 있는 것을 씁니다.
 
 Codex는 `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill session-diary --skill session-playbook`로 받습니다(확인하지 못함).
 
@@ -256,6 +258,7 @@ Codex는 `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill ses
 ```bash
 (cd skills/session-diary/scripts && HOME="$(mktemp -d)" python3 -m unittest -v test_day_sessions test_diary_auto)
 (cd skills/session-playbook/scripts && HOME="$(mktemp -d)" python3 -m unittest -v test_sessions)
+(cd hooks && python3 -m unittest -v test_env_check)
 claude plugin test .
 ```
 
@@ -267,6 +270,7 @@ claude plugin test .
 | `~/.hus-session-coach/session-diary/.auto/` | `state.json`(설정, 복사본을 가져온 곳), `lock`, `app/`(자동 실행이 쓰는 스크립트 복사본), `plan-seen`(화면에 마지막으로 보여 준 계획의 날짜), `logs/auto.log`, `logs/launchd.log` | 위 폴더와 함께 지워집니다 |
 | `~/.hus-session-coach/session-playbook/` | 노하우 파일 `<날짜>-<주제>.md`, `.last-list.json`(대화마다 마지막 목록, 2주 보관) | 폴더를 지웁니다 |
 | `~/.hus-session-coach/session-compass/judge-log/<프로젝트>/<세션 id>.jsonl` | compass 판정 기록. 세션마다 파일 하나 | 폴더를 지웁니다 |
+| `~/.hus-session-coach/no-env-check` | "다시 묻지 않기"를 고를 때만: Python 점검을 멈추는 빈 파일 | 파일을 지웁니다 |
 | launchd 작업 `io.github.hack-vibe-x.hus-session-coach.session-diary`와 `~/Library/LaunchAgents/io.github.hack-vibe-x.hus-session-coach.session-diary.plist` | 매 정각과 로그인 때 일기를 씁니다 | 끄기: "세션 일기 꺼줘"라고 하거나 `python3 ~/.hus-session-coach/session-diary/.auto/app/scripts/diary_auto.py off`를 실행합니다 |
 
 mod는 목표, 경로, 일기 카드, 화면에 뜬 계획, 화면 언어를 `hack-user-skills-session-coach`의 세션 값(`compass`, `diary`, `lang`)으로 들고 있습니다. Claude Code가 그 세션 동안만 들고 있습니다. 디스크에는 판정 기록과 `plan-seen`만 쓰고, `diary_auto.py sync`를 통해 자동 실행 복사본을 고칩니다.

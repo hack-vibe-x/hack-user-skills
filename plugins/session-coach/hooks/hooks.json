@@ -1,4 +1,22 @@
 {
-  "description": "One Claude Code hooks module with two mods. session-compass: after /session-compass sets a goal for the conversation, a pane tracks progress and one Haiku call judges each turn. session-diary-now: /session-diary-now offers to write today's session diary from 00:00 until now. Nothing happens until you run one of these commands.",
-  "modules": ["./session-coach.tsx"]
+  "description": "One Claude Code hooks module with two mods. session-compass: after /session-compass sets a goal for the conversation, a pane tracks progress and one Haiku call judges each turn. session-diary-now: /session-diary-now offers to write today's session diary from 00:00 until now. The mods do nothing until you run one of these commands. Separately, at session start it checks for Python 3.9 or later and, if the computer has none, Claude offers to install it or to send the command (it installs nothing without a yes).",
+  "modules": [
+    "./session-coach.tsx"
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/env-check.sh"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
 }

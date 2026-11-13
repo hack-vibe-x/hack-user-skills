@@ -8,7 +8,7 @@ license: Apache-2.0
 
 The person does not call this to write each diary. Once turned on, a script writes it by itself. This skill only turns it on and off, shows the status, and reads written diaries to the person. The rules for writing a diary are in `references/write.md`, what to observe and the sources in `references/observe.md`, and the record formats in `references/claude.md` and `references/codex.md`.
 
-Below, `<skill>` is the absolute path of this skill folder. Diaries are in `~/.hus-session-coach/session-diary/<date>.md`. For now the automatic run can be turned on only on macOS. The text is written with `claude -p` logged in on this computer, so the `claude` command is needed. It works the same whichever tool calls this skill (Claude Code or Codex).
+Below, `<skill>` is the absolute path of this skill folder. If `python3` is not found (or is older than 3.9), say so and offer to install it (`brew install python`, only when Homebrew is there; never `sudo`) or to send the user the command (or https://www.python.org/downloads/); do not go on without it. Diaries are in `~/.hus-session-coach/session-diary/<date>.md`. For now the automatic run can be turned on only on macOS. The text is written with `claude -p` logged in on this computer, so the `claude` command is needed. If it is not on PATH, the one inside the VS Code or Cursor Claude Code extension is used (searched again at each run, because an extension update moves it). It works the same whichever tool calls this skill (Claude Code or Codex).
 
 Script output is in English; tell the person what it says in the language they use with you. The diaries themselves are written in the language set with `--lang`, or, without it, in the language of that day's sessions.
 

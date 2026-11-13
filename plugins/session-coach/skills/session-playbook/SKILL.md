@@ -8,7 +8,7 @@ license: Apache-2.0
 
 Reads past work sessions and turns them into a prompt and skill candidates for the next time the same kind of work is handed over. It reads Claude Code and Codex sessions on this computer.
 
-Below, `<skill>` is the absolute path of this skill folder. Result files are saved in `~/.hus-session-coach/session-playbook/`. They hold conversation text, so they do not go into public repositories.
+Below, `<skill>` is the absolute path of this skill folder. If `python3` is not found (or is older than 3.9), say so and offer to install it (`brew install python`, only when Homebrew is there; never `sudo`) or to send the user the command (or https://www.python.org/downloads/); do not go on without it. Result files are saved in `~/.hus-session-coach/session-playbook/`. They hold conversation text, so they do not go into public repositories.
 
 Script output is in English. Show it to the person in the language they use with you, and write the result file in that language too.
 

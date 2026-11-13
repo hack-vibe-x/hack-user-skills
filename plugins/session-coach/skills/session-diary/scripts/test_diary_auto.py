@@ -696,6 +696,50 @@ class SwitchTest(Base):
             with self.assertRaises(SystemExit):
                 da.find_runner()
 
+    def make_extension(self, version, folder=".vscode"):
+        program = Path(os.path.expanduser("~")) / folder / "extensions" / ("anthropic.claude-code-%s-darwin-arm64" % version) / "resources" / "native-binary" / "claude"
+        program.parent.mkdir(parents=True)
+        program.write_text("#!/bin/sh\n", encoding="utf-8")
+        program.chmod(0o755)
+        return str(program)
+
+    def test_claude_inside_an_editor_extension_is_found_when_not_on_path(self):
+        old = self.make_extension("2.1.9")
+        new = self.make_extension("2.1.322")
+        self.make_extension("2.1.316", folder=".vscode-insiders")
+        with mock.patch.dict(os.environ, {"PATH": str(self.root / "empty")}):
+            self.assertEqual(da.find_runner(), {"runner": new, "runner_kind": "claude"})  # 2.1.322 beats 2.1.9 (numbers, not text)
+        self.assertNotEqual(old, new)
+
+    def test_claude_on_path_wins_over_the_extension(self):
+        self.make_extension("2.1.322")
+        (self.root / "bin").mkdir()
+        cli = self.root / "bin" / "claude"
+        cli.write_text("#!/bin/sh\n", encoding="utf-8")
+        cli.chmod(0o755)
+        with mock.patch.dict(os.environ, {"PATH": str(self.root / "bin")}):
+            self.assertEqual(da.find_runner()["runner"], str(cli))
+
+    def test_a_stored_runner_that_an_extension_update_removed_is_searched_again(self):
+        gone = self.make_extension("2.1.316")
+        os.remove(gone)
+        current = self.make_extension("2.1.322")
+        state = {"runner": gone}
+        with mock.patch.dict(os.environ, {"PATH": str(self.root / "empty")}):
+            self.assertEqual(da.live_runner(state), current)
+        self.assertEqual(state["runner"], current)
+
+    def test_a_stored_runner_that_still_exists_is_kept(self):
+        here = self.make_extension("2.1.316")
+        self.make_extension("2.1.322")
+        self.assertEqual(da.live_runner({"runner": here}), here)
+
+    def test_no_claude_anywhere_is_a_readable_error(self):
+        with mock.patch.dict(os.environ, {"PATH": str(self.root / "empty")}):
+            with self.assertRaises(RuntimeError) as caught:
+                da.live_runner({"runner": "/gone/claude"})
+        self.assertIn("claude command was not found", str(caught.exception))
+
     def test_shell_scoped_runner_path_is_resolved(self):
         real = self.root / "node" / "codex"
         real.parent.mkdir()
