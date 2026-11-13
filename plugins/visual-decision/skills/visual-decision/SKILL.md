@@ -8,7 +8,7 @@ license: Apache-2.0
 
 Do not ask a choice as terminal text. Open a local web page: the person sees one question at a time, compares options by their pictures, and submits all answers at once.
 
-If no page can be opened on this computer (`claude -p`, a remote or SSH session), or the question only checks what the person meant, ask in plain text instead.
+If no page can be opened on this computer (`claude -p`, a remote or SSH session), or the question only checks what the person meant, ask in plain text instead. If `node` is not found (or is older than 18), Node.js 18 or later is missing: say so, and offer to install it (`brew install node`, only when Homebrew is there; never `sudo`), to send the user the command (or https://nodejs.org), or to go on without the page.
 
 ## Rules for the questions
 

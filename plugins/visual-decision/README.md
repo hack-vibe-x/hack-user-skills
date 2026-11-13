@@ -9,7 +9,7 @@ A Claude Code plugin: when Claude has a question for you, it asks in a local web
 /plugin install hack-user-skills-visual-decision@hack-user-skills
 ```
 
-Requires Node.js 18 or later. There are no packages to install.
+Needs Node.js 18 or later. There are no packages to install. If the computer has none, Claude says so when a session starts and asks what you want: install it for you (only when Homebrew is on the computer; no `sudo`, no administrator password), send you the install command, not now, or do not ask again. Nothing is installed until you choose. Until Node.js is there, questions stay in the terminal. The check is `hooks/env-check.sh`; it installs nothing itself. It looks on PATH first, then where nvm, fnm, volta, mise, asdf and Homebrew keep Node.js. The hooks are written for macOS and Linux (they start with `sh`); Windows is not supported.
 
 ## How it works
 
@@ -46,6 +46,7 @@ The page stops waiting when you press **Cancel these decisions**, when it has be
 |---|---|---|
 | A temp folder, e.g. `/tmp/hus-visual-decision/` | The question files Claude writes | The system clears it, or delete it |
 | Browser storage for `127.0.0.1:<port>` | Choices in progress, under `hus-visual-decision:<question file name>`. Removed on submit | Clear site data for `127.0.0.1` |
+| `~/.hus-visual-decision/no-env-check` | Only if you choose "do not ask again": an empty file that stops the Node.js check | Delete the file |
 | `.hus-visual-decision/decisions/` at the project root (the git root, or the working folder) | One Markdown file per submitted batch. Commit it to share decisions with your team, or add `.hus-visual-decision/` to `.gitignore` to keep them on your machine | Your documents; keep or delete them |
 
 Before 0.7.0 records went to `docs/decisions/`, and `.hus-visual-decision/` also held `config.json`, `pending/` and `answers/`. Those are no longer used: move old records with `mkdir -p .hus-visual-decision && mv docs/decisions .hus-visual-decision/decisions`, and delete the rest.
@@ -67,7 +68,7 @@ Claude가 물어볼 것이 생기면 터미널 글 대신 로컬 웹 화면으�
 /plugin install hack-user-skills-visual-decision@hack-user-skills
 ```
 
-Node.js 18 이상이 필요합니다. 따로 깔 패키지는 없습니다.
+Node.js 18 이상이 필요합니다. 따로 깔 패키지는 없습니다. 컴퓨터에 없으면 세션을 시작할 때 Claude가 알리고 무엇을 할지 묻습니다: 대신 설치(Homebrew가 있을 때만, `sudo`와 관리자 비밀번호 없이), 설치 명령 보내 주기, 지금은 넘어가기, 다시 묻지 않기. 고르기 전에는 아무것도 설치하지 않습니다. Node.js가 생기기 전까지 질문은 터미널에서 합니다. 점검은 `hooks/env-check.sh`가 하고, 이 스크립트는 아무것도 설치하지 않습니다. PATH를 먼저 보고, 없으면 nvm, fnm, volta, mise, asdf, Homebrew가 Node.js를 두는 곳도 찾아봅니다. 훅은 macOS와 Linux용입니다(`sh`로 시작). Windows는 지원하지 않습니다.
 
 ## 동작
 
@@ -104,6 +105,7 @@ claude plugin disable hack-user-skills-visual-decision@hack-user-skills --scope 
 |---|---|---|
 | 임시 폴더(예: `/tmp/hus-visual-decision/`) | Claude가 쓰는 질문 파일 | 시스템이 비우거나, 직접 지웁니다 |
 | `127.0.0.1:<포트>`의 브라우저 저장소 | 고르던 답. 키는 `hus-visual-decision:<질문 파일 이름>`. 제출하면 지워집니다 | `127.0.0.1`의 사이트 데이터를 지웁니다 |
+| `~/.hus-visual-decision/no-env-check` | "다시 묻지 않기"를 고를 때만: Node.js 점검을 멈추는 빈 파일 | 파일을 지웁니다 |
 | 프로젝트 루트(git 루트, 없으면 작업 폴더)의 `.hus-visual-decision/decisions/` | 제출한 묶음마다 마크다운 파일 하나. 팀과 결정을 나누려면 커밋하고, 이 컴퓨터에만 두려면 `.hus-visual-decision/`을 `.gitignore`에 넣습니다 | 사용자 문서입니다. 두거나 지웁니다 |
 
 0.7.0 전에는 기록이 `docs/decisions/`에 쌓였고, `.hus-visual-decision/`에는 `config.json`, `pending/`, `answers/`도 있었습니다. 이것들은 이제 쓰지 않습니다. 예전 기록은 `mkdir -p .hus-visual-decision && mv docs/decisions .hus-visual-decision/decisions`로 옮기고, 나머지는 지우면 됩니다.

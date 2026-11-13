@@ -1,5 +1,5 @@
 {
-  "description": "Sends questions Claude was about to ask in the terminal (AskUserQuestion) to the visual-decision web page, and at session start points Claude to earlier decisions in .hus-visual-decision/decisions/ when there are any.",
+  "description": "Sends questions Claude was about to ask in the terminal (AskUserQuestion) to the visual-decision web page, and at session start points Claude to earlier decisions in .hus-visual-decision/decisions/ when there are any. If Node.js 18 or later is not on the computer, Claude offers to install it or to send the command (it installs nothing without a yes).",
   "hooks": {
     "PreToolUse": [
       {
@@ -7,8 +7,14 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/ask-hook.mjs"],
+            "command": "sh",
+            "args": [
+              "-c",
+              "n=$(sh \"$1\" path) || exit 0; exec \"$n\" \"$2\"",
+              "_",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/env-check.sh",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/ask-hook.mjs"
+            ],
             "timeout": 5
           }
         ]
@@ -19,8 +25,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-hook.mjs"],
+            "command": "sh",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/env-check.sh"
+            ],
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "sh",
+            "args": [
+              "-c",
+              "n=$(sh \"$1\" path) || exit 0; exec \"$n\" \"$2\"",
+              "_",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/env-check.sh",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/session-hook.mjs"
+            ],
             "timeout": 5
           }
         ]
