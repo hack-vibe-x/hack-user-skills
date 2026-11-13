@@ -17,9 +17,9 @@ A plugin for looking back on your AI work sessions, in Claude Code and Codex. It
 /plugin install hack-user-skills-session-coach@hack-user-skills
 ```
 
-Open a new session after installing. Everything is off by default.
+Open a new session after installing. Everything is off by default, except the Python check at the start of each session (below).
 
-**Requirements:** Python 3.9 or later (tried with 3.9 and 3.14). If the computer has none, Claude says so when a session starts and asks what you want: install it for you (only when Homebrew is on the computer; no `sudo`, no administrator password), send you the install command, not now, or do not ask again. Nothing is installed until you choose. The check is `hooks/env-check.sh`; it installs nothing itself. It looks on PATH first, then where pyenv, mise, asdf and Homebrew keep Python. The hook is written for macOS and Linux (it starts with `sh`); Windows is not supported. The automatic diary can be turned on only on macOS, and it writes with the `claude` command logged in on this computer. If that command is not on PATH, the one inside the VS Code or Cursor Claude Code extension is used.
+**Requirements:** Python 3.9 or later (tried with 3.9 and 3.14). If the computer has none, Claude says so when a session starts and asks what you want: install it for you (only when Homebrew is on the computer; no `sudo`, no administrator password), send you the install command, not now, or do not ask again. Nothing is installed until you choose. The check is `hooks/env-check.sh`; it installs nothing itself. It looks on PATH first, then where pyenv, mise, asdf and Homebrew keep Python. The hook is written for macOS and Linux (it starts with `sh`); Windows is not supported. The check is a Claude Code hook: in Codex there is none, and the skills say so themselves when `python3` is missing. The automatic diary can be turned on only on macOS, and it writes with the `claude` command logged in on this computer. If that command is not on PATH, the one inside the VS Code or Cursor Claude Code extension is used.
 
 For Codex, `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill session-diary --skill session-playbook` (not tried).
 
@@ -94,7 +94,7 @@ When the "done when" condition looks met, buttons appear above the prompt: **Fin
 |---|---|
 | `skills/session-diary/` | The diary skill, its scripts (`diary_auto.py`, `day_sessions.py`, `check_quotes.py`, `i18n.py`), the writing rules in `references/`, and the language files in `locales/` |
 | `skills/session-playbook/` | The playbook skill, its script (`sessions.py`), and the result format in `references/format.md` |
-| `hooks/` | The Claude Code mod: `hooks.json` lists `session-coach.tsx`, which holds `session-compass.tsx` (commands, tools, pane, judge) and `session-diary.tsx` (`/session-diary-now` and its card, the plan shown at the start, and the sync of the job's copy; it runs `skills/session-diary/scripts/diary_auto.py`). Screen text is in `locales/en.json` and `locales/ko.json` |
+| `hooks/` | `env-check.sh` (the Python check at session start; it installs nothing, tests in `test_env_check.py`) and the Claude Code mod: `hooks.json` runs the check and lists `session-coach.tsx`, which holds `session-compass.tsx` (commands, tools, pane, judge) and `session-diary.tsx` (`/session-diary-now` and its card, the plan shown at the start, and the sync of the job's copy; it runs `skills/session-diary/scripts/diary_auto.py`). Screen text is in `locales/en.json` and `locales/ko.json` |
 | `types/index.d.ts` | The types of the values the mod keeps for the session |
 | `tests/` | Tests of the mod, run with `claude plugin test` |
 
@@ -172,9 +172,9 @@ AI와 한 작업 세션을 돌아보는 플러그인입니다. Claude Code와 Co
 /plugin install hack-user-skills-session-coach@hack-user-skills
 ```
 
-설치한 뒤 새 세션을 엽니다. 기본은 모두 꺼져 있습니다.
+설치한 뒤 새 세션을 엽니다. 기본은 모두 꺼져 있습니다. 다만 세션을 시작할 때 하는 Python 점검(아래)은 켜진 채로 돕니다.
 
-**필요한 것:** Python 3.9 이상(3.9와 3.14에서 시험함). 컴퓨터에 없으면 세션을 시작할 때 Claude가 알리고 무엇을 할지 묻습니다: 대신 설치(Homebrew가 있을 때만, `sudo`와 관리자 비밀번호 없이), 설치 명령 보내 주기, 지금은 넘어가기, 다시 묻지 않기. 고르기 전에는 아무것도 설치하지 않습니다. 점검은 `hooks/env-check.sh`가 하고, 이 스크립트는 아무것도 설치하지 않습니다. PATH를 먼저 보고, 없으면 pyenv, mise, asdf, Homebrew가 Python을 두는 곳도 찾아봅니다. 훅은 macOS와 Linux용입니다(`sh`로 시작). Windows는 지원하지 않습니다. 자동 일기는 macOS에서만 켤 수 있고, 이 컴퓨터에 로그인된 `claude` 명령으로 씁니다. 이 명령이 PATH에 없으면 VS Code나 Cursor의 Claude Code 확장 안에 있는 것을 씁니다.
+**필요한 것:** Python 3.9 이상(3.9와 3.14에서 시험함). 컴퓨터에 없으면 세션을 시작할 때 Claude가 알리고 무엇을 할지 묻습니다: 대신 설치(Homebrew가 있을 때만, `sudo`와 관리자 비밀번호 없이), 설치 명령 보내 주기, 지금은 넘어가기, 다시 묻지 않기. 고르기 전에는 아무것도 설치하지 않습니다. 점검은 `hooks/env-check.sh`가 하고, 이 스크립트는 아무것도 설치하지 않습니다. PATH를 먼저 보고, 없으면 pyenv, mise, asdf, Homebrew가 Python을 두는 곳도 찾아봅니다. 훅은 macOS와 Linux용입니다(`sh`로 시작). Windows는 지원하지 않습니다. 이 점검은 Claude Code 훅이라 Codex에는 없고, `python3`가 없으면 스킬이 직접 알려 줍니다. 자동 일기는 macOS에서만 켤 수 있고, 이 컴퓨터에 로그인된 `claude` 명령으로 씁니다. 이 명령이 PATH에 없으면 VS Code나 Cursor의 Claude Code 확장 안에 있는 것을 씁니다.
 
 Codex는 `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill session-diary --skill session-playbook`로 받습니다(확인하지 못함).
 
@@ -249,7 +249,7 @@ Codex는 `npx skills add hack-vibe-x/hack-user-skills -a codex -g -y --skill ses
 |---|---|
 | `skills/session-diary/` | 일기 스킬, 스크립트(`diary_auto.py`, `day_sessions.py`, `check_quotes.py`, `i18n.py`), `references/`의 쓰는 규칙, `locales/`의 언어 파일 |
 | `skills/session-playbook/` | 플레이북 스킬, 스크립트(`sessions.py`), `references/format.md`의 결과 형식 |
-| `hooks/` | Claude Code mod. `hooks.json`이 `session-coach.tsx`를 가리키고, 그 안에 `session-compass.tsx`(명령, 도구, 패널, 판정)와 `session-diary.tsx`(`/session-diary-now`와 카드, 시작할 때 보여 주는 계획, 자동 실행 복사본 갱신. `skills/session-diary/scripts/diary_auto.py`를 실행)가 있습니다. 화면 글자는 `locales/en.json`, `locales/ko.json` |
+| `hooks/` | `env-check.sh`(세션을 시작할 때 하는 Python 점검. 아무것도 설치하지 않으며 테스트는 `test_env_check.py`)와 Claude Code mod. `hooks.json`이 점검을 실행하고 `session-coach.tsx`를 가리키고, 그 안에 `session-compass.tsx`(명령, 도구, 패널, 판정)와 `session-diary.tsx`(`/session-diary-now`와 카드, 시작할 때 보여 주는 계획, 자동 실행 복사본 갱신. `skills/session-diary/scripts/diary_auto.py`를 실행)가 있습니다. 화면 글자는 `locales/en.json`, `locales/ko.json` |
 | `types/index.d.ts` | mod가 세션 동안 들고 있는 값의 형식 |
 | `tests/` | mod 시험. `claude plugin test`로 돌립니다 |
 

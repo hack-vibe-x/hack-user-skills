@@ -31,10 +31,10 @@ Turn it back on with `enable` and the same options. Or just tell Claude "turn of
 
 | Path | Contents |
 |---|---|
-| `hooks/` | One hook sends AskUserQuestion to the skill; another, at session start, tells Claude that `.hus-visual-decision/decisions/` exists (only when it does) |
+| `hooks/` | One hook sends AskUserQuestion to the skill; another, at session start, tells Claude that `.hus-visual-decision/decisions/` exists (only when it does); `env-check.sh` checks for Node.js at session start (it installs nothing) and tells the other hooks where node is |
 | `skills/visual-decision/` | The skill, the page, the server, the question file format, and the language files (`en`, `ko`) |
 | `samples/` | Questions of all five types, in English and Korean |
-| `tests/` | `node --test tests/visual-decision.test.mjs` |
+| `tests/` | `node --test tests/visual-decision.test.mjs tests/env-check.test.mjs` |
 
 Try the sample from this folder: `node skills/visual-decision/scripts/serve.mjs samples/decisions.json --keep`
 
@@ -90,10 +90,10 @@ claude plugin disable hack-user-skills-visual-decision@hack-user-skills --scope 
 
 | 위치 | 내용 |
 |---|---|
-| `hooks/` | AskUserQuestion을 스킬로 보내는 훅, 세션을 시작할 때 `.hus-visual-decision/decisions/`가 있음을 Claude에게 알리는 훅(폴더가 있을 때만) |
+| `hooks/` | AskUserQuestion을 스킬로 보내는 훅, 세션을 시작할 때 `.hus-visual-decision/decisions/`가 있음을 Claude에게 알리는 훅(폴더가 있을 때만), 세션을 시작할 때 Node.js를 점검하고(아무것도 설치하지 않음) 다른 훅에 node의 위치를 알려 주는 `env-check.sh` |
 | `skills/visual-decision/` | 스킬 본문, 화면, 서버, 질문 파일 형식, 언어 파일(`en`, `ko`) |
 | `samples/` | 다섯 가지 질문 유형이 모두 든 영어·한국어 샘플 |
-| `tests/` | `node --test tests/visual-decision.test.mjs` |
+| `tests/` | `node --test tests/visual-decision.test.mjs tests/env-check.test.mjs` |
 
 샘플 보기(이 폴더에서): `node skills/visual-decision/scripts/serve.mjs samples/decisions.ko.json --keep`
 
