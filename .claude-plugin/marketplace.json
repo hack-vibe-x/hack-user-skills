@@ -16,7 +16,7 @@
     {
       "name": "hack-user-skills-criteria-gap",
       "source": "./plugins/criteria-gap",
-      "description": "When you hand work to Claude without saying how to judge it, Claude asks for that one criterion first, then remembers your answer and follows it next time. Skill and hook for Claude Code.",
+      "description": "When you move on from Claude's answer without having read or understood it, a card above the prompt asks one question that makes you fill the gap: a point you skipped, a premise you missed or took differently. Answers are kept as text to look back on.",
       "category": "productivity"
     },
     {

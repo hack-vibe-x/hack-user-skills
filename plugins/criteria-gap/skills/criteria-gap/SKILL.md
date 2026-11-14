@@ -1,62 +1,44 @@
 ---
 name: criteria-gap
-description: When the user hands over work that needs judgement (pick, filter, plan, organise, write for someone) without saying how to judge it, asks for that one criterion first, does the work with it, and remembers it for next time. Also shows, changes and forgets remembered criteria, looks back on a session for work handed over without criteria, and turns the criteria questions off in one project. Use when a [hus-criteria-gap] note arrives, or when the user says "check before I delegate", "look back on this session", "what did I hand over without knowing", "show my criteria", "change this criterion", "forget this criterion", "don't ask about criteria here", "위임 전에 점검해줘", "이 세션 되짚어줘", "내가 뭘 모르고 시켰지", "기준 보여줘", "이 기준 바꿔줘", "이 기준 잊어줘", "여기선 기준 묻지 마".
+description: Handles the question card of this plugin. The card asks the user one question when they move on from Claude's answer without having read or understood it (a point they skipped, a premise they did not state or took differently, two things under one word, an understanding worth checking). Use when a message starts with "[hus-criteria-gap answer]", or when the user says "turn off the question card", "turn the question card back on", "ask fewer questions", "ask more often", "what do I often miss", "show my question log", "delete my question log", "did I understand that right", "the question card never shows up", "is the question card working", "질문 카드 꺼줘", "질문 카드 다시 켜줘", "질문 줄여줘", "더 자주 물어봐", "내가 자주 놓치는 것 정리해줘", "질문 기록 보여줘", "질문 기록 지워줘", "내가 제대로 이해했는지 봐줘", "질문 카드가 안 떠", "질문 카드 잘 돌아가는지 봐줘".
 license: Apache-2.0
 ---
 
-# Ask for the missing criterion, then remember it
+# Help the user fill the gap they moved on from
 
-When the user hands over a judgement without a criterion, the AI quietly makes one up and the result drifts. Ask for the one criterion that matters, in the user's own words, then keep it so the same question is never asked twice.
+People move on from an answer without reading it closely, believe they understood when they did not, and miss a premise or a gap in the reasoning. The feeling of understanding is not a measure of it, and what is missing gives no signal. The question card catches one such gap at the moment the user moves on, and makes them fill it in their own words. Your part is to handle their answer, and the requests below.
 
-Talk in the user's language, and keep criteria in the user's words and language. To the user, say "remembered criteria"; do not show the record's terms (confirmed, draft, co-created, area, decision) unless they ask.
+Talk in the user's language.
 
-## When a [hus-criteria-gap] note arrives
-The hook adds it to requests that hand over work.
-- **Criteria listed that fit the request:** follow them without asking, and say so on the first line of the answer in the user's language (in English: `Applied criteria: ...`).
-- **A listed criterion from another area** (another page, channel or audience): ask whether it applies here before using it.
-- **Nothing listed fits, or a judgement is still open:** ask as below, before starting.
-The list may be cut short; read `.hus-criteria-gap/INDEX.md` (project, then `~/.hus-criteria-gap/`) when needed. Without the hook, do the same by hand when the user asks for a check before delegating.
+## Card answers
+A message that starts with `[hus-criteria-gap answer]` is the user's answer to the card. It holds what the question was about, the question, the options if any, the words it points at (the user's or your answer's), and the answer.
+1. **Pin the current work in one line**, then handle the answer, then go back to that work.
+2. **Compare it with what you assumed** in the work so far.
+   - Different: say in one or two lines where it differs and what it changes, and ask whether to redo the affected part. Do not redo it without a yes.
+   - The same: confirm in one line and carry on.
+3. **"I don't know":**
+   - About a premise or a skipped point: give 2–3 candidates, each with a short example from this work, and let them pick or rewrite one.
+   - About understanding or a distinction: explain it in two or three sentences, tied to their own example. Do not lecture or grade.
+4. Do not quiz them further in the chat; the card does the asking.
 
-## How to ask
-1. **Pin the work in one line.** "Current work: pick 5 reviews for the home page. One question, then I carry on."
-2. **One question per message, and nothing else in it.** Ask only what would send the next step wrong. Keep the rest for after the work: "2 more things were left to me: …".
-3. **The user answers first.** Do not show candidates, a recommendation or the criterion you would use. Say they can answer "I don't know" or "go ahead for now". A question back, hesitation or "not sure" counts as "I don't know".
-4. **After "I don't know":** give 2–3 candidates, each with a short example from the work, and let them pick or rewrite one. Do not pick one yourself.
-5. **After "go ahead for now":** use a criterion of your own, put `Temporary criterion: …` at the top of the answer, and do not remember it unless they later say it is theirs.
-6. **Go back to the work** and do it with the answer.
+## Requests
+Settings live in `.hus-criteria-gap/config.json` in the project (or `~/.hus-criteria-gap/config.json` for every project; the project file wins). Read the file, change only the key asked about, keep the rest. Changes apply from the next turn.
+- **Turn off / on here:** `"card": false` / `"card": true`.
+- **Ask fewer / more often:** `"pace"` one step down / up (from -2 to 3; 0 when missing). The card starts each block of 30 turns with 3 questions plus `pace`, and moves from there with the user's answers. Say the new level in one line.
+- **What do I often miss:** read the log files in `~/.hus-criteria-gap/log/<project>/` (one Markdown file per day; `<project>` is this project's path with `/` and other symbols as `-`). Group the questions by kind, say which kind came up most and how often the answer showed a real gap ("Result" lines), and quote one or two telling entries. End with one concrete habit to try. Without a log, say there is none yet.
+- **Show my question log:** list the recent entries as they are.
+- **Delete my question log:** delete this project's folder under `~/.hus-criteria-gap/log/` (or every project's, if they say so) and say what was deleted.
+- **Did I understand that right:** suggest `/criteria-check`, which checks the last turn now and shows a card if there is a gap.
 
-## Remember it (one question)
-After the work, if the criterion would apply again, ask once, as the only question at the end of the answer: "Next time, do it this way?" and quote the exact wording you would keep.
-Before asking, make that wording right, without asking the user about each point:
-- It answers the question that was asked; if it holds two decisions, show them as two lines.
-- Every condition the user gave is in it (exclusions, limits, numbers).
-- Someone could tell later whether a result met it. If a word like "good" or "enough" leaves that open, ask what it means first, as a criterion question.
-- It is the user's words. Point at any part you added: "'no repeated bread' is my wording".
-
-A clear yes saves it; anything else saves nothing. Then say in one line where it was kept.
-- Where: `.hus-criteria-gap/` in the project. `~/.hus-criteria-gap/` only when the user says it is for every project. A project criterion wins over a global one for the same thing.
-- How: one file per criterion as in [references/format.md](references/format.md), `status: confirmed`, `source: user` (or `co-created` when the user took your wording). Then run `python3 <this skill's folder>/scripts/criteria_index.py rebuild` and `... check`, and fix any error.
-- When the folder is new in a git repository, add one line: "Add `.hus-criteria-gap/` to `.gitignore` if these are personal."
-
-## Other requests
-- **Show** ("show my criteria"): list them in plain words, grouped by topic, with the date each was decided.
-- **Change:** never overwrite. Write a new file that names the old one in `supersedes`, mark the old one `superseded`, and ask the same one question first.
-- **Forget:** mark it `retired`; do not delete the file.
-- **An old one** (past its review date, 90 days after it was decided) or one the AI wrote: before using it, ask "Still do it this way?". On yes, set today's date.
-- **A request that goes against one:** ask "Change the criterion, or an exception this time?". Do not quietly follow either.
-
-## Look back on a session
-1. Read the conversation the user pasted or pointed to; keep only the user's and the AI's turns.
-2. Find where the user left a judgement to the AI, with a short quote of that turn (no quote, no gap), and the criterion the AI actually used ("newest first").
-3. Skip the ones a remembered criterion covers. Of the rest, ask the 2–3 that change the result most, the earliest step first, one at a time as in "How to ask". Show what the AI used only after the user answers.
-4. If the user's criterion really differs, say where in one or two lines and write a prompt that redoes the work with it. Run it only when the user agrees.
-5. Offer to remember the ones that will come up again.
-
-## Off in one project
-"Don't ask about criteria here": write `{"hook": false}` to `.hus-criteria-gap/config.json` in the project (keep anything else in it). For every project, write it to `~/.hus-criteria-gap/config.json`; a project file wins over the global one. To turn it back on, set `true`. It applies from the next request. Showing and changing criteria still work when it is off.
+## The card does not show up
+The card is meant to be rare (3 questions per 30 turns), so first tell them that not seeing it is normal. To find out whether something is in the way, do the easy checks yourself, in this order, and say in one line what you found:
+1. **Is `/criteria-check` a command here?** If the user types it and gets "unknown command", the plugin's module is not loaded: Claude Code is too old for it, or the plugin is not enabled. Tell them to run `claude update` (or update the VS Code extension / desktop app), check `/plugin` that hack-user-skills-criteria-gap is enabled, and open a new session. This is the one thing you cannot fix from here.
+2. **Is the card off?** Read `.hus-criteria-gap/config.json` in the project, then `~/.hus-criteria-gap/config.json` (on Windows, the folder under `%USERPROFILE%`). `"card": false` means off; a file that is not valid JSON also turns it off. Offer to turn it on, or to fix the file keeping the user's other settings.
+3. **Is the judge model reachable?** Have them run `/criteria-check`. "Could not run" twice means the session cannot use the Sonnet model (some Bedrock, Vertex or gateway setups): they need to allow Sonnet for this session or account. Do not change their provider settings yourself.
+4. **Nothing in the way:** say the card only judges turns where there was a longer answer to read, and suggest `/criteria-check` to see it now.
+Never edit anything but the config file, and ask first.
 
 ## Do not
-- Decide a criterion for the user, or remember one without a clear yes.
-- Remember a temporary criterion or a candidate the user did not take.
-- Ask two things in one message.
-- Make a gap without a quote behind it.
+- Ask the user whether they understood; ask them to choose or say it in their own words.
+- Redo work after an answer without the user's yes.
+- Treat "I don't know" or a skip as a failure, or mention it again.
