@@ -32,7 +32,11 @@ Settings live in `.hus-criteria-gap/config.json` in the project (or `~/.hus-crit
 
 ## The card does not show up
 The card is meant to be rare (3 questions per 30 turns), so first tell them that not seeing it is normal. To find out whether something is in the way, do the easy checks yourself, in this order, and say in one line what you found:
-1. **Is `/criteria-check` a command here?** If the user types it and gets "unknown command", the plugin's module is not loaded: Claude Code is too old for it, or the plugin is not enabled. Tell them to run `claude update` (or update the VS Code extension / desktop app), check `/plugin` that hack-user-skills-criteria-gap is enabled, and open a new session. This is the one thing you cannot fix from here.
+1. **Is `/criteria-check` a command here?** If the user types it and gets "unknown command", the plugin's module is not loaded, and nothing on screen says why. Check in this order:
+   - Claude Code older than 2.1.290 (run `claude --version`; versions below it ignore the module or refuse it): tell them to run `claude update`, or update the VS Code extension / desktop app.
+   - Hooks turned off: `"disableAllHooks": true` in `~/.claude/settings.json` or the project's `.claude/settings.json`, or a company policy that allows only managed hooks. You can read the first; the second you cannot change. Say plainly that the card cannot run while hooks are off, and that turning `disableAllHooks` off is their call (it stops their other hooks too).
+   - The plugin is not enabled: `/plugin`.
+   Then a new session. This is the one thing you cannot fix from here.
 2. **Is the card off?** Read `.hus-criteria-gap/config.json` in the project, then `~/.hus-criteria-gap/config.json` (on Windows, the folder under `%USERPROFILE%`). `"card": false` means off; a file that is not valid JSON also turns it off. Offer to turn it on, or to fix the file keeping the user's other settings.
 3. **Is the judge model reachable?** Have them run `/criteria-check`. "Could not run" twice means the session cannot use the Sonnet model (some Bedrock, Vertex or gateway setups): they need to allow Sonnet for this session or account. Do not change their provider settings yourself.
 4. **Nothing in the way:** say the card only judges turns where there was a longer answer to read, and suggest `/criteria-check` to see it now.

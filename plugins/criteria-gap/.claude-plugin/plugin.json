@@ -1,7 +1,7 @@
 {
   "name": "hack-user-skills-criteria-gap",
   "description": "When you move on from Claude's answer without having read or understood it, a card above the prompt asks one question that makes you fill the gap: a point you skipped, a premise you missed or took differently. Answers are kept as text to look back on.",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "author": {
     "name": "hack-vibe-x"
   },

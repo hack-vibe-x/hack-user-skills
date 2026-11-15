@@ -9,9 +9,9 @@ A Claude Code plugin for one habit: moving on from an AI's answer without having
 /plugin install hack-user-skills-criteria-gap@hack-user-skills
 ```
 
-Open a new session after installing. It runs in Claude Code only.
+Open a new session after installing. It runs in Claude Code 2.1.290 or later only.
 
-**Check that it works:** type `/criteria-check`. If the command is there, the card is running (your first prompt also shows a one-line "question card is on" note). If it says unknown command, update Claude Code (`claude update`, or update the VS Code extension or desktop app), make sure the plugin is enabled in `/plugin`, and open a new session. Nothing else needs installing: no Node.js, no Python. If the card stays quiet, say "the question card never shows up" and Claude checks the usual causes with you.
+**Check that it works:** type `/criteria-check`. If the command is there, the card is running (your first prompt also shows a one-line "question card is on" note). If it says unknown command, one of three things is in the way: Claude Code is older than 2.1.290 (check with `claude --version`; update with `claude update`, or update the VS Code extension or desktop app), the plugin is not enabled in `/plugin`, or hooks are turned off (`disableAllHooks` in your settings, or a company policy that allows only managed hooks), which also stops this card. Then open a new session. Nothing else needs installing: no Node.js, no Python. If the card stays quiet, say "the question card never shows up" and Claude checks the usual causes with you.
 
 ## How it works
 
@@ -78,9 +78,9 @@ AI의 답을 제대로 읽거나 이해하지 않은 채 넘어가는 습관 하
 /plugin install hack-user-skills-criteria-gap@hack-user-skills
 ```
 
-설치한 뒤 새 세션을 엽니다. Claude Code에서만 동작합니다.
+설치한 뒤 새 세션을 엽니다. Claude Code 2.1.290 이상에서만 동작합니다.
 
-**잘 돌아가는지 확인:** `/criteria-check`를 입력해 보세요. 명령이 있으면 카드가 돌아가는 중입니다(첫 메시지를 보낼 때 "질문 카드가 켜져 있어요"라는 한 줄 안내도 한 번 뜹니다). "알 수 없는 명령"이 나오면 Claude Code를 업데이트하고(`claude update`, VS Code 확장이나 데스크톱 앱은 앱 업데이트), `/plugin`에서 플러그인이 켜져 있는지 확인한 뒤 새 세션을 여세요. 따로 설치할 것은 없습니다: Node.js도 Python도 필요 없습니다. 카드가 조용하면 "질문 카드가 안 떠"라고 말하세요. Claude가 흔한 원인을 같이 확인합니다.
+**잘 돌아가는지 확인:** `/criteria-check`를 입력해 보세요. 명령이 있으면 카드가 돌아가는 중입니다(첫 메시지를 보낼 때 "질문 카드가 켜져 있어요"라는 한 줄 안내도 한 번 뜹니다). "알 수 없는 명령"이 나오면 셋 중 하나입니다. Claude Code가 2.1.290보다 오래됐거나(`claude --version`으로 확인, `claude update`로 업데이트, VS Code 확장이나 데스크톱 앱은 앱 업데이트), `/plugin`에서 플러그인이 꺼져 있거나, 훅이 꺼져 있습니다(설정의 `disableAllHooks`, 또는 관리형 훅만 허용하는 회사 정책). 훅이 꺼져 있으면 이 카드도 돌지 않습니다. 확인한 뒤 새 세션을 여세요. 따로 설치할 것은 없습니다: Node.js도 Python도 필요 없습니다. 카드가 조용하면 "질문 카드가 안 떠"라고 말하세요. Claude가 흔한 원인을 같이 확인합니다.
 
 ## 동작
 
