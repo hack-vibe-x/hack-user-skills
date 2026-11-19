@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { pickLang } from "../skills/visual-decision/scripts/i18n.mjs";
 import { answersFor, cleanState } from "../skills/visual-decision/scripts/answers.mjs";
 import { check, unanswered } from "../skills/visual-decision/scripts/validate.mjs";
+import { readout, readoutMap, wording } from "../skills/visual-decision/scripts/words.mjs";
 import { buildRecord, projectDir, writeRecord } from "../skills/visual-decision/scripts/record.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -20,10 +21,10 @@ const Q = {
   id: "t",
   lang: "en",
   decisions: [
-    { id: "a", type: "pick", q: "Which?", dims: ["Speed"], options: [{ key: "x", label: "<Button>", d: [["fast", "good"]], rec: true }, { key: "y", label: "Link", d: [["slow", "bad"]] }] },
-    { id: "b", type: "multi", q: "Which items?", items: [{ id: "i1", label: "One" }, { id: "i2", label: "Two" }] },
-    { id: "c", type: "batch", q: "Each?", items: [{ id: "r1", q: "Row", options: [{ key: "k1", label: "K1" }] }] },
-    { id: "d", type: "value", q: "How many?", stops: [{ v: 1 }, { v: 5 }] },
+    { id: "a", plain: "Pick one of two ways to show the button.", type: "pick", q: "Which?", dims: ["Speed"], options: [{ key: "x", label: "<Button>", d: [["fast", "good"]], rec: true }, { key: "y", label: "Link", d: [["slow", "bad"]] }] },
+    { id: "b", plain: "Pick which items go in.", type: "multi", q: "Which items?", items: [{ id: "i1", label: "One" }, { id: "i2", label: "Two" }] },
+    { id: "c", plain: "Answer one small question.", type: "batch", q: "Each?", items: [{ id: "r1", q: "Row", options: [{ key: "k1", label: "K1" }] }] },
+    { id: "d", plain: "Pick a number.", type: "value", q: "How many?", stops: [{ v: 1 }, { v: 5 }] },
   ],
 };
 const FULL = { a: { choice: "x" }, b: { choices: ["i2"] }, c: { choices: { r1: "k1" } }, d: { choice: 5 } };
@@ -187,7 +188,7 @@ test("record: what it does, the AI's view, what decided it, how to undo, check a
   const q = { ...Q, decisions: [{ ...Q.decisions[0], recNote: { if: "speed matters most", conf: "mid" }, undo: "easy",
     options: [{ ...Q.decisions[0].options[0], means: "It loads fast.", check: "Time it", next: "Ship", undo: { level: "costly", how: "revert the commit" } }, Q.decisions[0].options[1]] }, ...Q.decisions.slice(1)] };
   const md = buildRecord(q, { ...FULL, a: { choice: "x", decisive: ["Speed"] } });
-  for (const line of ["- **What it does:** It loads fast.", "- **AI recommendation:** same · Fairly sure · from similar work", "- **What decided it:** Speed",
+  for (const line of ["- **What it does:** It loads fast.", "- **AI recommendation:** same · Mostly right · from similar work", "- **What decided it:** Speed",
     "- **Undo:** Undoing takes work · revert the commit", "- **How to check it worked:** Time it", "- **Next:** Ship"])
     assert.ok(md.includes(line), `${line}\n---\n${md}`);
   const del = buildRecord(q, { ...FULL, a: { defer: "delegate" } });
@@ -281,7 +282,7 @@ test("server: refuses Origin null, unknown answers and a second submit, and writ
 test("server: sent-back lines keep the comments, a delegated one names the answer, an own answer is quoted", async () => {
   const cwd = tmp();
   const qfile = join(cwd, "q.json");
-  const q = { ...Q, decisions: [...Q.decisions, { id: "e", type: "pick", q: "No rec?", options: [{ key: "m", label: "M" }, { key: "n", label: "N" }] }, { id: "f", type: "pick", q: "Own?", options: [{ key: "m", label: "M" }] }] };
+  const q = { ...Q, decisions: [...Q.decisions, { id: "e", plain: "Pick one; nothing is recommended.", type: "pick", q: "No rec?", options: [{ key: "m", label: "M" }, { key: "n", label: "N" }] }, { id: "f", plain: "Pick the only option, or write your own.", type: "pick", q: "Own?", options: [{ key: "m", label: "M" }] }] };
   writeFileSync(qfile, JSON.stringify(q));
   const s = serve(cwd, qfile);
   try {
@@ -393,4 +394,67 @@ test("--check validates without opening a page; bad JSON gets a readable error",
   const bad = await run(["bad.json", "--check"]);
   assert.equal(bad.code, 2);
   assert.match(bad.err, /not valid JSON/);
+});
+
+// ---------- the words ----------
+
+const P = (over = {}, lang = "en") => ({ lang, decisions: [{ id: "a", type: "pick", q: "Which?", plain: "Pick how the list looks.", options: [{ key: "x", label: "X" }, { key: "y", label: "Y" }], ...over }] });
+
+test("words: a question without plain is sent back, and a plain one passes", () => {
+  assert.deepEqual(wording(P()), []);
+  assert.match(wording(P({ plain: "" }))[0], /\[a\] plain is missing/);
+  assert.match(check(P({ plain: "" }), { words: true })[0], /plain is missing/);
+  assert.deepEqual(check(P({ plain: "" })), [], "the structure check alone does not ask for words");
+});
+
+test("words: an abbreviation or a name from code needs a line in terms, in any field, html included", () => {
+  assert.match(wording(P({ q: "Send an auto DM?" }))[0], /"DM" \(q\) is written like code/);
+  assert.match(wording(P({ options: [{ key: "x", label: "X", gist: "reads session_relay.json" }, { key: "y", label: "Y" }] }))[0], /session_relay/);
+  assert.match(wording(P({ options: [{ key: "x", label: "X", visual: { type: "html", html: "<style>.a{color:red}</style><b>pendingFile</b>" } }, { key: "y", label: "Y" }] }))[0], /pendingFile/);
+  assert.deepEqual(wording(P({ q: "Send an auto DM?", terms: [["DM", "A private message to one person"]] })), []);
+  assert.deepEqual(wording({ ...P({ q: "Send auto DMs?" }), terms: [["DM", "A private message to one person"]] }), [], "a term at the top covers every question, and a plural");
+  assert.deepEqual(wording(P({ q: "Which AI, and which URL?" })), [], "words nearly everyone knows need no line");
+  assert.deepEqual(wording(P({ options: [{ key: "x", label: "X", visual: { type: "html", html: "<style>.ABC_d{color:red}</style><b>Plain</b>" } }, { key: "y", label: "Y" }] })), [], "style is not words");
+});
+
+test("words: a long sentence is split, plain stays short, and terms are few, used and explained", () => {
+  const long = "This is a very long sentence that keeps going and going with one more clause and then another and another until nobody can hold it all in their head at once, which is the problem.";
+  assert.match(wording(P({ plain: long }))[0], /a sentence of \d+ characters/);
+  assert.match(wording(P({ plain: "One. Two. Three. Four. Five." }))[0], /5 sentences/);
+  assert.match(wording(P({ terms: [["Moon", "A thing in the sky at night"]] }))[0], /"Moon" is not used/);
+  assert.match(wording(P({ q: "Which cat?", terms: [["cat", "cat"]] }))[0], /explain it in other words/);
+  const six = ["a1", "b2", "c3", "d4", "e5", "f6"].map((w) => [w, `${w} means something else entirely`]);
+  assert.match(wording(P({ q: "a1 b2 c3 d4 e5 f6", terms: six }))[0], /6 terms/);
+  const ko = P({ plain: "\uD55C \uBB38\uC7A5\uC774 \uB108\uBB34 \uAE38\uBA74 \uC77D\uB294 \uC0AC\uB78C\uC774 \uB05D\uAE4C\uC9C0 \uB530\uB77C\uAC00\uC9C0 \uBABB\uD574\uC11C \uC55E\uC5D0\uC11C \uBB34\uC2A8 \uB9D0\uC774 \uB098\uC654\uB294\uC9C0 \uC78A\uC5B4\uBC84\uB9AC\uACE0 \uB9D9\uB2C8\uB2E4 \uADF8\uB798\uC11C \uD55C \uBB38\uC7A5\uC5D0\uB294 \uD55C \uAC00\uC9C0 \uC774\uC57C\uAE30\uB9CC \uB123\uACE0 \uB098\uBA38\uC9C0\uB294 \uB2E4\uC74C \uBB38\uC7A5\uC73C\uB85C \uB118\uAE30\uB294 \uAC83\uC774 \uC88B\uC2B5\uB2C8\uB2E4 \uADF8\uB7EC\uBA74 \uD6E8\uC52C \uC77D\uAE30 \uC26C\uC6CC\uC9D1\uB2C8\uB2E4." }, "ko");
+  assert.match(wording(ko)[0], /a sentence of \d+ characters/);
+});
+
+test("words: the readout holds the words the person sees and nothing else", () => {
+  const q = P({ terms: [["Moon", "A thing in the sky"]], options: [{ key: "secret-key", label: "Round", d: [["big", "good"]], visual: { type: "html", html: "<style>.z{color:red}</style><p>Only words</p>" }, color: "#fff" }, { key: "y", label: "Y" }] });
+  const out = readout({ title: "T", ...q });
+  assert.match(out, /== Which\?/);
+  assert.match(out, /^\d+\. Only words$/m);
+  assert.match(out, /^\d+\. Round$/m);
+  assert.doesNotMatch(out, /secret-key|color:red|#fff|good/);
+  assert.doesNotMatch(out, /options\[|plain|visual\.html|facts\[/, "no field names: a reader would take them for words on the page");
+  const where = readoutMap({ title: "T", ...q });
+  assert.match(where, /^\d+\t\[a\] options\[0\]\.visual\.html$/m);
+  const two = readout({ ...q, decisions: [{ ...q.decisions[0], options: [{ key: "x", label: "X", visual: { type: "html", html: "<div>First line</div><div>Second line</div>" } }, { key: "y", label: "Y" }] }] });
+  assert.match(two, /^\d+\. First line\n\d+\. Second line$/m, "a picture is read block by block");
+});
+
+test("--text prints the readout and exits; --check refuses a question file with code-like words", async () => {
+  const cwd = tmp();
+  const bad = join(cwd, "bad.json");
+  writeFileSync(bad, JSON.stringify(P({ q: "Use the API?" })));
+  const text = spawn(process.execPath, [SERVE, bad, "--text"], { cwd });
+  let out = "";
+  text.stdout.on("data", (b) => (out += b));
+  assert.equal(await exited(text), 0);
+  assert.match(out, /Use the API\?/);
+  const chk = spawn(process.execPath, [SERVE, bad, "--check"], { cwd });
+  let err = "";
+  chk.stderr.on("data", (b) => (err += b));
+  assert.equal(await exited(chk), 2);
+  assert.match(err, /"API" \(q\)/);
 });

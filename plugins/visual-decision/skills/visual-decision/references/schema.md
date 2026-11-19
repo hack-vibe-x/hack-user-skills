@@ -6,7 +6,7 @@
 { "lang": "en", "title": "Lead list screen", "decisions": [ ... ] }
 ```
 
-`title` is the title of the page. `themes` (optional) names concerns that run across several decisions: `[{ "id": "undo", "label": "Undo", "desc": "Whether you can go back" }]`; each decision lists the ids it touches in its own `themes`. `lang` picks the UI language (`en`, `ko`, or any `locales/<code>.json`); a region such as `ko-KR` uses `ko`. A code with no locale file is reported by `--check`.
+`title` is the title of the page. `terms` (optional) is the list of words explained on every question: `[["DM", "A private message to one person"]]`; see "Words" below. `themes` (optional) names concerns that run across several decisions: `[{ "id": "undo", "label": "Undo", "desc": "Whether you can go back" }]`; each decision lists the ids it touches in its own `themes`. `lang` picks the UI language (`en`, `ko`, or any `locales/<code>.json`); a region such as `ko-KR` uses `ko`. A code with no locale file is reported by `--check`.
 
 Answers in progress are kept in the browser together with a hash of the question file. If the file changes at all, they are dropped, so answers for an old version never come back.
 
@@ -23,6 +23,19 @@ With three or more decisions, the page opens on an overview (a map of what will 
 When the person picks an answer, its `means` sentence shows under the options. On a decision that takes work to undo or cannot be undone (`undo` "costly" or "none", or `noDelegate`), it is a check: "Is this what you mean?", answered before they can move on. On an easy one it is a single line, and "Go with this, next" settles it, so the check keeps its weight where it matters. Write `means` as one or two plain sentences that say what will happen, not what the option is called.
 
 The page gives each colour one meaning: green and red only for good and bad (red also for "cannot be undone"), blue for what the person chose or can press. Badges for undo, confidence and the recommendation are grey.
+
+## Words
+
+The page is read by someone who has not seen the project, so every string is written for a stranger: no labels from your own notes, no coined phrases, one idea per sentence. SKILL.md has the rules and the "read it cold" step. `--check` enforces what a program can:
+
+- every decision has `plain`, in at most four sentences;
+- an abbreviation (`DM`, `API`) or a name from code (`session_relay`, `pendingFile`, `notes.md`), in any field or in the words of an `html` picture, has a line in `terms` (top level or on the question). `AI`, `UI`, `OK`, `URL`, `ID`, `PDF`, `CSV`, `FAQ` need none;
+- a sentence in a prose field (`plain`, `gist`, `means`, `give`, `flaw`, `when`, `cap`, `why`, `q`…) is at most 90 characters in Korean, 170 in English;
+- more than five `terms`, a term not used on its question, and a meaning that only repeats the word are refused.
+
+`serve.mjs <file> --text` prints all the words the person will see, numbered, one per line, and nothing else (no field names, ids or markup; a picture drawn in `html` is read block by block). Give it to a reader who knows nothing about the project. `--text-map` says where each number is in the file, for fixing; it is not for the reader.
+
+The built-in labels of the page use the same **?** for a few words that need it (the recommended option, sent back, "You decide", "not chosen yet"); they come from `gl.<name>.w` (the words, split by `|`) and `gl.<name>.m` (the meaning) in the language file.
 
 ## Common to every decision
 
@@ -43,7 +56,7 @@ The page gives each colour one meaning: green and red only for good and bad (red
 | `stake` | | One line on what is at stake, for the overview |
 | `depends` | | One line on which other decision this one hangs on, for the overview |
 | `themes` | | Ids from the top-level `themes` |
-| `terms` | | `[["word", "meaning in plain words"]]`, shown under the question |
+| `terms` | | `[["word", "meaning in plain words"]]`: words that cannot be replaced. Listed under the question, and the page puts a **?** after the word wherever it appears (once per block of text); pressing or hovering it shows the meaning. At most five; each must appear on the question |
 | `panels` | | Boxes above the options: `[{ "title", "text" }]` or `[{ "title", "visual" }]` (for example a `blast` or `impact` visual, or a pre-mortem line) |
 | `recNote` | | The recommendation as a condition, not a speech: `{ "if": "safety matters more than speed", "conf": "high" \| "mid" \| "low", "why": "one sentence" }` |
 | `lens` | | The name of a lens (for example "Second-order effect"); each option's `lens` line uses it |

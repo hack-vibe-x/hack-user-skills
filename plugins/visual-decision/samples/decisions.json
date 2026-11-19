@@ -7,14 +7,14 @@
       "id": "layout",
       "type": "pick",
       "tag": "Screen design",
-      "short": "Lead list layout",
-      "q": "Which layout should the lead list use?",
-      "ctx": "People skim 30–50 leads a day and open only a few of them to reply.",
+      "short": "Inquiry list layout",
+      "q": "Which layout should the inquiry list use?",
+      "ctx": "People skim 30–50 inquiries a day and open only a few of them to reply.",
       "pattern": "When the options are screen designs. Show the designs side by side and line up the rows so differences read across.",
       "dims": [
         {
-          "q": "How many leads fit on one screen?",
-          "short": "Leads shown",
+          "q": "How many inquiries fit on one screen?",
+          "short": "Inquiries shown",
           "now": "now 5",
           "max": 12
         },
@@ -66,7 +66,7 @@
           "cap": "One row per person",
           "d": [
             {
-              "v": "12 leads",
+              "v": "12 inquiries",
               "n": 12,
               "t": "good"
             },
@@ -85,16 +85,16 @@
               "why": "The same table is already used elsewhere"
             }
           ],
-          "when": "Skimming many leads quickly matters most",
+          "when": "Skimming many inquiries quickly matters most",
           "gist": "Best for skimming many, awkward on a phone",
           "give": "You leave the list every time you reply",
-          "means": "Leads appear as dense rows, and clicking a name opens a separate detail page. After replying you have to go back to the list.",
+          "means": "Inquiries appear as dense rows, and clicking a name opens a separate detail page. After replying you have to go back to the list.",
           "after": [
-            "Dense rows, one per lead",
+            "Dense rows, one per inquiry",
             "Clicking a name opens a detail page"
           ],
           "lens": "Easy to add columns → in a few months the table may get too wide",
-          "example": "On her laptop, Mina sees 12 leads at once; to reply she opens the detail page.",
+          "example": "On her laptop, Mina sees 12 inquiries at once; to reply she opens the detail page.",
           "check": "12 rows show on a 1280px screen",
           "next": "Connect 4 columns to the table",
           "detail": {
@@ -105,7 +105,7 @@
               ],
               [
                 "file",
-                "Reuses components/Table.tsx"
+                "Reuses the table that already exists in the app"
               ]
             ],
             "prereq": "The detail page is a separate screen, so after going back you have to find your place in the list again.",
@@ -125,7 +125,7 @@
                   16,
                   72
                 ],
-                "text": "8 leads in the list",
+                "text": "8 inquiries in the list",
                 "dim": 0
               },
               {
@@ -147,7 +147,7 @@
           "cap": "Pick on the left, see it on the right",
           "d": [
             {
-              "v": "8 leads",
+              "v": "8 inquiries",
               "n": 8,
               "t": ""
             },
@@ -167,9 +167,9 @@
             }
           ],
           "when": "Fits skimming and then replying right away",
-          "gist": "Skim and reply right away, but fewer leads at once",
-          "give": "Leads you see at once (12 → 8)",
-          "flaw": "It shows 4 fewer leads than the table, and on a narrow screen the detail feels cramped.",
+          "gist": "Skim and reply right away, but fewer inquiries at once",
+          "give": "Inquiries you see at once (12 → 8)",
+          "flaw": "It shows 4 fewer inquiries than the table, and on a narrow screen the detail feels cramped.",
           "means": "Clicking someone on the left opens their details and a reply box on the right. You can reply without leaving the list, but only 8 people fit at once.",
           "after": [
             "List on the left, detail on the right",
@@ -248,7 +248,7 @@
           "cap": "One card per person",
           "d": [
             {
-              "v": "6 leads",
+              "v": "6 inquiries",
               "n": 6,
               "t": "bad"
             },
@@ -269,7 +269,7 @@
           ],
           "when": "There is a lot to show, like photos and notes",
           "gist": "Easiest on a phone, slow for skimming many",
-          "give": "Leads you see at once (12 → 6)",
+          "give": "Inquiries you see at once (12 → 6)",
           "means": "Each person gets one card. It is comfortable on a phone, but even on a laptop only 6 people show at once.",
           "after": [
             "One card per person",
@@ -282,7 +282,7 @@
         }
       ],
       "same": "All three keep the same search, filter and sort.",
-      "plain": "The lead list is the screen where every new inquiry shows up as a line. You are choosing whether it looks like a dense table, a list on the left with details on the right, or one card per person. The shape changes how many people you see at once and how easy it is to reply.",
+      "plain": "This is the screen where every new inquiry shows up as a line. You are choosing whether it looks like a dense table, a list on the left with details on the right, or one card per person. The shape changes how many people you see at once and how easy it is to reply.",
       "stake": "The basic frame of a screen you skim 30–50 times a day",
       "undo": {
         "level": "easy",
@@ -432,7 +432,7 @@
       "short": "Permission unit",
       "q": "What unit should site permissions use?",
       "ctx": "Today, permission keys differ per menu inside the same group, so three places are out of sync.",
-      "more": "The three places are SEO, images and channels. In each, the group's permission and the menu's permission key were set separately.",
+      "more": "The three places are the search settings (what helps search engines find the pages), images and channels. In each, the group's permission and the menu's permission key were set separately.",
       "pattern": "Draw structure you can't see by its size and shape. Here, the number of cells to manage is drawn as is.",
       "dims": [
         {
@@ -442,7 +442,7 @@
         },
         {
           "q": "Does the database have to change?",
-          "short": "DB change"
+          "short": "Stored-data change"
         },
         {
           "q": "Can the same problem happen again?",
@@ -599,7 +599,7 @@
                   "t": "bad"
                 },
                 {
-                  "l": "API checks",
+                  "l": "Server checks",
                   "t": ""
                 }
               ],
@@ -1031,6 +1031,12 @@
       "stake": "What gets built this week and what waits",
       "themes": [
         "speed"
+      ],
+      "terms": [
+        [
+          "DM",
+          "A private message sent to one person (here, on Instagram), not a public comment"
+        ]
       ]
     },
     {
@@ -1122,7 +1128,7 @@
             {
               "key": "new",
               "label": "Newest first",
-              "sub": "New leads on top",
+              "sub": "New inquiries on top",
               "rec": true
             },
             {
@@ -1352,14 +1358,20 @@
           0
         ]
       },
-      "assume": "Assumes 1,200 people. The chance of a block is estimated from the last 3 months of sending and Instagram's guidance."
+      "assume": "Assumes 1,200 people. The chance of a block is estimated from the last 3 months of sending and Instagram's guidance.",
+      "terms": [
+        [
+          "DM",
+          "A private message sent to one person (here, on Instagram), not a public comment"
+        ]
+      ]
     }
   ],
   "themes": [
     {
       "id": "seen",
       "label": "Seen by users",
-      "desc": "What leads or visitors see themselves"
+      "desc": "What people who write in, or visitors, see themselves"
     },
     {
       "id": "undo",

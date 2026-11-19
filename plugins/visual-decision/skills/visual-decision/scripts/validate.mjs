@@ -4,6 +4,7 @@ import { existsSync, realpathSync } from "node:fs";
 import { extname, resolve, sep } from "node:path";
 import { languages, pickLang } from "./i18n.mjs";
 import { cleanState, isDone } from "./answers.mjs";
+import { wording } from "./words.mjs";
 
 // Image files the page can show: a known image type, inside the working directory or a temp directory.
 // A relative path starts at the working directory.
@@ -76,8 +77,9 @@ function badCell(c) {
   return ["n", "lo", "hi"].some((k) => c[k] != null && !num(c[k]));
 }
 
-// cwd (optional) also checks that image files can be served from there.
-export function check(q, { cwd } = {}) {
+// cwd (optional) also checks that image files can be served from there. words: true also checks the words
+// (what a machine can check about whether a stranger can read them; see words.mjs). The page opens only after it passes.
+export function check(q, { cwd, words } = {}) {
   const p = [];
   if (!q || typeof q !== "object") return ["the file must hold a JSON object"];
   if (q.lang != null && pickLang(q.lang) === "en" && !/^en\b/i.test(String(q.lang)))
@@ -154,7 +156,7 @@ export function check(q, { cwd } = {}) {
         p.push(`${at} values must be { q, left, right, labels, map } with one stop index in map per label`);
     } else p.push(`${at} type must be one of pick, preview, multi, batch, value`);
   }
-  return p;
+  return words && !p.length ? wording(q) : p;
 }
 
 // Ids of questions a submitted state leaves unsettled. The page only enables submit when this is empty.

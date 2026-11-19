@@ -2,9 +2,11 @@
 // Serves a question file as a local web page and waits until the person submits their answers,
 // then prints one line per question to stdout and exits. The answers are also kept as <project>/.hus-visual-decision/decisions/<date>-<name>.md (record.mjs).
 //
-//   node serve.mjs <questions.json> [--check] [--timeout 60] [--grace 60] [--port 4747] [--no-open] [--keep]
+//   node serve.mjs <questions.json> [--check] [--text | --text-map] [--timeout 60] [--grace 60] [--port 4747] [--no-open] [--keep]
 //
-// --check only validates the question file and exits (0 = valid, 2 = needs fixes); no page opens.
+// --check only validates the question file and exits (0 = valid, 2 = needs fixes); no page opens. It checks the words too.
+// --text prints every word the person will see, numbered, and nothing else, then exits. Give it to a reader who has not seen the project (see "Read it cold" in SKILL.md).
+// --text-map prints where each of those numbers is in the question file, for fixing what the reader could not follow. Do not give it to the reader.
 // --timeout <minutes> stops waiting after that long (default 60; 0 = no limit).
 // --grace <seconds> is how long the page may stay disconnected (reload, network blip) before it counts as closed (default 60).
 // --keep keeps the server running after submit (for demos). Listens on 127.0.0.1 only.
@@ -20,6 +22,7 @@ import { makeT, pickLang, strings } from "./i18n.mjs";
 import { answersFor, cleanState, recommended } from "./answers.mjs";
 import { writeRecord } from "./record.mjs";
 import { IMAGE_TYPES, check, imageFile, unanswered } from "./validate.mjs";
+import { readout, readoutMap } from "./words.mjs";
 
 const EXIT = { submitted: 0, error: 1, invalid: 2, cancelled: 3, timeout: 4, closed: 5 };
 
@@ -54,7 +57,11 @@ try {
   process.exit(EXIT.invalid);
 }
 
-const problems = check(questions, { cwd });
+if (flag("--text") || flag("--text-map")) {
+  console.log(flag("--text-map") ? readoutMap(questions) : readout(questions));
+  process.exit(EXIT.submitted);
+}
+const problems = check(questions, { cwd, words: true });
 if (problems.length) {
   console.error("[hus-visual-decision] The question file needs fixes:\n- " + problems.join("\n- "));
   process.exit(EXIT.invalid);

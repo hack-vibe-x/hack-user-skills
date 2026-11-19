@@ -23,6 +23,7 @@ Needs Node.js 18 or later. There are no packages to install. If the computer has
 
 - **Three layers.** First, two or three plain sentences on what the decision is. Then what you need to choose: a picture per option, only the rows where the options differ, what each option gives up, and the recommendation as a condition ("if safety matters more than speed") with how sure Claude is. Everything else (an honest drawback of the recommended option, what happens afterwards, evidence, common confusions) is folded away.
 - **What your choice will do**, in plain words, right under the options once you pick. For decisions that take work to undo or cannot be undone, it is a check, "Is this what you mean?", that you answer before going on. For easy ones it is one line, and "Go with this, next" settles it.
+- **Words a stranger can follow.** Every label is written for someone who has not seen your project. A word that cannot be replaced gets a small **?** after it: hover, press or tab to it and a box says what it means. Claude's question files are checked before the page opens (a missing plain-words summary, an abbreviation or a name from code with no explanation, a sentence that runs on), and a fresh reader who knows nothing about the project reads the page text first (`serve.mjs <file> --text`) and lists what it cannot follow.
 - **How hard it is to undo**, as a badge on every decision. Hard-to-undo ones cannot be handed to Claude, and their options open only after you have scrolled through the comparison.
 - **More kinds of pictures**: before/after (side by side, swipe or text), timelines with the point of no return, what else is affected, step-by-step stories, and "3 in 100" icon grids.
 - **An overview** when there are three or more decisions: a map of what will be decided, where nothing is chosen.
@@ -66,6 +67,7 @@ Each release is tagged `visual-decision-v<version>` in this repository.
 
 | Version | Date | What changed |
 |---|---|---|
+| 0.10.0 | 2026-11-19 | Plain words everywhere, not only in the summary: rules for every label (no names from Claude's own notes, no coined phrases, one idea per sentence), a **?** that explains a word on the page, a check that refuses a question file with a missing summary, unexplained abbreviations or code names, and run-on sentences, and a cold read of the page text (`--text`) by a reader who knows nothing about the project. The page's own wording and the samples were simplified |
 | 0.9.0 | 2026-11-19 | Question pages in three layers (plain words first, then what you need to choose, then details folded away). What your choice will do is shown in plain words; decisions that are costly or impossible to undo ask "Is this what you mean?" before you move on. A badge for how hard each decision is to undo, an overview when there are three or more decisions, "write my own" and "I can't decide" as their own cards under the options (only one kind of answer at a time), rows only where options differ, ranges and how sure Claude is, a conditional recommendation, and new pictures (before/after, timeline, what else is affected, step-by-step story, "3 in 100" grids). The review lets you mark what decided each answer, and the record keeps it with how to undo and how to check it worked. One meaning per colour; view options folded into "View settings". Older question files work unchanged |
 | 0.8.0 | 2026-11-13 | Checks for Node.js at session start and asks before installing anything |
 | 0.7.1 | 2026-11-12 | Drawings fit their content, units follow the number as written, the phone question list keeps the current question in view |
@@ -103,8 +105,9 @@ Node.js 18 이상이 필요합니다. 따로 깔 패키지는 없습니다. 컴�
 ### 질문 화면에 보이는 것
 
 - **세 층.** 맨 먼저 이 결정이 무엇인지 쉬운 말 두세 문장. 다음은 고르는 데 필요한 것: 선택지마다 그림, 선택지끼리 차이 나는 행만, 고르면 포기하는 것, 조건이 붙은 추천("속도보다 안전이 중요하다면")과 Claude가 얼마나 확신하는지. 나머지(추천안의 솔직한 단점, 고른 뒤 상태, 근거, 흔한 오해)는 접혀 있습니다.
-- **고르면 무엇을 하게 되는지**를 선택지 바로 아래에 쉬운 말로 보여 줍니다. 되돌리려면 품이 들거나 되돌릴 수 없는 결정에서는 "이걸 의도한 게 맞나요?"라고 묻고, 답해야 다음으로 갑니다. 쉬운 결정에서는 한 줄로만 보여 주고 "이대로 다음"을 누르면 정해집니다.
+- **고르면 무엇을 하게 되는지**를 선택지 바로 아래에 쉬운 말로 보여 줍니다. 되돌리는 데 손이 많이 가거나 되돌릴 수 없는 결정에서는 "이걸 의도한 게 맞나요?"라고 묻고, 답해야 다음으로 갑니다. 쉬운 결정에서는 한 줄로만 보여 주고 "이대로 다음"을 누르면 정해집니다.
 - **되돌리기 어려운 정도**가 결정마다 표시됩니다. 되돌리기 어려운 결정은 Claude에게 맡길 수 없고, 비교를 끝까지 내려 봐야 고를 수 있습니다.
+- **낯선 사람도 따라갈 수 있는 말.** 모든 글은 이 프로젝트를 본 적 없는 사람이 읽는다고 생각하고 씁니다. 바꿀 수 없는 말에는 단어 옆에 작은 **?**가 붙습니다. 마우스를 올리거나 누르거나 Tab으로 가면 뜻이 뜹니다. Claude가 만든 질문 파일은 화면이 열리기 전에 검사하고(쉬운 말 요약이 없음, 설명 없는 약어나 코드 이름, 너무 긴 문장), 프로젝트를 전혀 모르는 새 읽는이가 화면 글만 먼저 읽고(`serve.mjs <파일> --text`) 이해 못 하는 곳을 알려 줍니다.
 - **더 다양한 그림**: 전/후 비교(나란히, 밀어 보기, 글자 차이), 되돌릴 수 없는 시점이 표시된 타임라인, 함께 영향받는 것, 단계별 장면, "100번 중 3번" 아이콘 그림.
 - **한눈에 보기**: 결정이 3개 이상이면 먼저 무엇을 정할지 지도로 보여 줍니다. 여기서는 고르지 않습니다.
 - **보내기 전 확인 화면**에서 답마다 무엇이 결정적이었는지 표시할 수 있습니다. 기록에는 이것과 함께 되돌리는 법, 잘 됐는지 확인하는 법이 남습니다.
@@ -147,6 +150,7 @@ claude plugin disable hack-user-skills-visual-decision@hack-user-skills --scope 
 
 | 버전 | 날짜 | 바뀐 것 |
 |---|---|---|
+| 0.10.0 | 2026-11-19 | 요약뿐 아니라 모든 글을 쉬운 말로: 모든 라벨에 적용되는 규칙(Claude가 작업하며 붙인 이름 금지, 지어낸 표현 금지, 한 문장에 한 가지), 화면에서 말뜻을 알려 주는 **?**, 쉬운 말 요약이 없거나 설명 없는 약어·코드 이름·늘어진 문장이 있는 질문 파일 거부, 프로젝트를 모르는 읽는이가 화면 글을 먼저 읽어 보는 단계(`--text`). 화면 자체의 문구와 샘플도 쉽게 고침 |
 | 0.9.0 | 2026-11-19 | 질문 화면을 세 층으로 나눔(먼저 쉬운 말, 다음 고르는 데 필요한 것, 나머지는 접어 둠). 고르면 그 답이 무엇을 하게 되는지 쉬운 말로 보여 주고, 되돌리려면 품이 들거나 되돌릴 수 없는 결정은 "이걸 의도한 게 맞나요?"에 답해야 넘어감. 결정마다 되돌리기 어려운 정도 표시, 결정이 3개 이상이면 한눈에 보기, 선택지 아래 "직접 적을게요"·"못 고르겠어요" 카드(답은 셋 중 하나만), 차이 나는 행만 보이기, 범위와 확신도, 조건이 붙은 추천, 새 그림(전/후 비교, 타임라인, 함께 영향받는 것, 단계별 장면, "100번 중 3번" 그림). 확인 화면에서 무엇이 결정적이었는지 표시하고, 기록에 되돌리는 법과 잘 됐는지 확인하는 법을 함께 남김. 색마다 뜻 하나, 보기 조작은 "보기 설정"으로 접음. 예전 질문 파일도 그대로 동작 |
 | 0.8.0 | 2026-11-13 | 세션을 시작할 때 Node.js를 점검하고, 설치는 묻고 나서만 함 |
 | 0.7.1 | 2026-11-12 | 그림이 내용에 맞는 높이로 그려짐, 단위가 적은 그대로 숫자 뒤에 붙음, 폰에서 질문 목록이 지금 질문을 보여 줌 |

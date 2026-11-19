@@ -267,6 +267,13 @@ pre{background:var(--surface2);border-radius:10px;padding:12px;font:12px/1.5 ui-
 .conf.mid{background:var(--warn-soft);color:var(--warn)}
 .conf.low{background:var(--surface2);color:var(--muted);border:1px dashed var(--mk2)}
 
+/* "?" after a word that needs an explanation, and the box that explains it */
+.hq{display:inline-grid;place-items:center;width:16px;height:16px;margin:0 2px 0 3px;padding:0;border-radius:50%;border:1px solid var(--mk2);background:var(--surface);color:var(--muted);font:700 10.5px/1 -apple-system,sans-serif;cursor:help;vertical-align:1px}
+.hq:hover,.hq.on,.hq:focus-visible{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.hq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#tip{position:fixed;z-index:60;width:max-content;max-width:min(300px,calc(100vw - 16px));padding:9px 12px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:13px;line-height:1.5;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+#tip b{display:block;margin-bottom:2px}
+#tip[hidden]{display:none}
 /* glossary and panels above the options */
 .terms{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
 .term{font-size:12.5px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:4px 10px;max-width:440px}
@@ -614,6 +621,53 @@ const VIEW={mode:{},all:{},seen:{},theme:null};
 // Set when a question was opened from the review, so confirming it goes back there.
 let backToReview=false;
 const T=(k,v)=>String((META.strings&&META.strings[k])??k).replace(/\{(\w+)\}/g,(m,n)=>v&&n in v?v[n]:m);
+/* "?" next to a word that needs an explanation. The words come from the question file (terms at the top and in each question)
+   and from the built-in list in the language file (gl.<name>.w: the words, split by "|"; gl.<name>.m: what they mean).
+   One "?" per word in each block of text; nothing inside a button, link or the word list itself. */
+const TIP={el:null,box:null,pin:false};
+function termList(d){
+  const own=[...(META.terms||[]),...((d&&d.terms)||[])].filter(t=>Array.isArray(t)&&t[0]&&t[1]);
+  const built=[], St=META.strings||{};
+  Object.keys(St).forEach(k=>{ const m=k.match(/^gl\.(.+)\.w$/); if(m&&St['gl.'+m[1]+'.m']) St[k].split('|').forEach(w=>w.trim()&&built.push([w.trim(),St['gl.'+m[1]+'.m']])); });
+  const seen=new Set();
+  return [...own,...built].filter(t=>{ const k=String(t[0]).toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; }).sort((a,b)=>String(b[0]).length-String(a[0]).length);
+}
+const reEsc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function annotate(root,terms){
+  if(!root||!terms.length) return;
+  const re=new RegExp(terms.map(t=>{ const w=String(t[0]); return (/^[A-Za-z0-9]/.test(w)?'(?<![A-Za-z0-9])':'')+reEsc(w)+(/[A-Za-z0-9]$/.test(w)?'(?![A-Za-z0-9])':''); }).join('|'),'gi');
+  const means=new Map(terms.map(t=>[String(t[0]).toLowerCase(),String(t[1])]));
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.nodeValue.trim()&&!n.parentElement.closest('button,a,input,textarea,select,option,summary,script,style,svg,.terms,.hq')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});
+  const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
+  const used=new Map();
+  for(const n of nodes){
+    const text=n.nodeValue, block=n.parentElement.closest('p,li,td,th,h1,h2,h3,h4,h5,dd,dt,div')||root;
+    if(!used.has(block)) used.set(block,new Set());
+    const got=used.get(block); let last=0, frag=null, m; re.lastIndex=0;
+    while((m=re.exec(text))){
+      const key=m[0].toLowerCase(); if(got.has(key)||!means.has(key)) continue; got.add(key);
+      frag=frag||document.createDocumentFragment();
+      const end=m.index+m[0].length;
+      frag.append(text.slice(last,end));
+      const b=document.createElement('button'); b.type='button'; b.className='hq'; b.textContent='?';
+      b.dataset.word=m[0]; b.dataset.tip=means.get(key); b.setAttribute('aria-label',T('tip.aria',{x:m[0]}));
+      frag.append(b); last=end;
+    }
+    if(frag){ frag.append(text.slice(last)); n.replaceWith(frag); }
+  }
+}
+function hideTip(){ TIP.pin=false; if(TIP.box) TIP.box.hidden=true; if(TIP.el){ TIP.el.removeAttribute('aria-describedby'); TIP.el.classList.remove('on'); TIP.el=null; } }
+function showTip(el){
+  if(TIP.el===el) return; hideTip();
+  if(!TIP.box){ const b=document.createElement('div'); b.id='tip'; b.setAttribute('role','tooltip'); document.body.appendChild(b); TIP.box=b; }
+  const b=TIP.box; b.textContent=''; const w=document.createElement('b'); w.textContent=el.dataset.word; const m=document.createElement('span'); m.textContent=el.dataset.tip; b.append(w,m);
+  b.hidden=false;
+  const r=el.getBoundingClientRect(), bw=b.offsetWidth, bh=b.offsetHeight;
+  b.style.left=Math.min(Math.max(8,r.left+r.width/2-bw/2),innerWidth-bw-8)+'px';
+  b.style.top=(r.bottom+8+bh>innerHeight-8?Math.max(8,r.top-bh-8):r.bottom+8)+'px';
+  el.setAttribute('aria-describedby','tip'); el.classList.add('on'); TIP.el=el;
+}
+const annotateStage=()=>{ hideTip(); annotate(document.getElementById('stage'),termList(cur>=0&&cur<D.length?D[cur]:null)); };
 const REASON_KEYS=['info','options','delegate'];
 // Hard to undo: marked noDelegate, or undo level "none". Claude cannot decide these, and the options open only after the comparison was read.
 const undoOf=u=>!u?null:typeof u==='string'?{level:u}:u;
@@ -946,7 +1000,7 @@ function intent(d,a){ if(!a||!(a.defer||answered(d,a))) return '';
   return `<section class="intent ${a.ok?'ok':''} ${a.defer?'back':''}" id="intent" aria-labelledby="intq"><div class="ik">${esc(T('intent.kicker'))}</div><p class="im">${esc(m)}</p><p class="iq" id="intq">${esc(T('intent.q'))}</p>
     <div class="inote">${field}</div>
     ${a.ok?`<div class="idone">✓ ${esc(T('intent.done'))} <button class="linkb" data-intent-no>${esc(T('intent.change'))}</button></div>`:`<div class="ib"><button class="primary" data-intent-yes>${esc(T(last?(backToReview?'intent.yesBack':'intent.yesLast'):'intent.yes'))}</button><button class="ghost" data-intent-no>${esc(T('intent.no'))}</button></div>`}</section>`; }
-const refreshIntent=()=>{ const d=D[cur]; const w=document.getElementById('intentwrap'); if(d&&w) w.innerHTML=intent(d,S[d.id]); renderBar(); };
+const refreshIntent=()=>{ const d=D[cur]; const w=document.getElementById('intentwrap'); if(d&&w){ w.innerHTML=intent(d,S[d.id]); annotate(w,termList(d)); } renderBar(); };
 
 function decisiveChips(d){
   if(d.type==='pick') return (d.dims||[]).map(dimOf).map(x=>x.short||x.q).filter(Boolean);
@@ -1027,7 +1081,7 @@ const FOCUS_KEYS=['pick','toggle','seg','stop','reason','allrec','alt','confirm'
 function focusSig(){ const el=document.activeElement; if(!el||el===document.body) return null;
   for(const k of FOCUS_KEYS) if(k in el.dataset) return `[data-${k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())}${el.dataset[k]?`="${CSS.escape(el.dataset[k])}"`:''}]`+('key' in el.dataset?`[data-key="${CSS.escape(el.dataset.key)}"]`:'');
   return el.id?'#'+CSS.escape(el.id):null; }
-function render(){ const sig=focusSig(); renderNav(); renderStage();
+function render(){ const sig=focusSig(); renderNav(); renderStage(); annotateStage();
   if(sig){ const el=document.querySelector('#stage '+sig+',#bar '+sig+',#nav '+sig); if(el) el.focus({preventScroll:true}); } }
 const focusHead=()=>{ const h=document.getElementById('qh'); if(h) h.focus({preventScroll:true}); };
 // After an answer is set: on a weighty decision, go to the check; on an easy one, just bring the one-line "what this does" into view.
@@ -1062,7 +1116,7 @@ function setStop(i,moveSlider){ const d=D[cur]; const wasDraft=isDraft(d); const
   // Coming back from "I can't decide": draw the page again so that panel closes.
   if(other){ panel=null; render(); return; }
   // Updated in place, not re-rendered, so a slider drag is not interrupted.
-  document.getElementById('vnow').textContent=d.stops[i].v; document.getElementById('vouts').innerHTML=outsHtml(d,i); document.getElementById('vpre').innerHTML=stopsHtml(d,i,false,myStop(d,a)); document.getElementById('vov').innerHTML=overview(d,i);
+  document.getElementById('vnow').textContent=d.stops[i].v; document.getElementById('vouts').innerHTML=outsHtml(d,i); annotate(document.getElementById('vouts'),termList(d)); document.getElementById('vpre').innerHTML=stopsHtml(d,i,false,myStop(d,a)); document.getElementById('vov').innerHTML=overview(d,i);
   const r=document.getElementById('vrange'); if(moveSlider) r.value=i; r.setAttribute('aria-valuetext',valueText(d,i));
   if(wasDraft){ ['draftnote','vdraft'].forEach(id=>{ const el=document.getElementById(id); if(el) el.remove(); }); document.getElementById('val').classList.remove('draft'); }
   if(moveSlider) announce(T('sr.picked',{x:valueText(d,i)}));
@@ -1099,6 +1153,8 @@ function cleanSaved(saved){ const out={}; if(!saved||typeof saved!=='object') re
   return out; }
 
 document.addEventListener('click',e=>{
+  const hq=e.target.closest('.hq'); if(hq){ e.preventDefault(); TIP.pin=true; if(TIP.el!==hq) showTip(hq); TIP.pin=true; return; }
+  if(TIP.el&&!e.target.closest('#tip')) hideTip();
   // Opening a card's details, or dragging its before/after slider, does not pick the card.
   if(e.target.closest('.opt details.xo,.swr')) return;
   const t=e.target.closest('[data-go],[data-pick],[data-toggle],[data-seg],[data-allrec],[data-stop],[data-alt],[data-prev],[data-next],[data-send],[data-reason],[data-confirm],[data-cancel],[data-mode],[data-allrows],[data-intent-yes],[data-intent-no],[data-decisive],[data-val],[data-theme],[data-openall]'); if(!t||t.disabled) return;
@@ -1160,7 +1216,13 @@ document.addEventListener('mouseout',e=>{ const r=e.target.closest('#stage .dim[
 // View settings close when you press anywhere else.
 document.addEventListener('pointerdown',e=>{ const v=document.querySelector('details.viewset[open]'); if(v&&!v.contains(e.target)){ v.open=false; VIEW.setOpen=false; } });
 document.addEventListener('toggle',e=>{ if(e.target.classList&&e.target.classList.contains('viewset')) VIEW.setOpen=e.target.open; },true);
+document.addEventListener('mouseover',e=>{ const h=e.target.closest('.hq'); if(h&&!TIP.pin) showTip(h); });
+document.addEventListener('mouseout',e=>{ const h=e.target.closest('.hq'); if(h&&!TIP.pin&&!h.contains(e.relatedTarget)) hideTip(); });
+document.addEventListener('focusin',e=>{ const h=e.target.closest&&e.target.closest('.hq'); if(h) showTip(h); });
+document.addEventListener('focusout',e=>{ const h=e.target.closest&&e.target.closest('.hq'); if(h&&!TIP.pin) hideTip(); });
+window.addEventListener('scroll',()=>{ if(TIP.el) hideTip(); },true);
 document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&TIP.el){ const el=TIP.el; hideTip(); el.focus(); return; }
   if(locked()) return;
   const inField=e.target.matches('input');
   // Arrow keys inside an option group move between its options (radios also select, as native radios do).
