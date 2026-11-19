@@ -4,132 +4,1372 @@
   "title": "Decision sample",
   "decisions": [
     {
-      "id": "layout", "type": "pick", "tag": "Screen design", "short": "Lead list layout",
+      "id": "layout",
+      "type": "pick",
+      "tag": "Screen design",
+      "short": "Lead list layout",
       "q": "Which layout should the lead list use?",
       "ctx": "People skim 30–50 leads a day and open only a few of them to reply.",
       "pattern": "When the options are screen designs. Show the designs side by side and line up the rows so differences read across.",
-      "dims": ["Leads on one screen", "Getting to detail", "Mobile", "Effort"],
-      "options": [
-        { "key": "table", "label": "Table", "visual": { "type": "screen", "layout": "table" }, "cap": "One row per person",
-          "d": [["12 leads", "good"], ["1 click · new page", ""], ["Scrolls sideways", "bad"], ["1 day", "good"]], "when": "Skimming many leads quickly matters most" },
-        { "key": "split", "label": "List + detail", "rec": true, "visual": { "type": "screen", "layout": "split" }, "cap": "Pick on the left, see it on the right",
-          "d": [["8 leads", ""], ["1 click · no page change", "good"], ["Two steps: list → detail", ""], ["2 days", ""]], "when": "Fits skimming and then replying right away" },
-        { "key": "cards", "label": "Cards", "visual": { "type": "screen", "layout": "cards" }, "cap": "One card per person",
-          "d": [["6 leads", "bad"], ["1 click · new page", ""], ["Works as is", "good"], ["1.5 days", ""]], "when": "There is a lot to show, like photos and notes" }
+      "dims": [
+        {
+          "q": "How many leads fit on one screen?",
+          "short": "Leads shown",
+          "now": "now 5",
+          "max": 12
+        },
+        {
+          "q": "How many moves until you reply?",
+          "short": "To reply"
+        },
+        {
+          "q": "Does it work on a phone?",
+          "short": "Phone"
+        },
+        {
+          "q": "What changes, and what do you check?",
+          "short": "What changes"
+        }
       ],
-      "same": "All three keep the same search, filter and sort."
-    },
-    {
-      "id": "cta", "type": "pick", "tag": "Copy", "short": "Sign-up button text",
-      "q": "What should the sign-up button say?",
-      "ctx": "It is the last button of the free-trial form. See each one placed on a real button.",
-      "pattern": "Copy is not judged as plain text. Show it in the place it will actually appear.",
-      "dims": ["What it promises", "Length", "Catch"],
       "options": [
-        { "key": "plain", "label": "Sign up", "visual": { "type": "button", "text": "Sign up" },
-          "d": [["Nothing", ""], ["7 characters", "good"], ["Doesn't say what happens next", "bad"]], "when": "The text above the form already explains enough" },
-        { "key": "free", "label": "Start free", "rec": true, "visual": { "type": "button", "text": "Start free" },
-          "d": [["It costs nothing", "good"], ["10 characters", ""], ["None", "good"]], "when": "Easing payment worries is the point" },
-        { "key": "fast", "label": "Finish sign-up in 3 minutes", "visual": { "type": "button", "text": "Finish sign-up in 3 minutes" },
-          "d": [["It's quick", "good"], ["27 characters · cut off on narrow screens", "bad"], ["The 3 minutes must be true", "bad"]], "when": "The form looks long and people drop off" }
+        {
+          "key": "table",
+          "label": "Table",
+          "visual": {
+            "type": "screen",
+            "layout": "table",
+            "notes": [
+              {
+                "at": [
+                  12,
+                  62
+                ],
+                "text": "12 rows on one screen",
+                "dim": 0
+              },
+              {
+                "at": [
+                  86,
+                  45
+                ],
+                "text": "The right columns are cut off on a phone",
+                "dim": 2
+              }
+            ],
+            "focus": [
+              74,
+              22,
+              24,
+              74
+            ]
+          },
+          "cap": "One row per person",
+          "d": [
+            {
+              "v": "12 leads",
+              "n": 12,
+              "t": "good"
+            },
+            [
+              "1 click · new page",
+              ""
+            ],
+            [
+              "Scrolls sideways",
+              "bad"
+            ],
+            {
+              "v": "Reuses the table component · check 1 screen",
+              "t": "good",
+              "conf": "high",
+              "why": "The same table is already used elsewhere"
+            }
+          ],
+          "when": "Skimming many leads quickly matters most",
+          "gist": "Best for skimming many, awkward on a phone",
+          "give": "You leave the list every time you reply",
+          "means": "Leads appear as dense rows, and clicking a name opens a separate detail page. After replying you have to go back to the list.",
+          "after": [
+            "Dense rows, one per lead",
+            "Clicking a name opens a detail page"
+          ],
+          "lens": "Easy to add columns → in a few months the table may get too wide",
+          "example": "On her laptop, Mina sees 12 leads at once; to reply she opens the detail page.",
+          "check": "12 rows show on a 1280px screen",
+          "next": "Connect 4 columns to the table",
+          "detail": {
+            "evidence": [
+              [
+                "measured",
+                "12 rows fit in an 800px-tall screen"
+              ],
+              [
+                "file",
+                "Reuses components/Table.tsx"
+              ]
+            ],
+            "prereq": "The detail page is a separate screen, so after going back you have to find your place in the list again.",
+            "confusion": "\"A table is fastest\" is only true for skimming. Counting the reply, it is slower."
+          }
+        },
+        {
+          "key": "split",
+          "label": "List + detail",
+          "rec": true,
+          "visual": {
+            "type": "screen",
+            "layout": "split",
+            "notes": [
+              {
+                "at": [
+                  16,
+                  72
+                ],
+                "text": "8 leads in the list",
+                "dim": 0
+              },
+              {
+                "at": [
+                  70,
+                  80
+                ],
+                "text": "Reply right here",
+                "dim": 1
+              }
+            ],
+            "focus": [
+              40,
+              22,
+              58,
+              74
+            ]
+          },
+          "cap": "Pick on the left, see it on the right",
+          "d": [
+            {
+              "v": "8 leads",
+              "n": 8,
+              "t": ""
+            },
+            [
+              "1 click · no page change",
+              "good"
+            ],
+            [
+              "Two steps: list → detail",
+              ""
+            ],
+            {
+              "v": "New layout + moving the reply box · check 2 screens and the reply flow",
+              "t": "bad",
+              "conf": "low",
+              "why": "The reply box has never been moved; sending could break"
+            }
+          ],
+          "when": "Fits skimming and then replying right away",
+          "gist": "Skim and reply right away, but fewer leads at once",
+          "give": "Leads you see at once (12 → 8)",
+          "flaw": "It shows 4 fewer leads than the table, and on a narrow screen the detail feels cramped.",
+          "means": "Clicking someone on the left opens their details and a reply box on the right. You can reply without leaving the list, but only 8 people fit at once.",
+          "after": [
+            "List on the left, detail on the right",
+            "Reply inside the detail"
+          ],
+          "lens": "Adds a detail area → room later for notes and conversation history",
+          "example": "Mina clicks someone on the left and their details and a reply box open on the right.",
+          "check": "After sending a reply, the list stays scrolled where it was",
+          "next": "Build the split layout and put the reply box in the detail",
+          "detail": {
+            "evidence": [
+              [
+                "measured",
+                "8 rows at a 320px-wide list"
+              ],
+              [
+                "estimate",
+                "How much moving the reply box touches is estimated from a similar screen"
+              ]
+            ],
+            "prereq": "\"Detail\" is the right-hand area with one person's information and a reply box.",
+            "confusion": "On a phone the list and the detail become two screens. They do not sit side by side there.",
+            "visual": {
+              "type": "story",
+              "panels": [
+                {
+                  "caption": "1. In the morning the list shows 8 people",
+                  "visual": {
+                    "type": "screen",
+                    "layout": "split"
+                  }
+                },
+                {
+                  "caption": "2. Clicking one opens the detail on the right",
+                  "visual": {
+                    "type": "screen",
+                    "layout": "split"
+                  }
+                },
+                {
+                  "caption": "3. Reply, then click the next person",
+                  "visual": {
+                    "type": "screen",
+                    "layout": "split"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key": "cards",
+          "label": "Cards",
+          "visual": {
+            "type": "screen",
+            "layout": "cards",
+            "notes": [
+              {
+                "at": [
+                  50,
+                  90
+                ],
+                "text": "6 cards per screen",
+                "dim": 0
+              },
+              {
+                "at": [
+                  86,
+                  34
+                ],
+                "text": "One per row on a phone, as is",
+                "dim": 2
+              }
+            ]
+          },
+          "cap": "One card per person",
+          "d": [
+            {
+              "v": "6 leads",
+              "n": 6,
+              "t": "bad"
+            },
+            [
+              "1 click · new page",
+              ""
+            ],
+            [
+              "Works as is",
+              "good"
+            ],
+            {
+              "v": "New card component · check 1 screen and a phone",
+              "t": "",
+              "conf": "mid",
+              "why": "A similar card screen was built before"
+            }
+          ],
+          "when": "There is a lot to show, like photos and notes",
+          "gist": "Easiest on a phone, slow for skimming many",
+          "give": "Leads you see at once (12 → 6)",
+          "means": "Each person gets one card. It is comfortable on a phone, but even on a laptop only 6 people show at once.",
+          "after": [
+            "One card per person",
+            "Clicking opens a detail page"
+          ],
+          "lens": "Easy to add photos and tags → cards grow and fewer fit over time",
+          "example": "On her phone Mina scrolls one card at a time; on a laptop she sees 6.",
+          "check": "Cards are not cut off at a 375px phone width",
+          "next": "Build the card component"
+        }
+      ],
+      "same": "All three keep the same search, filter and sort.",
+      "plain": "The lead list is the screen where every new inquiry shows up as a line. You are choosing whether it looks like a dense table, a list on the left with details on the right, or one card per person. The shape changes how many people you see at once and how easy it is to reply.",
+      "stake": "The basic frame of a screen you skim 30–50 times a day",
+      "undo": {
+        "level": "easy",
+        "how": "Only the screen code changes; the data stays"
+      },
+      "lens": "Second-order effect",
+      "recNote": {
+        "if": "skimming and then replying right away matters most",
+        "conf": "mid",
+        "why": "It is the only one where you never leave the list to reply."
+      },
+      "themes": [
+        "seen",
+        "speed"
       ]
     },
     {
-      "id": "perm", "type": "pick", "tag": "Structure", "short": "Permission unit",
+      "id": "cta",
+      "type": "pick",
+      "tag": "Copy",
+      "short": "Sign-up button text",
+      "q": "What should the sign-up button say?",
+      "ctx": "It is the last button of the free-trial form. See each one placed on a real button.",
+      "pattern": "Copy is not judged as plain text. Show it in the place it will actually appear.",
+      "dims": [
+        "What it promises",
+        "Length",
+        "Catch"
+      ],
+      "options": [
+        {
+          "key": "plain",
+          "label": "Sign up",
+          "visual": {
+            "type": "diff",
+            "before": {
+              "type": "button",
+              "text": "Sign up"
+            }
+          },
+          "d": [
+            [
+              "Nothing",
+              ""
+            ],
+            [
+              "7 characters",
+              "good"
+            ],
+            [
+              "Doesn't say what happens next",
+              "bad"
+            ]
+          ],
+          "when": "The text above the form already explains enough",
+          "baseline": true,
+          "gist": "If nothing changes: unclear what you sign up for",
+          "give": "The reassurance of \"free\"",
+          "means": "The button keeps saying \"Sign up\". Nothing changes."
+        },
+        {
+          "key": "free",
+          "label": "Start free",
+          "rec": true,
+          "visual": {
+            "type": "diff",
+            "before": {
+              "type": "button",
+              "text": "Sign up"
+            },
+            "after": {
+              "type": "button",
+              "text": "Start free"
+            }
+          },
+          "d": [
+            [
+              "It costs nothing",
+              "good"
+            ],
+            [
+              "10 characters",
+              ""
+            ],
+            [
+              "None",
+              "good"
+            ]
+          ],
+          "when": "Easing payment worries is the point",
+          "gist": "Least pressure, but the trial length is hidden",
+          "give": "How long the trial is",
+          "means": "The button changes to \"Start free\". Visitors see right away that it costs nothing, but the button does not say how many days the trial lasts.",
+          "check": "Compare sign-ups with today's for two weeks",
+          "next": "Replace the text"
+        },
+        {
+          "key": "fast",
+          "label": "Finish sign-up in 3 minutes",
+          "visual": {
+            "type": "diff",
+            "before": {
+              "type": "button",
+              "text": "Sign up"
+            },
+            "after": {
+              "type": "button",
+              "text": "Finish sign-up in 3 minutes"
+            }
+          },
+          "d": [
+            [
+              "It's quick",
+              "good"
+            ],
+            [
+              "27 characters · cut off on narrow screens",
+              "bad"
+            ],
+            [
+              "The 3 minutes must be true",
+              "bad"
+            ]
+          ],
+          "when": "The form looks long and people drop off",
+          "gist": "Promises speed, cut off on phones",
+          "give": "Short length, and a promise you may not keep",
+          "means": "The button changes to \"Finish sign-up in 3 minutes\". It promises speed, so sign-up really has to take under 3 minutes."
+        }
+      ],
+      "plain": "You are choosing the words on the button at the bottom of the sign-up form. It is the last thing a visitor reads before deciding whether to press it. It should be short and still say what happens when you press it.",
+      "stake": "The last button of the sign-up form; every visitor sees it",
+      "undo": "easy",
+      "recNote": {
+        "if": "making the first click feel safe matters most",
+        "conf": "mid",
+        "why": "It says \"free\" and fits on one line on a phone."
+      },
+      "themes": [
+        "seen"
+      ]
+    },
+    {
+      "id": "perm",
+      "type": "pick",
+      "tag": "Structure",
+      "short": "Permission unit",
       "q": "What unit should site permissions use?",
       "ctx": "Today, permission keys differ per menu inside the same group, so three places are out of sync.",
       "more": "The three places are SEO, images and channels. In each, the group's permission and the menu's permission key were set separately.",
       "pattern": "Draw structure you can't see by its size and shape. Here, the number of cells to manage is drawn as is.",
-      "dims": ["Cells to manage", "DB change", "Same problem again", "Effort"],
+      "dims": [
+        {
+          "q": "How many cells to manage?",
+          "short": "Cells",
+          "max": 87
+        },
+        {
+          "q": "Does the database have to change?",
+          "short": "DB change"
+        },
+        {
+          "q": "Can the same problem happen again?",
+          "short": "Again"
+        },
+        {
+          "q": "What changes, and what do you check?",
+          "short": "What changes"
+        }
+      ],
       "options": [
-        { "key": "group", "label": "6 groups × view/edit", "rec": true, "visual": { "type": "grid", "cols": 6, "rows": 2 }, "cap": "12 cells",
-          "d": [["12 cells", "good"], ["None", "good"], ["Blocked · menus follow the group", "good"], ["2 days", ""]], "when": "You want it simple and the mismatches gone" },
-        { "key": "menu", "label": "29 menus × view/edit/send", "visual": { "type": "grid", "cols": 29, "rows": 3 }, "cap": "87 cells",
-          "d": [["87 cells", "bad"], ["New table + migration", "bad"], ["Blocked", ""], ["5 days", "bad"]], "when": "People need different access per menu" },
-        { "key": "keep", "label": "Keep the 4 keys, fix only the mismatches", "visual": { "type": "grid", "cols": 4, "rows": 1, "big": true, "mark": [1, 2, 3] }, "cap": "4 cells · 3 mismatched",
-          "d": [["4 cells", ""], ["None", "good"], ["Can happen again", "bad"], ["0.5 day", "good"]], "when": "You only need to put out the urgent fire" }
+        {
+          "key": "group",
+          "label": "6 groups × view/edit",
+          "rec": true,
+          "visual": {
+            "type": "grid",
+            "cols": 6,
+            "rows": 2
+          },
+          "cap": "12 cells",
+          "d": [
+            {
+              "v": "12 cells",
+              "n": 12,
+              "t": "good"
+            },
+            [
+              "None",
+              "good"
+            ],
+            [
+              "Blocked · menus follow the group",
+              "good"
+            ],
+            [
+              "1 permission table · check 6 menus",
+              ""
+            ]
+          ],
+          "when": "You want it simple and the mismatches gone",
+          "gist": "Simple, and the mismatch cannot return",
+          "give": "Blocking one single menu on its own",
+          "means": "Access is split into 6 groups, each with view and edit. Every menu follows the group it belongs to.",
+          "check": "The 3 mismatched menus now get the right access",
+          "next": "Define the 6 groups and attach menus to them"
+        },
+        {
+          "key": "menu",
+          "label": "29 menus × view/edit/send",
+          "visual": {
+            "type": "grid",
+            "cols": 29,
+            "rows": 3
+          },
+          "cap": "87 cells",
+          "d": [
+            {
+              "v": "87 cells",
+              "n": 87,
+              "t": "bad"
+            },
+            [
+              "New table + migration",
+              "bad"
+            ],
+            [
+              "Blocked",
+              ""
+            ],
+            [
+              "New permission table and a move · check all 29 menus",
+              "bad"
+            ]
+          ],
+          "when": "People need different access per menu",
+          "undo": {
+            "level": "costly",
+            "how": "Drop the new table and go back to the old keys"
+          },
+          "gist": "Most precise, most to manage",
+          "give": "Simplicity, and a lot of checking",
+          "means": "Each of the 29 menus gets its own view, edit and send. It is precise, but admins manage 87 cells."
+        },
+        {
+          "key": "keep",
+          "label": "Keep the 4 keys, fix only the mismatches",
+          "visual": {
+            "type": "grid",
+            "cols": 4,
+            "rows": 1,
+            "big": true,
+            "mark": [
+              1,
+              2,
+              3
+            ]
+          },
+          "cap": "4 cells · 3 mismatched",
+          "d": [
+            {
+              "v": "4 cells",
+              "n": 4,
+              "t": ""
+            },
+            [
+              "None",
+              "good"
+            ],
+            [
+              "Can happen again",
+              "bad"
+            ],
+            [
+              "Only the 3 mismatches · check 3 places",
+              "good"
+            ]
+          ],
+          "when": "You only need to put out the urgent fire",
+          "baseline": true,
+          "gist": "Puts out the fire, but it can happen again",
+          "give": "Any guarantee it stays in sync",
+          "means": "The 4 keys stay as they are and only the 3 mismatched menus are fixed. When menus are added, they can drift again."
+        }
+      ],
+      "plain": "You are choosing how to split what each site admin can see and change. Give access in a few big groups, split it per menu, or patch what exists today. Finer splits are more precise but leave more to manage.",
+      "stake": "The unit of admin access; tedious to change later",
+      "undo": {
+        "level": "costly",
+        "how": "The permission table has to be moved again"
+      },
+      "themes": [
+        "undo"
+      ],
+      "recNote": {
+        "if": "you want it simple and the mismatches gone",
+        "conf": "mid",
+        "why": "When menus follow their group, the same problem cannot come back."
+      },
+      "panels": [
+        {
+          "title": "Also affected",
+          "visual": {
+            "type": "impact",
+            "center": "Permissions",
+            "rings": [
+              [
+                {
+                  "l": "Admin screen",
+                  "t": ""
+                },
+                {
+                  "l": "29 menus",
+                  "t": "bad"
+                },
+                {
+                  "l": "API checks",
+                  "t": ""
+                }
+              ],
+              [
+                {
+                  "l": "Invite email"
+                },
+                {
+                  "l": "Audit log?",
+                  "t": "unsure"
+                }
+              ]
+            ],
+            "legend": "Inner: reads permissions directly · outer: uses the result · dotted: not checked"
+          }
+        }
       ]
     },
     {
-      "id": "push", "type": "pick", "tag": "Approval", "short": "Push to main", "noDelegate": true, "ownAnswer": false,
+      "id": "push",
+      "type": "pick",
+      "tag": "Approval",
+      "short": "Push to main",
+      "noDelegate": true,
+      "ownAnswer": false,
       "q": "How far should the work branch go?",
       "ctx": "Pushing is hard to undo, so we ask before doing it.",
-      "facts": [["Commits", "25"], ["Unit tests", "835 pass"], ["UI tests", "142 pass"], ["Work in progress", "1 forms admin"]],
+      "facts": [
+        [
+          "Commits",
+          "25"
+        ],
+        [
+          "Unit tests",
+          "835 pass"
+        ],
+        [
+          "UI tests",
+          "142 pass"
+        ],
+        [
+          "Work in progress",
+          "1 forms admin"
+        ]
+      ],
       "pattern": "A check before a hard-to-undo action. Current state as number chips; options drawn as how far it goes.",
-      "dims": ["Visible to users", "Undo", "What's left"],
+      "dims": [
+        "Visible to users",
+        "Undo",
+        "What's left"
+      ],
       "options": [
-        { "key": "staging", "label": "Up to staging", "rec": true, "visual": { "type": "steps", "steps": ["Work branch", "main", "Staging", "Production"], "reach": 2 },
-          "d": [["Not yet", "good"], ["Easy · roll back staging only", "good"], ["One more step to production after checking", ""]], "when": "You want to look at it before it goes out" },
-        { "key": "prod", "label": "Straight to production", "visual": { "type": "steps", "steps": ["Work branch", "main", "Staging", "Production"], "reach": 3 },
-          "d": [["Right away", "bad"], ["Hard · needs a new deploy", "bad"], ["Nothing", "good"]], "when": "It includes an urgent fix" },
-        { "key": "hold", "label": "Don't push yet", "visual": { "type": "steps", "steps": ["Work branch", "main", "Staging", "Production"], "reach": 0 },
-          "d": [["Not visible", ""], ["Not needed", ""], ["Commits pile up and get harder to merge", "bad"]], "when": "You'll push once the work in progress is done" }
+        {
+          "key": "staging",
+          "label": "Up to staging",
+          "rec": true,
+          "visual": {
+            "type": "timeline",
+            "max": 3,
+            "ticks": [
+              [
+                0,
+                "Today"
+              ],
+              [
+                1,
+                "Tomorrow"
+              ],
+              [
+                3,
+                "Day 3"
+              ]
+            ],
+            "lanes": [
+              {
+                "name": "Staging",
+                "items": [
+                  {
+                    "from": 0,
+                    "to": 1,
+                    "label": "Check"
+                  }
+                ]
+              },
+              {
+                "name": "Production",
+                "items": [
+                  {
+                    "from": 1,
+                    "to": 3,
+                    "label": "After the check",
+                    "t": "good"
+                  }
+                ]
+              }
+            ],
+            "pnr": null
+          },
+          "d": [
+            [
+              "Not yet",
+              "good"
+            ],
+            [
+              "Easy · roll back staging only",
+              "good"
+            ],
+            [
+              "One more step to production after checking",
+              ""
+            ]
+          ],
+          "when": "You want to look at it before it goes out",
+          "undo": "easy",
+          "gist": "One more look before users see it",
+          "give": "Users see it about a day later",
+          "means": "The code goes to the staging server only. Users cannot see it yet; after checking, it goes to production in a second step.",
+          "check": "The new list screen opens on staging",
+          "next": "Ask again about production once it checks out",
+          "detail": {
+            "visual": {
+              "type": "steps",
+              "steps": [
+                "Work branch",
+                "main",
+                "Staging",
+                "Production"
+              ],
+              "reach": 2
+            }
+          }
+        },
+        {
+          "key": "prod",
+          "label": "Straight to production",
+          "visual": {
+            "type": "timeline",
+            "max": 3,
+            "ticks": [
+              [
+                0,
+                "Today"
+              ],
+              [
+                1,
+                "Tomorrow"
+              ],
+              [
+                3,
+                "Day 3"
+              ]
+            ],
+            "lanes": [
+              {
+                "name": "Production",
+                "items": [
+                  {
+                    "from": 0,
+                    "to": 3,
+                    "label": "Users see it right away",
+                    "t": "bad"
+                  }
+                ]
+              }
+            ],
+            "pnr": 0,
+            "pnrLabel": "Users see it from today"
+          },
+          "d": [
+            [
+              "Right away",
+              "bad"
+            ],
+            [
+              "Hard · needs a new deploy",
+              "bad"
+            ],
+            [
+              "Nothing",
+              "good"
+            ]
+          ],
+          "when": "It includes an urgent fix",
+          "undo": {
+            "level": "costly",
+            "how": "Deploy again; until then users see the changed screen"
+          },
+          "gist": "Live right away; users see any mistake first",
+          "give": "The chance to check before users see it",
+          "means": "The code goes straight to production. Users see it today, and if something is wrong they see it until it is deployed again.",
+          "check": "Error logs do not rise in the 10 minutes after deploying",
+          "next": "Deploy to production",
+          "detail": {
+            "visual": {
+              "type": "steps",
+              "steps": [
+                "Work branch",
+                "main",
+                "Staging",
+                "Production"
+              ],
+              "reach": 3
+            }
+          }
+        },
+        {
+          "key": "hold",
+          "label": "Don't push yet",
+          "visual": {
+            "type": "timeline",
+            "max": 3,
+            "ticks": [
+              [
+                0,
+                "Today"
+              ],
+              [
+                1,
+                "Tomorrow"
+              ],
+              [
+                3,
+                "Day 3"
+              ]
+            ],
+            "lanes": [
+              {
+                "name": "Work branch",
+                "items": [
+                  {
+                    "from": 0,
+                    "to": 3,
+                    "label": "Commits keep piling up"
+                  }
+                ]
+              }
+            ],
+            "pnr": null
+          },
+          "d": [
+            [
+              "Not visible",
+              ""
+            ],
+            [
+              "Not needed",
+              ""
+            ],
+            [
+              "Commits pile up and get harder to merge",
+              "bad"
+            ]
+          ],
+          "when": "You'll push once the work in progress is done",
+          "baseline": true,
+          "undo": "easy",
+          "gist": "If nothing changes: harder to merge later",
+          "give": "A chance to check these changes",
+          "means": "Nothing goes to any server. It all goes up together once the work in progress is done.",
+          "detail": {
+            "visual": {
+              "type": "steps",
+              "steps": [
+                "Work branch",
+                "main",
+                "Staging",
+                "Production"
+              ],
+              "reach": 0
+            }
+          }
+        }
+      ],
+      "plain": "You are choosing how far the finished code goes. Staging is a practice server only we can see; production is the server real users use. Once it is on production, users see it right away, and undoing it means deploying again.",
+      "stake": "On production, users see it right away",
+      "themes": [
+        "undo",
+        "speed",
+        "seen"
+      ],
+      "recNote": {
+        "if": "you want one more look before users see it",
+        "conf": "high",
+        "why": "Staging is invisible to users and easy to roll back."
+      },
+      "terms": [
+        [
+          "Staging",
+          "a server for checking that real users cannot see"
+        ],
+        [
+          "Production",
+          "the server real users use"
+        ]
+      ],
+      "panels": [
+        {
+          "title": "What goes up",
+          "visual": {
+            "type": "blast",
+            "add": 12,
+            "change": 5,
+            "del": 0,
+            "why": "17 commits · no files removed"
+          }
+        },
+        {
+          "title": "If it goes wrong, the likeliest reason",
+          "text": "Production settings differ from staging, so the new screen could show an empty list. Staging could not check this."
+        }
       ]
     },
     {
-      "id": "accent", "type": "preview", "tag": "Color · tone", "short": "Accent color",
+      "id": "accent",
+      "type": "preview",
+      "tag": "Color · tone",
+      "short": "Accent color",
       "q": "Which accent color should we use?",
       "ctx": "It is used on buttons, links, badges and charts. Hover an option to change the preview.",
       "pattern": "For choices that change the overall feel: colors, fonts, spacing. One big preview, with the options swapped in.",
       "options": [
-        { "key": "indigo", "label": "Indigo", "color": "#3b4bd8", "desc": "Calm and dependable", "rec": true },
-        { "key": "green", "label": "Green", "color": "#12805c", "desc": "Relaxed and healthy" },
-        { "key": "orange", "label": "Orange", "color": "#f2711c", "desc": "Lively and eye-catching" }
+        {
+          "key": "indigo",
+          "label": "Indigo",
+          "color": "#3b4bd8",
+          "desc": "Calm and dependable",
+          "rec": true,
+          "means": "Buttons and links turn indigo. It feels calm, and white text on buttons reads well."
+        },
+        {
+          "key": "green",
+          "label": "Green",
+          "color": "#12805c",
+          "desc": "Relaxed and healthy",
+          "means": "Buttons and links turn green. It feels relaxed."
+        },
+        {
+          "key": "orange",
+          "label": "Orange",
+          "color": "#f2711c",
+          "desc": "Lively and eye-catching",
+          "means": "Buttons and links turn orange. It stands out, but white text on buttons may be less crisp."
+        }
+      ],
+      "plain": "You are choosing the main color for buttons and highlights across the app. The color changes how the service feels, and whether white text on a button is easy to read.",
+      "stake": "The color on buttons, links and badges",
+      "undo": "easy",
+      "themes": [
+        "seen"
       ]
     },
     {
-      "id": "scope", "type": "multi", "tag": "Scope", "short": "This week's scope",
+      "id": "scope",
+      "type": "multi",
+      "tag": "Scope",
+      "short": "This week's scope",
       "q": "Pick what goes into this week.",
-      "ctx": "You have 5 days. A recommended set is laid out; keep it or change it.",
+      "ctx": "The numbers are how many screens you will need to check this week. You can check up to 5. A recommended set is laid out.",
       "pattern": "A pick-several decision. The total changes as you choose, so you can see when it overflows.",
-      "budget": 5, "unit": " days",
+      "budget": 5,
+      "unit": " screens",
       "items": [
-        { "id": "forms", "label": "Forms admin", "sub": "Create and edit forms without code", "cost": 2, "rec": true },
-        { "id": "dm", "label": "Auto DM", "sub": "Reply automatically to people who comment", "cost": 1.5, "rec": true },
-        { "id": "export", "label": "Export stats", "sub": "Download as a spreadsheet", "cost": 1, "rec": true },
-        { "id": "perm", "label": "Permission cleanup", "sub": "Fix 3 mismatched menus", "cost": 2 },
-        { "id": "mobile", "label": "Mobile fixes", "sub": "4 screens where tables overflow", "cost": 1 }
+        {
+          "id": "forms",
+          "label": "Forms admin",
+          "sub": "Create and edit forms without code",
+          "cost": 2,
+          "rec": true,
+          "visual": {
+            "type": "screen",
+            "layout": "table"
+          }
+        },
+        {
+          "id": "dm",
+          "label": "Auto DM",
+          "sub": "Reply automatically to people who comment",
+          "cost": 1,
+          "rec": true,
+          "visual": {
+            "type": "steps",
+            "steps": [
+              "Comment",
+              "DM"
+            ],
+            "reach": 1
+          }
+        },
+        {
+          "id": "export",
+          "label": "Export stats",
+          "sub": "Download as a spreadsheet",
+          "cost": 1,
+          "rec": true,
+          "visual": {
+            "type": "grid",
+            "cols": 6,
+            "rows": 2
+          }
+        },
+        {
+          "id": "perm",
+          "label": "Permission cleanup",
+          "sub": "Fix 3 mismatched menus",
+          "cost": 2,
+          "visual": {
+            "type": "grid",
+            "cols": 4,
+            "rows": 3,
+            "mark": [
+              1,
+              6,
+              9
+            ]
+          }
+        },
+        {
+          "id": "mobile",
+          "label": "Mobile fixes",
+          "sub": "4 screens where tables overflow",
+          "cost": 1,
+          "visual": {
+            "type": "screen",
+            "layout": "cards"
+          }
+        }
+      ],
+      "plain": "You are choosing what gets built this week. Only what you pick is built now; the rest waits. There is a limit to how much you can check in a week, so not everything fits.",
+      "stake": "What gets built this week and what waits",
+      "themes": [
+        "speed"
       ]
     },
     {
-      "id": "small", "type": "batch", "tag": "Small decisions", "short": "5 small screen decisions",
+      "id": "small",
+      "type": "batch",
+      "tag": "Small decisions",
+      "short": "5 small screen decisions",
       "q": "Five small decisions.",
       "ctx": "Any of them is easy to change later. You can accept the recommendations in one go.",
       "pattern": "When there are several light decisions. One row each, and a way to finish them all with the recommendations.",
       "items": [
-        { "id": "after", "q": "After a form is sent", "options": [
-          { "key": "inline", "label": "Message in place", "sub": "No page change", "rec": true },
-          { "key": "page", "label": "Thank-you page", "sub": "Easier to track conversions" } ] },
-        { "id": "empty", "q": "When a list is empty", "options": [
-          { "key": "cta", "label": "Message + create button", "sub": "Can start right away", "rec": true },
-          { "key": "text", "label": "Message only", "sub": "Simpler screen" } ] },
-        { "id": "del", "q": "When deleting", "options": [
-          { "key": "undo", "label": "Undo within 5 seconds", "sub": "Fast · recoverable", "rec": true },
-          { "key": "confirm", "label": "Confirm dialog", "sub": "One more click" } ] },
-        { "id": "date", "q": "Date format", "options": [
-          { "key": "md", "label": "Nov 11", "sub": "Easy to read", "rec": true },
-          { "key": "iso", "label": "2026-11-11", "sub": "Good for sorting and copying" },
-          { "key": "rel", "label": "3 days ago", "sub": "Hides the exact date" } ] },
-        { "id": "sort", "q": "Default table sort", "options": [
-          { "key": "new", "label": "Newest first", "sub": "New leads on top", "rec": true },
-          { "key": "name", "label": "By name", "sub": "Easy to find someone" } ] }
-      ]
+        {
+          "id": "after",
+          "q": "After a form is sent",
+          "options": [
+            {
+              "key": "inline",
+              "label": "Message in place",
+              "sub": "No page change",
+              "rec": true
+            },
+            {
+              "key": "page",
+              "label": "Thank-you page",
+              "sub": "Easier to track conversions"
+            }
+          ]
+        },
+        {
+          "id": "empty",
+          "q": "When a list is empty",
+          "options": [
+            {
+              "key": "cta",
+              "label": "Message + create button",
+              "sub": "Can start right away",
+              "rec": true
+            },
+            {
+              "key": "text",
+              "label": "Message only",
+              "sub": "Simpler screen"
+            }
+          ]
+        },
+        {
+          "id": "del",
+          "q": "When deleting",
+          "options": [
+            {
+              "key": "undo",
+              "label": "Undo within 5 seconds",
+              "sub": "Fast · recoverable",
+              "rec": true
+            },
+            {
+              "key": "confirm",
+              "label": "Confirm dialog",
+              "sub": "One more click"
+            }
+          ]
+        },
+        {
+          "id": "date",
+          "q": "Date format",
+          "options": [
+            {
+              "key": "md",
+              "label": "Nov 11",
+              "sub": "Easy to read",
+              "rec": true
+            },
+            {
+              "key": "iso",
+              "label": "2026-11-11",
+              "sub": "Good for sorting and copying"
+            },
+            {
+              "key": "rel",
+              "label": "3 days ago",
+              "sub": "Hides the exact date"
+            }
+          ]
+        },
+        {
+          "id": "sort",
+          "q": "Default table sort",
+          "options": [
+            {
+              "key": "new",
+              "label": "Newest first",
+              "sub": "New leads on top",
+              "rec": true
+            },
+            {
+              "key": "name",
+              "label": "By name",
+              "sub": "Easy to find someone"
+            }
+          ]
+        }
+      ],
+      "plain": "Five small behaviors around the screens. Each is light and easy to change later. You can take all the recommendations in one go and change only the ones you disagree with.",
+      "stake": "Small behaviors that are easy to change later",
+      "undo": "easy"
     },
     {
-      "id": "limit", "type": "value", "tag": "Pick a value", "short": "Auto DM daily limit",
+      "id": "limit",
+      "type": "value",
+      "tag": "Pick a value",
+      "short": "Auto DM daily limit",
       "q": "How many auto DMs should go out per day?",
       "ctx": "1,200 people are waiting for a reply. Sending more finishes sooner but raises the risk of an account restriction.",
       "pattern": "For picking a number. Move the value and the results change, so you can see where it is reasonable.",
       "unit": " per day",
       "stops": [
-        { "v": 50, "outs": [{ "k": "Time to reach all 1,200", "v": "24 days", "t": "bad", "p": 100 }, { "k": "Account restriction risk", "v": "Low", "t": "good", "p": 15 }] },
-        { "v": 100, "label": "Careful", "outs": [{ "k": "Time to reach all 1,200", "v": "12 days", "t": "bad", "p": 50 }, { "k": "Account restriction risk", "v": "Low", "t": "good", "p": 25 }] },
-        { "v": 150, "outs": [{ "k": "Time to reach all 1,200", "v": "8 days", "t": "", "p": 33 }, { "k": "Account restriction risk", "v": "Low", "t": "good", "p": 35 }] },
-        { "v": 200, "label": "Recommended", "rec": true, "outs": [{ "k": "Time to reach all 1,200", "v": "6 days", "t": "", "p": 25 }, { "k": "Account restriction risk", "v": "Medium", "t": "", "p": 50 }] },
-        { "v": 300, "outs": [{ "k": "Time to reach all 1,200", "v": "4 days", "t": "good", "p": 17 }, { "k": "Account restriction risk", "v": "Medium", "t": "", "p": 65 }] },
-        { "v": 400, "label": "Fast", "outs": [{ "k": "Time to reach all 1,200", "v": "3 days", "t": "good", "p": 13 }, { "k": "Account restriction risk", "v": "High", "t": "bad", "p": 85 }] },
-        { "v": 500, "outs": [{ "k": "Time to reach all 1,200", "v": "3 days", "t": "good", "p": 13 }, { "k": "Account restriction risk", "v": "High", "t": "bad", "p": 95 }] }
-      ]
+        {
+          "v": 50,
+          "outs": [
+            {
+              "k": "Time to reach all 1,200",
+              "v": "24 days",
+              "t": "bad",
+              "p": 100
+            },
+            {
+              "k": "Chance the account gets blocked",
+              "v": "about 1 in 100",
+              "t": "good",
+              "p": 15,
+              "odds": {
+                "hit": 1,
+                "lo": 1,
+                "hi": 1
+              },
+              "conf": "high"
+            }
+          ],
+          "label": "Very careful"
+        },
+        {
+          "v": 100,
+          "label": "Careful",
+          "outs": [
+            {
+              "k": "Time to reach all 1,200",
+              "v": "12 days",
+              "t": "bad",
+              "p": 50
+            },
+            {
+              "k": "Chance the account gets blocked",
+              "v": "about 1 in 100",
+              "t": "good",
+              "p": 25,
+              "odds": {
+                "hit": 1,
+                "lo": 1,
+                "hi": 2
+              },
+              "conf": "high"
+            }
+          ]
+        },
+        {
+          "v": 150,
+          "outs": [
+            {
+              "k": "Time to reach all 1,200",
+              "v": "8 days",
+              "t": "",
+              "p": 33
+            },
+            {
+              "k": "Chance the account gets blocked",
+              "v": "about 2 in 100",
+              "t": "good",
+              "p": 35,
+              "odds": {
+                "hit": 2,
+                "lo": 1,
+                "hi": 3
+              },
+              "conf": "mid"
+            }
+          ]
+        },
+        {
+          "v": 200,
+          "label": "Recommended",
+          "rec": true,
+          "outs": [
+            {
+              "k": "Time to reach all 1,200",
+              "v": "6 days",
+              "t": "",
+              "p": 25
+            },
+            {
+              "k": "Chance the account gets blocked",
+              "v": "about 3 in 100",
+              "t": "",
+              "p": 50,
+              "odds": {
+                "hit": 3,
+                "lo": 2,
+                "hi": 5
+              },
+              "conf": "mid"
+            }
+          ],
+          "means": "At 200 a day everyone is reached in 6 days. About 3 times in 100, the account may be blocked for a day."
+        },
+        {
+          "v": 300,
+          "outs": [
+            {
+              "k": "Time to reach all 1,200",
+              "v": "4 days",
+              "t": "good",
+              "p": 17
+            },
+            {
+              "k": "Chance the account gets blocked",
+              "v": "about 6 in 100",
+              "t": "",
+              "p": 65,
+              "odds": {
+                "hit": 6,
+                "lo": 4,
+                "hi": 9
+              },
+              "conf": "mid"
+            }
+          ]
+        },
+        {
+          "v": 400,
+          "label": "Fast",
+          "outs": [
+            {
+              "k": "Time to reach all 1,200",
+              "v": "3 days",
+              "t": "good",
+              "p": 13
+            },
+            {
+              "k": "Chance the account gets blocked",
+              "v": "about 12 in 100",
+              "t": "bad",
+              "p": 85,
+              "odds": {
+                "hit": 12,
+                "lo": 8,
+                "hi": 18
+              },
+              "conf": "low",
+              "why": "Never sent more than 400 a day, so this is an estimate."
+            }
+          ]
+        },
+        {
+          "v": 500,
+          "outs": [
+            {
+              "k": "Time to reach all 1,200",
+              "v": "3 days",
+              "t": "good",
+              "p": 13
+            },
+            {
+              "k": "Chance the account gets blocked",
+              "v": "about 20 in 100",
+              "t": "bad",
+              "p": 95,
+              "odds": {
+                "hit": 20,
+                "lo": 12,
+                "hi": 30
+              },
+              "conf": "low",
+              "why": "Never sent more than 400 a day, so this is an estimate."
+            }
+          ]
+        }
+      ],
+      "plain": "You are choosing how many automatic DMs go out per day. Sending more finishes sooner, but Instagram may treat it as spam and briefly block the account. It is a choice between finishing fast and keeping the account safe.",
+      "stake": "Finishing fast against keeping the account safe",
+      "undo": {
+        "level": "easy",
+        "how": "You can change the daily number while sending. DMs already sent cannot be taken back."
+      },
+      "themes": [
+        "speed",
+        "undo"
+      ],
+      "recNote": {
+        "if": "finishing fast and account safety matter about the same",
+        "conf": "mid",
+        "why": "200 a day is what was sent over the last 3 months without a restriction."
+      },
+      "depends": "If auto DM is left out of the scope in question 6, this one is not needed.",
+      "values": {
+        "q": "What matters more this time?",
+        "left": "Finish fast",
+        "right": "Account safety",
+        "labels": [
+          "Fast",
+          "Leaning fast",
+          "Even",
+          "Leaning safe",
+          "Safe"
+        ],
+        "map": [
+          5,
+          3,
+          3,
+          1,
+          0
+        ]
+      },
+      "assume": "Assumes 1,200 people. The chance of a block is estimated from the last 3 months of sending and Instagram's guidance."
+    }
+  ],
+  "themes": [
+    {
+      "id": "seen",
+      "label": "Seen by users",
+      "desc": "What leads or visitors see themselves"
+    },
+    {
+      "id": "undo",
+      "label": "Undo",
+      "desc": "Whether you can go back after a wrong choice"
+    },
+    {
+      "id": "speed",
+      "label": "Speed vs safety",
+      "desc": "Finishing sooner against making fewer mistakes"
     }
   ]
 }

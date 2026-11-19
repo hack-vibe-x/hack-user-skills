@@ -12,19 +12,22 @@ If no page can be opened on this computer (`claude -p`, a remote or SSH session)
 
 ## Rules for the questions
 
-1. **A visual on every option.** Screen design: a mock. Structure or flow: a diagram. Copy: the text where it will appear.
-2. **Short.** One-line question, one-sentence context. Longer background goes in `more`.
-3. **Differences visible.** Compare options on the same 2–4 rows (`dims`), with `good` / `bad` marks. What is the same for all goes in one `same` line.
-4. **2–4 options.** Mark the one you recommend `rec: true`.
-5. **One batch.** Put the decisions you will need soon in one file, not only the one that blocks you now.
-6. **Do not ask again what was decided.** Earlier answers are kept in `.hus-visual-decision/decisions/` at the project root. Look there first and follow them unless the user wants to change one.
+1. **Three layers, plain first.** `plain`: two or three sentences a 14-year-old understands, on what this decision is. Each option's `gist`: its bottom line in one plain line. Then what is needed to choose (pictures, rows, `give`, `when`). Everything else goes in the folded layer (`more`, `flaw`, `after`, `example`, `detail`).
+2. **Say what each answer will do.** Every option (and value stop) gets `means`: one or two plain sentences on what will happen. The page shows it under the person's choice; on decisions that are costly or impossible to undo it asks "Is this what you mean?" before they can move on.
+3. **A visual on every option**, chosen by what differs: a screen (`screen`, `image`, `html` with `notes`), a change to something that exists (`diff`), when things happen (`timeline`), what else is touched (`impact`), what a person goes through (`story`), a chance (`odds`). See the table in the schema. Multi items can have one too.
+4. **Rows are the person's questions.** 2–4 `dims`, written as questions they would ask ("Can I undo it?"), phrased the same way round for every option. Put numbers in `n` (and `lo`/`hi` for a range). Mark a guess `conf: "low"` with a one-line `why`.
+5. **No human-time estimates.** Never write effort as days or weeks; Claude does the work. Write what changes and what the person has to check.
+6. **Show the cost of every option, the recommended one too.** `give` on each; `flaw` on the recommended one. Add a "do nothing" option with `baseline: true` when it is real. No straw options: each needs a real `when`.
+7. **2–4 options, a conditional recommendation.** Mark one `rec: true` and add `recNote` (`if`, `conf`, `why`) instead of a long argument.
+8. **Say how hard it is to undo.** `undo` on the decision (and on options that differ). Approval before a hard-to-undo action (deploy, delete, sending outside, pushing to a shared branch): `"undo": "none"` (or `"noDelegate": true`) and `"ownAnswer": false`.
+9. **One batch.** Put the decisions you will need soon in one file. With three or more, give each `short`, `stake`, and `depends` where one hangs on another; the page opens on an overview of them.
+10. **Do not ask again what was decided.** Earlier answers are kept in `.hus-visual-decision/decisions/` at the project root. Look there first and follow them unless the user wants to change one.
 
 Write in the user's language and set `"lang"` (`"en"`, `"ko"`).
 
 ## Steps
 
 1. **Write the question file** in a temp folder, e.g. `/tmp/hus-visual-decision/<short-name>.json`. Follow [references/schema.md](references/schema.md).
-   - Approval before a hard-to-undo action (deploy, delete, sending outside, pushing to a shared branch): add `"noDelegate": true` and `"ownAnswer": false` to that decision.
 2. **Check it** (foreground, exits at once; 0 = valid, 2 = lists what to fix):
 
    ```bash
@@ -48,7 +51,7 @@ Write in the user's language and set `"lang"` (`"en"`, `"ko"`).
    | 2, 1 | Fix the file (2) or report the error (1) |
 
    Lines after exit 0:
-   - `"…"` / `[…]` / `{…}` / a number: the chosen answer.
+   - `"…"` / `[…]` / `{…}` / a number: the chosen answer. `decided by: …` names the rows the person said mattered; weigh them in later decisions.
    - `own answer (none of the options)`: the person typed what they want instead. Follow it.
    - `sent back (info)` / `sent back (options)`: find out more or write new options, then ask only that question again in a new file.
    - `sent back (delegate)`: go with the answer the line names (or choose yourself if it says there is none), and tell the user what you chose.

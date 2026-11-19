@@ -132,7 +132,7 @@ function report(answers, record) {
   const L = [`Decisions are done. ${record}`, ""];
   for (const d of questions.decisions) {
     const a = answers[d.id];
-    const note = a.note ? ` · additional comments: ${a.note}` : "";
+    const note = (a.decisive ? ` · decided by: ${a.decisive.join(", ")}` : "") + (a.note ? ` · additional comments: ${a.note}` : "");
     const why = a.why ? ` Why: ${a.why}` : "";
     if (a.handBack === "delegate") {
       const rec = recommended(d);

@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { makeT } from "./i18n.mjs";
-import { cleanState, recommended } from "./answers.mjs";
+import { cleanState, recommended, undoOf } from "./answers.mjs";
 
 export function projectDir(cwd) {
   for (let dir = resolve(cwd); ; dir = dirname(dir)) {
@@ -44,7 +44,31 @@ function lines(d, a = {}, t) {
   } else if (d.type === "value") {
     L.push(`${B("rec.answer")} ${esc(text(d, a.choice))}`);
   }
+  if (!a.defer) L.push(...extra(d, a, t, B));
+  else if (a.defer === "delegate" && d.recNote?.if) L.push(`${B("rec.by")} ${esc(d.recNote.if)}`);
   if (a.note) L.push(`${B("sum.note")} ${esc(a.note)}`);
+  return L;
+}
+// For a settled answer: what it does, how it compares with the recommendation, what decided it, how to undo it,
+// how to check that it worked and what comes next. Each line only when the question file says it.
+function extra(d, a, t, B) {
+  const L = [];
+  const opt = (d.type === "pick" || d.type === "preview") && !a.own ? d.options.find((x) => x.key === a.choice) : null;
+  const stop = d.type === "value" ? d.stops.find((s) => s.v === a.choice) : null;
+  const src = opt || stop || {};
+  if (src.means) L.push(`${B("rec.means")} ${esc(src.means)}`);
+  const r = recommended(d);
+  const mine = a.own ? null : a.choices ?? a.choice;
+  if (r != null && mine != null) {
+    const same = JSON.stringify(r) === JSON.stringify(mine);
+    const conf = d.recNote?.conf ? ` · ${t(`conf.${d.recNote.conf}`)}` : "";
+    L.push(`${B("rec.ai")} ${same ? t("rec.aiSame") : t("rec.aiDiff", { x: esc(text(d, r)) })}${conf}`);
+  }
+  if (a.decisive) L.push(`${B("rec.decisive")} ${a.decisive.map(esc).join(", ")}`);
+  const u = undoOf(opt?.undo) || undoOf(d.undo);
+  if (u && ["easy", "costly", "none"].includes(u.level)) L.push(`${B("rec.undo")} ${t(`undo.${u.level}`)}${u.how ? ` · ${esc(u.how)}` : ""}`);
+  if (src.check) L.push(`${B("rec.check")} ${esc(src.check)}`);
+  if (src.next) L.push(`${B("rec.next")} ${esc(src.next)}`);
   return L;
 }
 // An answer value in words.

@@ -2,6 +2,9 @@
 export const REASON_KEYS = ["info", "options", "delegate"];
 
 const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+// Hard to undo: marked noDelegate, or undo level "none" (a plain string or { level }).
+export const undoOf = (u) => (!u ? null : typeof u === "string" ? { level: u } : isObj(u) ? u : null);
+export const isHard = (d) => !!d.noDelegate || undoOf(d.undo)?.level === "none";
 const str = (v) => (typeof v === "string" && v ? v : undefined);
 
 // Keeps only answers that match the questions: known option keys, item ids and stop values.
@@ -13,8 +16,8 @@ export function cleanState(q, S) {
     const a = S[d.id];
     if (!isObj(a)) continue;
     const c = {};
-    // A decision marked noDelegate (hard to undo) cannot be handed to Claude; that answer is dropped.
-    if (REASON_KEYS.includes(a.defer) && !(a.defer === "delegate" && d.noDelegate)) {
+    // A hard-to-undo decision cannot be handed to Claude; that answer is dropped.
+    if (REASON_KEYS.includes(a.defer) && !(a.defer === "delegate" && isHard(d))) {
       c.defer = a.defer;
       if (str(a.why)) c.why = a.why;
     } else if (d.type === "pick" || d.type === "preview") {
@@ -32,6 +35,11 @@ export function cleanState(q, S) {
       if ((d.stops || []).some((s) => s.v === a.choice)) c.choice = a.choice;
     }
     if (str(a.note)) c.note = a.note;
+    // What the person said decided it (chips on the review page): short texts only.
+    if (!c.defer && Array.isArray(a.decisive)) {
+      const k = a.decisive.filter((x) => str(x) && x.length <= 80).slice(0, 12);
+      if (k.length) c.decisive = k;
+    }
     if (Object.keys(c).length) out[d.id] = c;
   }
   return out;
@@ -68,7 +76,7 @@ export function answersFor(q, state) {
     const a = S[d.id] || {};
     out[d.id] = a.defer
       ? { choice: null, handBack: a.defer, ...(a.why ? { why: a.why } : {}), ...(a.note ? { note: a.note } : {}) }
-      : { choice: a.choices ?? a.choice ?? null, ...(a.own ? { own: a.own } : {}), ...(a.note ? { note: a.note } : {}) };
+      : { choice: a.choices ?? a.choice ?? null, ...(a.own ? { own: a.own } : {}), ...(a.note ? { note: a.note } : {}), ...(a.decisive ? { decisive: a.decisive } : {}) };
   }
   return out;
 }

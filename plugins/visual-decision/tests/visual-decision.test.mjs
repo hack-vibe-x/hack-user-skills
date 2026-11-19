@@ -114,7 +114,7 @@ test("record: every answer shape, in the question file's language, kept at the g
   const md = buildRecord(q, state, new Date(2026, 0, 2));
   for (const line of [
     "# \\<T\\> · 2026-01-02",
-    "- **Answer:** Link\n- **Not chosen:** \\<Button\\>\n- **Additional comments:** use \\<Chip\\> later",
+    "- **Answer:** Link\n- **Not chosen:** \\<Button\\>\n- **AI recommendation:** different (\\<Button\\>)\n- **Additional comments:** use \\<Chip\\> later",
     "- **Answer:** Sent back · I need more information\n- **Reason:** need \\<data\\>",
     "- **Row:** K1",
     "- **Answer:** 5",
@@ -136,6 +136,63 @@ test("record: every answer shape, in the question file's language, kept at the g
   const p2 = writeRecord(top, "my batch/v2", Q, FULL, new Date(2026, 0, 2));
   assert.equal(p1, join(top, ".hus-visual-decision", "decisions", "2026-01-02-my-batch-v2.md"));
   assert.equal(p2, join(top, ".hus-visual-decision", "decisions", "2026-01-02-my-batch-v2-2.md"), "never overwritten");
+});
+
+test("check: the new fields (layers, undo, cells with ranges, panels, themes, new pictures)", () => {
+  const p = (q) => check(q).join("\n");
+  const base = { id: "s", type: "pick", q: "?", dims: [{ q: "How long?", short: "Time", max: 3 }], options: [{ key: "x", label: "X", d: [{ v: "1–3 days", n: 2, lo: 1, hi: 3, conf: "low", why: "not tried", t: "bad" }] }] };
+  const full = {
+    themes: [{ id: "undo", label: "Undo" }],
+    decisions: [{ ...base, plain: "Two or three easy sentences.", undo: { level: "costly", how: "revert" }, themes: ["undo"], terms: [["Table", "a list"]], recNote: { if: "safety first", conf: "mid", why: "w" },
+      panels: [{ title: "Changes", visual: { type: "blast", add: 0, change: 3, del: 1 } }, { title: "Fails if", text: "t" }, { title: "Touches", visual: { type: "impact", center: "db", rings: [[{ l: "a", t: "bad" }]] } }],
+      options: [{ ...base.options[0], undo: "none", gist: "g", give: "x", means: "m", after: ["a"], check: "c", next: "n", detail: { evidence: [["measured", "e"]], prereq: "p", confusion: "c", visual: { type: "story", panels: [{ caption: "1", visual: { type: "screen", layout: "split" } }] } },
+        visual: { type: "diff", before: { type: "button", text: "Go" }, after: { type: "button", text: "Start" }, notes: [{ at: [10, 20], text: "here", dim: 0 }], focus: [0, 0, 50, 50] } },
+        { key: "y", label: "Y", baseline: true, d: [["same", ""]], visual: { type: "timeline", max: 40, lanes: [{ name: "db", items: [{ from: 0, to: 30, label: "kept" }] }], pnr: 30 } }] },
+      { id: "v", type: "value", q: "?", values: { q: "?", left: "fast", right: "safe", labels: ["a", "b"], map: [1, 0] }, assume: "a", stops: [{ v: 1, outs: [{ k: "risk", v: "3 in 100", odds: { hit: 3, lo: 2, hi: 4 } }] }, { v: 2, means: "m" }] },
+      { id: "m", type: "multi", q: "?", items: [{ id: "i", label: "I", visual: { type: "odds", hit: 3 } }] }],
+  };
+  assert.equal(p(full), "");
+  const d0 = full.decisions[0];
+  const one = (over, opt) => ({ ...full, decisions: [{ ...d0, ...over, options: [{ ...d0.options[0], ...opt }, d0.options[1]] }] });
+  assert.match(p(one({ undo: "maybe" })), /undo must be/);
+  assert.match(p(one({}, { undo: { level: "x" } })), /undo must be/);
+  assert.match(p(one({ themes: ["nope"] })), /themes must list ids/);
+  assert.match(p(one({ recNote: { conf: "very" } })), /recNote/);
+  assert.match(p(one({ terms: "t" })), /terms must be/);
+  assert.match(p(one({ panels: [{ text: "no title" }] })), /panels must be/);
+  assert.match(p(one({}, { d: [{ v: "x", conf: "sure" }] })), /each d cell/);
+  assert.match(p(one({}, { d: [{ v: "x", n: "two" }] })), /each d cell/);
+  assert.match(p(one({}, { d: [{ t: "good" }] })), /each d cell/);
+  assert.match(p(one({}, { after: "a" })), /after must be/);
+  assert.match(p(one({}, { visual: { type: "diff" } })), /needs before/);
+  assert.match(p(one({}, { visual: { type: "diff", before: { type: "steps" } } })), /steps array/);
+  assert.match(p(one({}, { visual: { type: "timeline", max: 0, lanes: [] } })), /timeline needs max/);
+  assert.match(p(one({}, { visual: { type: "impact", center: "x", rings: [[{}]] } })), /impact visual/);
+  assert.match(p(one({}, { visual: { type: "odds" } })), /odds visual/);
+  assert.match(p(one({}, { visual: { type: "screen", notes: [{ at: [1] }] } })), /notes must be/);
+  assert.match(p(one({}, { visual: { type: "screen", focus: [1, 2] } })), /focus must be/);
+  assert.match(p({ ...full, decisions: [{ ...full.decisions[1], values: { labels: ["a"], map: [5] } }] }), /values must be/);
+  assert.match(p({ themes: [{ label: "no id" }], decisions: [base] }), /themes must be a list/);
+});
+
+test("undo level none works like noDelegate, and what decided it is kept", () => {
+  const q = { ...Q, decisions: [{ ...Q.decisions[0], undo: { level: "none" } }, ...Q.decisions.slice(1)] };
+  assert.deepEqual(cleanState(q, { a: { defer: "delegate" } }), {});
+  assert.deepEqual(cleanState(Q, { a: { choice: "x", decisive: ["Speed", 3, "", "x".repeat(81)] } }).a, { choice: "x", decisive: ["Speed"] });
+  assert.deepEqual(cleanState(Q, { a: { defer: "info", decisive: ["Speed"] } }).a, { defer: "info" }, "a sent-back answer has no reason chips");
+  assert.deepEqual(answersFor(Q, { a: { choice: "x", decisive: ["Speed"] } }).a, { choice: "x", decisive: ["Speed"] });
+});
+
+test("record: what it does, the AI's view, what decided it, how to undo, check and next", () => {
+  const q = { ...Q, decisions: [{ ...Q.decisions[0], recNote: { if: "speed matters most", conf: "mid" }, undo: "easy",
+    options: [{ ...Q.decisions[0].options[0], means: "It loads fast.", check: "Time it", next: "Ship", undo: { level: "costly", how: "revert the commit" } }, Q.decisions[0].options[1]] }, ...Q.decisions.slice(1)] };
+  const md = buildRecord(q, { ...FULL, a: { choice: "x", decisive: ["Speed"] } });
+  for (const line of ["- **What it does:** It loads fast.", "- **AI recommendation:** same · Fairly sure · from similar work", "- **What decided it:** Speed",
+    "- **Undo:** Undoing takes work · revert the commit", "- **How to check it worked:** Time it", "- **Next:** Ship"])
+    assert.ok(md.includes(line), `${line}\n---\n${md}`);
+  const del = buildRecord(q, { ...FULL, a: { defer: "delegate" } });
+  assert.ok(del.includes("- **Chosen by:** speed matters most"), del);
+  assert.ok(!del.includes("What it does"), "a delegated answer has no chosen option yet");
 });
 
 const runHook = (file, input) =>
