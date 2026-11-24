@@ -1070,7 +1070,9 @@ function renderStage(){
   if(cur===-1){ st.innerHTML=mapView(); renderBar(); return; }
   if(cur>=D.length){ st.innerHTML=summary(); renderBar(); return; }
   const d=D[cur], a=S[d.id]||{};
-  st.innerHTML=head(d)+`<div class="lk lk2">${esc(T('layer.2'))}</div>${panelsOf(d)}<div class="${a.defer?'dim-all':''}">${body(d)}</div>${alternatives(d,a)}<div id="intentwrap">${intent(d,a)}</div>`+(d.pattern?`<div class="pattern"><b>${T('note.label')}</b> · ${esc(d.pattern)}</div>`:'');
+  // The check sits right under where the answer was given: under the options, or under the open "write your own" / "can't choose" panel.
+  const check=`<div id="intentwrap">${intent(d,a)}</div>`, viaAlt=!!(a.defer||a.own||panel);
+  st.innerHTML=head(d)+`<div class="lk lk2">${esc(T('layer.2'))}</div>${panelsOf(d)}<div class="${a.defer?'dim-all':''}">${body(d)}</div>${viaAlt?'':check}${alternatives(d,a)}${viaAlt?check:''}`+(d.pattern?`<div class="pattern"><b>${T('note.label')}</b> · ${esc(d.pattern)}</div>`:'');
   renderBar();
   if(gateLocked(d,a)&&window.IntersectionObserver){ const m=document.getElementById('seenmark');
     if(m){ seenObs=new IntersectionObserver(es=>{ if(es.some(e=>e.isIntersecting)){ VIEW.seen[d.id]=true; seenObs.disconnect(); seenObs=null; const y=scrollY; render(); scrollTo(0,y); announce(T('gate.open')); } }); seenObs.observe(m); } }
