@@ -24,6 +24,12 @@
       "source": "./plugins/session-coach",
       "description": "Looks back on your AI work sessions: a daily diary written from yesterday's sessions, and a playbook of know-how pulled from sessions you pick. Skills for Claude Code and Codex.",
       "category": "productivity"
+    },
+    {
+      "name": "hack-user-skills-work-plan",
+      "source": "./plugins/work-plan",
+      "description": "Turns a task you were handed, and the material that came with it, into a work plan: what the work is for, how it breaks down, and a path to the end with a prompt and a done check for each step. It asks you every question the material cannot answer, in a web page, and checks every line against the material.",
+      "category": "productivity"
     }
   ]
 }

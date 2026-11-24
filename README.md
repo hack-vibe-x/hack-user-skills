@@ -18,6 +18,7 @@ Run `/plugin` to browse the list. To get new plugins and versions later: `/plugi
 | [hack-user-skills-visual-decision](plugins/visual-decision/) | Questions Claude would ask in the terminal are asked in a local web page instead, with a visual for every option and the differences side by side. Answers are kept in `.hus-visual-decision/decisions/` |
 | [hack-user-skills-criteria-gap](plugins/criteria-gap/) | When you move on from Claude's answer without having read or understood it, asks one question that makes you fill the gap |
 | [hack-user-skills-session-coach](plugins/session-coach/) | A daily diary written from yesterday's AI sessions, and a playbook of know-how pulled from sessions you pick |
+| [hack-user-skills-work-plan](plugins/work-plan/) | Turns a task you were handed and its material into a work plan: the structure of the work, and a path to the end with a prompt and a done check for each step. Asks what the material cannot answer, and checks every line against the material |
 
 Each plugin's README covers its use and what it creates on your computer.
 
@@ -60,6 +61,7 @@ hack-vibe-x가 만든 Claude Code 스킬과 훅입니다. 모든 플러그인이
 | [hack-user-skills-visual-decision](plugins/visual-decision/) | Claude가 터미널에서 물으려던 질문을 로컬 웹 화면으로 묻습니다. 선택지마다 그림이 붙고 차이가 나란히 보이며, 답은 `.hus-visual-decision/decisions/`에 남습니다 |
 | [hack-user-skills-criteria-gap](plugins/criteria-gap/) | Claude의 답을 제대로 읽거나 이해하지 않고 넘어갈 때, 그 공백을 직접 메우게 하는 질문 하나를 띄웁니다 |
 | [hack-user-skills-session-coach](plugins/session-coach/) | 전날의 AI 세션으로 쓰는 일기와, 고른 세션에서 뽑는 업무 노하우 |
+| [hack-user-skills-work-plan](plugins/work-plan/) | 받은 업무와 자료로 업무 기획서를 만듭니다. 일의 구조와 끝까지 가는 경로를 적고, 단계마다 프롬프트와 완료 조건을 붙입니다. 자료로 답할 수 없는 것은 묻고, 모든 문장을 자료와 맞춰 봅니다 |
 
 쓰는 법과 컴퓨터에 만드는 것은 플러그인마다 README에 있습니다.
 

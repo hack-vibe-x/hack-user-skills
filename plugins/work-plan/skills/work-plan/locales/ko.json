@@ -1,0 +1,12 @@
+{
+  "sources.heading": "출처",
+  "sources.intro": "기획서의 [번호]는 아래 한 줄씩을 가리킵니다. 인용은 자료에서 글자 그대로 옮겼고, 검사 도구로 원문과 맞춰 보았습니다.",
+  "sources.where": ", {where}",
+  "sources.material": "[{n}] {source}{where}: \"{quote}\"",
+  "sources.inference": "[{n}] 추론: {text} 근거 {from}.{why}",
+  "sources.assumption": "[{n}] 가정(확인 안 됨): {text}{why}",
+  "sources.unread": "끝까지 읽지 못한 자료",
+  "sources.read.unreadable": "- {source}: 읽지 못했습니다. 이 기획서에는 이 자료에서 온 내용이 없습니다.{note}",
+  "sources.read.partial": "- {source}: 일부만 읽었습니다.{note}",
+  "plan.notNumbers": "\\d+\\s*(단계|번째|순위|라운드|차|부|절)"
+}

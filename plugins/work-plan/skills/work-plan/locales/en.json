@@ -1,0 +1,12 @@
+{
+  "sources.heading": "Sources",
+  "sources.intro": "Every [number] in this plan points to one line below. A quote is copied word for word from the material and was checked against it by a program.",
+  "sources.where": ", {where}",
+  "sources.material": "[{n}] {source}{where}: \"{quote}\"",
+  "sources.inference": "[{n}] Inferred: {text} From {from}.{why}",
+  "sources.assumption": "[{n}] Assumption (not confirmed): {text}{why}",
+  "sources.unread": "Material that could not be read in full",
+  "sources.read.unreadable": "- {source}: could not be read, so nothing in this plan comes from it.{note}",
+  "sources.read.partial": "- {source}: read only in part.{note}",
+  "plan.notNumbers": "\\b(step|stage|round|phase|part|section)\\s*\\d+|\\d+(st|nd|rd|th)\\b"
+}

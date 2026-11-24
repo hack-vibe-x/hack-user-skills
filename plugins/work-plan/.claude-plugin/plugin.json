@@ -1,0 +1,21 @@
+{
+  "name": "hack-user-skills-work-plan",
+  "description": "Turns a task you were handed, and the material that came with it, into a work plan: what the work is for, how it breaks down, and a path to the end with a prompt and a done check for each step. It asks you every question the material cannot answer, in a web page, and checks every line against the material.",
+  "version": "0.1.0",
+  "author": {
+    "name": "hack-vibe-x"
+  },
+  "homepage": "https://github.com/hack-vibe-x/hack-user-skills/tree/main/plugins/work-plan",
+  "license": "Apache-2.0",
+  "keywords": [
+    "planning",
+    "work-plan",
+    "prompts",
+    "sources",
+    "fact-check",
+    "interview"
+  ],
+  "dependencies": [
+    "hack-user-skills-visual-decision"
+  ]
+}
