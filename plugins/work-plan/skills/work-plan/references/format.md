@@ -4,12 +4,12 @@ One Markdown file, these sections in this order. Write it all, headings included
 
 The plan is read by the person who will do the work with an AI. It answers four things, in this order, and everything in it hangs from the first:
 
-1. **The goal:** what the work is for, and what success looks like when you look at it.
+1. **The goal and the gap:** what the work is for, what success looks like when you look at it, where things stand now, and the gap between the two.
 2. **What must be known to reach it:** the criteria for a good result and the knowledge the work needs, where each is, and how it gets prepared.
-3. **How to work toward it:** the sub-questions the goal needs answered, and the path of steps that answers them.
+3. **How to work toward it:** the sub-questions that closing the gap needs answered, how their answers add up to the conclusion, and the path of steps that answers them.
 4. **What to check in each step:** the done checks that say a step served the goal and the next one can start.
 
-The material feeds this structure; it does not set it. A sub-question exists because the goal needs it, not because a file happens to cover it. A person who has read sections 1 to 5 should be able to explain the work to someone else without the prompts.
+The material feeds this structure; it does not set it. A sub-question exists because the goal needs it, not because a file happens to cover it. The plan shows its reasoning, not only its conclusions: how the answers add up, why the work is split this way, what was left out, and which alternatives were weighed. A person who has read sections 1 to 5 should be able to explain the work, and why it is built this way, to someone else without the prompts.
 
 ````markdown
 # <Task name>: work plan (<YYYY-MM-DD>)
@@ -19,6 +19,8 @@ The material feeds this structure; it does not set it. A sub-question exists bec
 ## 1. The goal
 - **What it is for:** the decision or action the result feeds, not the request as worded [n]
 - **Goal:** what is true when the work has succeeded, written so that someone can check it by looking ("every protection we need is in the contract, each with a reason the team lead can follow"). "The file is delivered" is not a goal [n]
+- **Where it stands now:** the current state, from the material ("the draft has no damages clause and no return deadline") [n]
+- **The gap:** what lies between now and the goal. The sub-questions in section 3 come from closing it. When the gap is a problem (sales fell, a process breaks), its cause is not known yet: finding it is a sub-question, and solutions wait for it [n]
 - **Who uses the result, and who has to explain it:** who acts on it; who has to explain the result to someone else and answer for it [n]
 - **Who judges it:** who accepts the result, and what they will accept [n]
 - **What comes out:** form, length, language, where it goes [n]
@@ -41,26 +43,35 @@ Must / optional is the person's decision. "Where it comes from" is a source (the
 - nobody has it, or only part: step 1 builds it, with a source for every item.
 
 ## 3. How the work is built
-The core question comes from the goal. Each sub-question is something that must be true, or be known, for the goal to be reached. A text tree:
+The core question comes from the goal and the gap. Each sub-question is something that must be true, or be known, for the gap to close. A text tree:
 
 ```text
 Goal: a price decision the team can defend: raise or hold, and why
+Gap: we do not know whether a rise would cost us customers
 Core question: Can we raise our price without losing customers?
 ├─ A. Is our price below what customers pay elsewhere for the same thing?   ← know: competitor prices, plan by plan (material: price lists)
 ├─ B. Would our customers stay after a rise?                                 ← know: how customers reacted to past changes (no material yet)
 ├─ C. Is what we offer worth more than what they offer?                      ← know: what each side offers; needs A
-└─ Answer: raise / hold, with the evidence from A to C
+└─ Answer: raise if B is yes and A or C is yes; hold if B is no; if B stays unknown, a small test rise first
 ```
 
-Under the tree, one line per sub-question: why the goal needs it, what must be known to answer it, which material feeds it (or "none yet"), what it depends on. Then the **working hypothesis**: the answer you expect, so the work tests something instead of piling up material. Mark it as a hypothesis.
+The **Answer** line is the rule by which the answers add up to the conclusion, not just "the evidence from A to C". It is what keeps the conclusion from jumping past the steps.
+
+Under the tree:
+- One line per sub-question: why the goal needs it, what must be known to answer it, which material feeds it (or "none yet"), what it depends on.
+- **Enough and not twice:** one line saying the sub-questions together answer the core question, nothing missing and nothing counted twice. If something is knowingly left out, say what and why.
+- **Why this split:** the other way of breaking the work down that was weighed, and why this one was chosen.
+- **Working hypothesis:** the answer you expect, so the work tests something instead of piling up material, and **what would show it wrong** (which answer to which sub-question). Mark it as a hypothesis.
 
 ## 4. Material
 | Material | What it is | Feeds which sub-question | How far to trust it | Read |
 |---|---|---|---|---|
 Then **Missing material**: what the work needs that nobody has given yet, and who can give it. Material is not a criterion: a sample form or an earlier document shows one way to do it, not what good is.
 
-## 5. Risks and what to do first
-The things that could sink the whole work, each with what to do about it. What must start first because it waits on someone else (access, replies, approvals, criteria the judge holds). No time estimates in days or weeks; say what is waited on and who it depends on.
+## 5. Risks, effects and what to do first
+The things that could sink the whole work, each with what to do about it.
+
+**After the result is used:** what using it will cause, first and then second order, and who it touches (a stronger clause binds us too; a price cut lifts sales, then strains production). Each with what the work does about it: a criterion, a line in the comparison for the judge, or a choice left to the person. What must start first because it waits on someone else (access, replies, approvals, criteria the judge holds). No time estimates in days or weeks; say what is waited on and who it depends on.
 
 ## 6. The path to the end
 First the whole path on one line each:
@@ -89,7 +100,7 @@ Then each step:
   ```text
   <follow-up prompt>
   ```
-- **If the result says otherwise:** (only when it applies) what changes in the later steps when the result is not what the hypothesis expects
+- **If the result says otherwise:** (only when it applies) what changes in the later steps when the result is what section 3 says would show the hypothesis wrong
 
 ## 7. Assumptions and open questions
 Every assumption the plan rests on, each with what would change if it is wrong and who can confirm it. Then questions left open.
@@ -100,11 +111,12 @@ Every assumption the plan rests on, each with what would change if it is wrong a
 
 ## Rules for the path
 
-The path runs from the goal: prepare what must be known, make the result, evaluate it, check its facts, have the person read and adjust it, deliver it. Each kind of step below goes in when the work needs it, in that order. Name the steps for this work; do not copy these names.
+The path runs from the goal: prepare what must be known, find the causes when the gap is a problem, make the result, evaluate it, check its facts, have the person read and adjust it, deliver it. Each kind of step below goes in when the work needs it, in that order. Name the steps for this work; do not copy these names.
 
 - **Build the criteria** (when nobody has them, or only part): the first step. The AI derives each criterion from the goal and gives a source for it (an address, a law, a standard, a document); one without a source is marked as an estimate. The AI proposes; the person marks each criterion must or optional, so that decision stays theirs. A fresh chat (or another model, if the person has one) reviews the list before it is used. The result is the criteria file every later step attaches.
-- **Make the result:** the work itself, against the criteria file.
-- **Evaluate against the criteria** (when the quality of the result has to be judged): done by a chat that did not make the result (a fresh chat, or another model if the person has one), with the criteria file and the result attached. Its result says, per criterion, met or not met, and where in the result. When a must item is not met, the done check is "no" and the follow-up prompt goes back to the making step with the evaluation attached. Write the stop line in the step ("every must item is met"). If two rounds of fixing still fall short, stop and take the goal or the criteria back to the person or the judge; do not loop again.
+- **Find the causes** (when the gap is a problem): before any step that proposes a fix. Each cause is marked fact (with its source) or hypothesis (with what would confirm it), and asks why again until it reaches something the work can act on. Fixes are built on the causes that hold.
+- **Make the result:** the work itself, against the criteria file. Where the result holds a decision (which clause, which price, which approach), the step lays out two or three alternatives with what each achieves, costs and risks against the criteria; the person picks, and the result keeps one line on why the others were dropped.
+- **Evaluate against the criteria** (when the quality of the result has to be judged): done by a chat that did not make the result (a fresh chat, or another model if the person has one), with the criteria file and the result attached. Its result says, per criterion, met or not met, and where in the result. It also reads the result as each party section 5 names (the judge, the other side, the people who use it) and lists what each would object to. When a must item is not met, the done check is "no" and the follow-up prompt goes back to the making step with the evaluation attached. Write the stop line in the step ("every must item is met"). If two rounds of fixing still fall short, stop and take the goal or the criteria back to the person or the judge; do not loop again.
 - **Check the facts** (when the result states numbers, names, dates, quotes, laws): against the original or an official source, item by item, each with the address or file it was checked against. Keep it apart from the evaluation: an evaluator judging "good enough" passes plausible facts that are wrong.
 - **Read and adjust:** always before delivery. The AI writes a comparison: what was changed or concluded, why, and which part of the goal each item serves, with the original next to it when there is one. The person reads it and adjusts the result by hand. When someone other than the person judges the result, the comparison is written so the person can explain each item to that judge.
 - **Deliver:** the final files, in the form section 1 names.
