@@ -86,7 +86,7 @@ These rules cover every string the person reads: labels, row names, captions, no
 
 ## Off in one project
 
-If the user wants questions in the terminal again in this project, run `claude plugin disable hack-user-skills-visual-decision@hack-user-skills --scope local` there (`enable` with the same options turns it back on). It writes only this project's `.claude/settings.local.json`; other projects stay on. Tell the user it applies from the next session.
+If the user wants questions in the terminal again in this project, run `claude plugin disable hack-user-skills-visual-decision --scope local` there (`enable` with the same options turns it back on). It writes only this project's `.claude/settings.local.json`; other projects stay on. Tell the user it applies from the next session. If the command says the name matches more than one installed plugin, run `claude plugin list` and use the full `name@marketplace` it shows.
 
 ## Do not
 

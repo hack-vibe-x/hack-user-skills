@@ -32,7 +32,7 @@ Needs Node.js 18 or later. There are no packages to install. If the computer has
 It is on in every project once installed. To turn it off in one project only, run this in that project (it writes `.claude/settings.local.json` there; other projects stay on):
 
 ```
-claude plugin disable hack-user-skills-visual-decision@hack-user-skills --scope local
+claude plugin disable hack-user-skills-visual-decision --scope local
 ```
 
 Turn it back on with `enable` and the same options. Or just tell Claude "turn off web questions in this project".
@@ -115,7 +115,7 @@ Node.js 18 이상이 필요합니다. 따로 깔 패키지는 없습니다. 컴�
 설치하면 모든 프로젝트에서 켜집니다. 한 프로젝트에서만 끄려면 그 프로젝트에서 다음을 실행합니다. 그 프로젝트의 `.claude/settings.local.json`에만 적히고, 다른 프로젝트는 그대로 켜져 있습니다.
 
 ```
-claude plugin disable hack-user-skills-visual-decision@hack-user-skills --scope local
+claude plugin disable hack-user-skills-visual-decision --scope local
 ```
 
 다시 켜려면 같은 옵션으로 `enable`을 실행합니다. Claude에게 "이 프로젝트에서는 웹으로 묻지 마"라고 해도 됩니다.
