@@ -1,5 +1,5 @@
 // Run: node --test plugins/visual-decision/tests/env-check.test.mjs
-// Tests hooks/env-check.sh and the node guard in hooks/hooks.json with a fake PATH. Nothing is installed.
+// Tests hooks/env-check.sh, hooks/run-node.sh and hooks/hooks.json with a fake PATH. Nothing is installed.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
@@ -27,8 +27,10 @@ function toolPath(extra = {}) {
   return dir;
 }
 
-function check({ path, home = tmp(), brewPaths = "/nonexistent/brew", args = [] }) {
-  const r = spawnSync("sh", [CHECK, ...args], { encoding: "utf8", env: { PATH: path, HOME: home, HUS_VISUAL_DECISION_BREW_PATHS: brewPaths, HUS_VISUAL_DECISION_NODE_PATHS: "/nonexistent/node" } });
+function check({ path, home = tmp(), data, brewPaths = "/nonexistent/brew", args = [] }) {
+  const env = { PATH: path, HOME: home, HUS_VISUAL_DECISION_BREW_PATHS: brewPaths, HUS_VISUAL_DECISION_NODE_PATHS: "/nonexistent/node" };
+  if (data) env.CLAUDE_PLUGIN_DATA = data;
+  const r = spawnSync("sh", [CHECK, ...args], { encoding: "utf8", env });
   return { code: r.status, out: r.stdout, err: r.stderr, home };
 }
 const context = (r) => JSON.parse(r.out).hookSpecificOutput.additionalContext;
@@ -108,32 +110,51 @@ test("a Node.js that is too old is named in the question, and Claude is told wha
   assert.match(c, /do not edit any shell file/);
 });
 
-test("hooks.json: the node hooks find node through env-check.sh, stay silent without it, and pass stdin when it is there", () => {
+test("hooks.json: every command is sh with plain paths from ${CLAUDE_PLUGIN_ROOT}, nothing inline", () => {
   const hooks = JSON.parse(readFileSync(join(HOOKS, "hooks.json"), "utf8")).hooks;
-  const guarded = [...hooks.PreToolUse, ...hooks.SessionStart].flatMap((e) => e.hooks).filter((h) => h.args[0] === "-c");
-  assert.equal(guarded.length, 2);
-  const plugin = join(HOOKS, "..");
-  const fill = (a) => a.replace("${CLAUDE_PLUGIN_ROOT}", plugin);
-  for (const h of guarded) {
-    const [flag, script, name, checker, target] = h.args;
-    assert.ok(existsSync(fill(checker)) && existsSync(fill(target)), target);
-    const run = (path, home) => spawnSync("sh", [flag, script, name, fill(checker), fill(target)], { input: "{}", encoding: "utf8", env: { PATH: path, HOME: home, HUS_VISUAL_DECISION_NODE_PATHS: "/nonexistent/node" } });
-    const none = run(toolPath(), tmp());
-    assert.deepEqual([none.status, none.stdout, none.stderr], [0, "", ""]);
+  const all = Object.values(hooks).flat().flatMap((e) => e.hooks);
+  assert.equal(all.length, 3);
+  for (const h of all) {
+    assert.equal(h.command, "sh");
+    for (const a of h.args) {
+      assert.match(a, /^\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/[\w.-]+$/, a);
+      assert.ok(existsSync(a.replace("${CLAUDE_PLUGIN_ROOT}", join(HOOKS, ".."))), a);
+    }
   }
-  const first = hooks.SessionStart[0].hooks[0];
-  assert.deepEqual(first.args, ["${CLAUDE_PLUGIN_ROOT}/hooks/env-check.sh"]);
 });
 
-test("the ask hook still runs through the guard with the node found, and gets stdin", () => {
+test("run-node.sh: silent without node, runs the hook with stdin when node is there", () => {
   const hooks = JSON.parse(readFileSync(join(HOOKS, "hooks.json"), "utf8")).hooks;
-  const h = hooks.PreToolUse[0].hooks[0];
-  const realNode = process.execPath;
-  const bin = tmp();
-  symlinkSync(realNode, join(bin, "node"));
-  for (const t of ["sh", "uname"]) symlinkSync(spawnSync("sh", ["-c", `command -v ${t}`], { encoding: "utf8" }).stdout.trim(), join(bin, t));
+  const guarded = Object.values(hooks).flat().flatMap((e) => e.hooks).filter((h) => h.args[0].endsWith("/run-node.sh"));
+  assert.equal(guarded.length, 2);
   const fill = (a) => a.replace("${CLAUDE_PLUGIN_ROOT}", join(HOOKS, ".."));
-  const input = JSON.stringify({ tool_name: "AskUserQuestion", tool_input: { questions: [] }, cwd: tmp() });
-  const r = spawnSync("sh", [h.args[0], h.args[1], h.args[2], fill(h.args[3]), fill(h.args[4])], { input, encoding: "utf8", env: { PATH: bin, HOME: tmp() } });
-  assert.equal(r.status, 0, r.stderr);
+  const bin = tmp();
+  symlinkSync(process.execPath, join(bin, "node"));
+  for (const t of ["sh", "uname"]) symlinkSync(spawnSync("sh", ["-c", `command -v ${t}`], { encoding: "utf8" }).stdout.trim(), join(bin, t));
+  for (const h of guarded) {
+    const run = (path, input) => spawnSync("sh", h.args.map(fill), { input, encoding: "utf8", env: { PATH: path, HOME: tmp(), HUS_VISUAL_DECISION_NODE_PATHS: "/nonexistent/node" } });
+    const none = run(toolPath(), "{}");
+    assert.deepEqual([none.status, none.stdout, none.stderr], [0, "", ""], h.args[1]);
+    const there = run(bin, JSON.stringify({ tool_name: "AskUserQuestion", tool_input: { questions: [] }, cwd: tmp() }));
+    assert.equal(there.status, 0, there.stderr);
+  }
+  const ask = guarded.find((h) => h.args[1].endsWith("/ask-hook.mjs"));
+  const out = spawnSync("sh", ask.args.map(fill), { input: "{}", encoding: "utf8", env: { PATH: bin, HOME: tmp() } });
+  assert.equal(JSON.parse(out.stdout).hookSpecificOutput.permissionDecision, "deny");
+});
+
+test("'do not ask again' goes in the plugin's data folder, and the file left by 0.10 still counts", () => {
+  const home = tmp();
+  const data = join(tmp(), "data");
+  const path = toolPath();
+  const c = context(check({ path, home, data }));
+  const command = c.match(/you run `(mkdir -p [^`]+)`/)[1];
+  assert.equal(spawnSync("sh", ["-c", command], { env: { PATH: path, HOME: home } }).status, 0);
+  assert.ok(existsSync(join(data, "no-env-check")));
+  assert.ok(!existsSync(join(home, ".hus-visual-decision")));
+  assert.deepEqual([check({ path, home, data }).out], [""]);
+  const old = tmp();
+  mkdirSync(join(old, ".hus-visual-decision"));
+  writeFileSync(join(old, ".hus-visual-decision", "no-env-check"), "");
+  assert.deepEqual([check({ path, home: old, data: join(tmp(), "fresh") }).out], [""]);
 });

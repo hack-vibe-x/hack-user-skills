@@ -29,7 +29,7 @@ A plugin installs only its own folder, so a plugin that uses another one's files
 <!-- bundles:en -->
 | Plugin (version) | Copy inside it | Copy of | Version of the copy | Version of the source |
 |---|---|---|---|---|
-| hack-user-skills-work-plan 0.4.0 | `skills/work-plan/question-page/` | hack-user-skills-visual-decision | 0.10.2 | 0.10.2 |
+| hack-user-skills-work-plan 0.4.1 | `skills/work-plan/question-page/` | hack-user-skills-visual-decision | 0.11.0 | 0.11.0 |
 <!-- /bundles:en -->
 
 ## What is in it
@@ -85,7 +85,7 @@ hack-vibe-x가 만든 Claude Code 스킬과 훅입니다. 모든 플러그인이
 <!-- bundles:ko -->
 | 플러그인 (버전) | 안에 든 복사본 | 원본 플러그인 | 복사본 버전 | 원본 버전 |
 |---|---|---|---|---|
-| hack-user-skills-work-plan 0.4.0 | `skills/work-plan/question-page/` | hack-user-skills-visual-decision | 0.10.2 | 0.10.2 |
+| hack-user-skills-work-plan 0.4.1 | `skills/work-plan/question-page/` | hack-user-skills-visual-decision | 0.11.0 | 0.11.0 |
 <!-- /bundles:ko -->
 
 ## 들어 있는 것

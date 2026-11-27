@@ -10,7 +10,7 @@
     {
       "name": "hack-user-skills-visual-decision",
       "source": "./plugins/visual-decision",
-      "description": "Questions Claude would ask in the terminal are asked in a local web page instead, with a visual for every option and the differences side by side. Answers are kept in .hus-visual-decision/decisions. Skill and hook for Claude Code.",
+      "description": "Questions Claude would ask in the terminal are asked in a local web page instead, with a visual for every option and the differences side by side. A hook sends AskUserQuestion to that page while the plugin is on; answers are kept in .hus-visual-decision/decisions in your project. The page runs on 127.0.0.1 and sends nothing elsewhere. Needs Node.js 18 or later; if it is missing, Claude asks before installing anything.",
       "category": "productivity"
     },
     {

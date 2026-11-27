@@ -1,9 +1,13 @@
 #!/bin/sh
 # Checks that Node.js 18 or later is on the computer. It installs nothing itself.
-#   env-check.sh        SessionStart hook. Silent when Node.js is there, or when the user chose "do not ask again" (the file below).
+#   env-check.sh        SessionStart hook. Silent when Node.js is there, or when the user chose "do not ask again" (the no-env-check file below).
 #                       Otherwise tells Claude to ask the user what to do, with the exact install command decided here so nothing is improvised.
 #   env-check.sh path   prints the Node.js to use and exits 0, or exits 1 when there is none. The other hooks use it to find node.
-SKIP="$HOME/.hus-visual-decision/no-env-check"
+# "Do not ask again" is kept in the plugin's data folder (CLAUDE_PLUGIN_DATA, set by Claude Code for hooks).
+# Versions up to 0.10 kept it in ~/.hus-visual-decision/, which still counts.
+DATA=${CLAUDE_PLUGIN_DATA:-$HOME/.hus-visual-decision}
+SKIP="$DATA/no-env-check"
+OLD_SKIP="$HOME/.hus-visual-decision/no-env-check"
 
 node_ok() { [ -x "$1" ] && "$1" -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 18 ? 0 : 1)' >/dev/null 2>&1; }
 
@@ -23,7 +27,7 @@ find_node() {
 }
 
 if [ "$1" = path ]; then find_node; exit $?; fi
-[ -e "$SKIP" ] && exit 0
+{ [ -e "$SKIP" ] || [ -e "$OLD_SKIP" ]; } && exit 0
 find_node >/dev/null && exit 0
 
 # What is on the computer but too old, so the question can say so.
@@ -38,7 +42,7 @@ fi
 brew=$(command -v brew 2>/dev/null)
 for b in ${HUS_VISUAL_DECISION_BREW_PATHS:-/opt/homebrew/bin/brew /usr/local/bin/brew}; do [ -z "$brew" ] && [ -x "$b" ] && brew=$b; done
 
-skip_cmd="mkdir -p ~/.hus-visual-decision && touch ~/.hus-visual-decision/no-env-check"
+skip_cmd="mkdir -p '$DATA' && touch '$DATA/no-env-check'"
 text="The plugin hack-user-skills-visual-decision needs Node.js 18 or later, which is not usable on this computer.$old Until then its question page cannot open, and questions stay in the terminal. Do not install anything yet. In your next reply, ask the user what to do with the AskUserQuestion tool, in the user's language and in plain words for someone who is not technical."
 if [ -n "$brew" ]; then
   new="${brew%/brew}/node"

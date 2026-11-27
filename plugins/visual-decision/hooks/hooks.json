@@ -9,10 +9,7 @@
             "type": "command",
             "command": "sh",
             "args": [
-              "-c",
-              "n=$(sh \"$1\" path) || exit 0; exec \"$n\" \"$2\"",
-              "_",
-              "${CLAUDE_PLUGIN_ROOT}/hooks/env-check.sh",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/run-node.sh",
               "${CLAUDE_PLUGIN_ROOT}/hooks/ask-hook.mjs"
             ],
             "timeout": 5
@@ -35,10 +32,7 @@
             "type": "command",
             "command": "sh",
             "args": [
-              "-c",
-              "n=$(sh \"$1\" path) || exit 0; exec \"$n\" \"$2\"",
-              "_",
-              "${CLAUDE_PLUGIN_ROOT}/hooks/env-check.sh",
+              "${CLAUDE_PLUGIN_ROOT}/hooks/run-node.sh",
               "${CLAUDE_PLUGIN_ROOT}/hooks/session-hook.mjs"
             ],
             "timeout": 5

@@ -1,6 +1,6 @@
 {
   "from": "hack-user-skills-visual-decision",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "source": "plugins/visual-decision/skills/visual-decision",
   "note": "A copy made by scripts/bundle.mjs in the hack-user-skills repository. Edit the source; changes made here are overwritten."
 }

@@ -41,7 +41,7 @@ Turn it back on with `enable` and the same options. Or just tell Claude "turn of
 
 | Path | Contents |
 |---|---|
-| `hooks/` | One hook sends AskUserQuestion to the skill; another, at session start, tells Claude that `.hus-visual-decision/decisions/` exists (only when it does); `env-check.sh` checks for Node.js at session start (it installs nothing) and tells the other hooks where node is |
+| `hooks/` | One hook sends AskUserQuestion to the skill; another, at session start, tells Claude that `.hus-visual-decision/decisions/` exists (only when it does); `env-check.sh` checks for Node.js at session start (it installs nothing) and tells the other hooks where node is; `run-node.sh` starts the Node.js hooks with that node |
 | `skills/visual-decision/` | The skill, the page, the server, the question file format, and the language files (`en`, `ko`) |
 | `samples/` | Questions of all five types, in English and Korean |
 | `tests/` | `node --test tests/visual-decision.test.mjs tests/env-check.test.mjs` |
@@ -56,7 +56,7 @@ The page stops waiting when you press **Cancel these decisions**, when it has be
 |---|---|---|
 | A temp folder, e.g. `/tmp/hus-visual-decision/` | The question files Claude writes | The system clears it, or delete it |
 | Browser storage for `127.0.0.1:<port>` | Choices in progress, under `hus-visual-decision:<question file name>`. Removed on submit | Clear site data for `127.0.0.1` |
-| `~/.hus-visual-decision/no-env-check` | Only if you choose "do not ask again": an empty file that stops the Node.js check | Delete the file |
+| `no-env-check` in the plugin's data folder (`~/.claude/plugins/data/…`) | Only if you choose "do not ask again": an empty file that stops the Node.js check. Versions up to 0.10 put it in `~/.hus-visual-decision/`, which still counts | Delete the file, or uninstall the plugin |
 | `.hus-visual-decision/decisions/` at the project root (the git root, or the working folder) | One Markdown file per submitted batch. Commit it to share decisions with your team, or add `.hus-visual-decision/` to `.gitignore` to keep them on your machine | Your documents; keep or delete them |
 
 Before 0.7.0 records went to `docs/decisions/`, and `.hus-visual-decision/` also held `config.json`, `pending/` and `answers/`. Those are no longer used: move old records with `mkdir -p .hus-visual-decision && mv docs/decisions .hus-visual-decision/decisions`, and delete the rest.
@@ -124,7 +124,7 @@ claude plugin disable hack-user-skills-visual-decision --scope local
 
 | 위치 | 내용 |
 |---|---|
-| `hooks/` | AskUserQuestion을 스킬로 보내는 훅, 세션을 시작할 때 `.hus-visual-decision/decisions/`가 있음을 Claude에게 알리는 훅(폴더가 있을 때만), 세션을 시작할 때 Node.js를 점검하고(아무것도 설치하지 않음) 다른 훅에 node의 위치를 알려 주는 `env-check.sh` |
+| `hooks/` | AskUserQuestion을 스킬로 보내는 훅, 세션을 시작할 때 `.hus-visual-decision/decisions/`가 있음을 Claude에게 알리는 훅(폴더가 있을 때만), 세션을 시작할 때 Node.js를 점검하고(아무것도 설치하지 않음) 다른 훅에 node의 위치를 알려 주는 `env-check.sh`, 그 node로 Node.js 훅을 실행하는 `run-node.sh` |
 | `skills/visual-decision/` | 스킬 본문, 화면, 서버, 질문 파일 형식, 언어 파일(`en`, `ko`) |
 | `samples/` | 다섯 가지 질문 유형이 모두 든 영어·한국어 샘플 |
 | `tests/` | `node --test tests/visual-decision.test.mjs tests/env-check.test.mjs` |
@@ -139,7 +139,7 @@ claude plugin disable hack-user-skills-visual-decision --scope local
 |---|---|---|
 | 임시 폴더(예: `/tmp/hus-visual-decision/`) | Claude가 쓰는 질문 파일 | 시스템이 비우거나, 직접 지웁니다 |
 | `127.0.0.1:<포트>`의 브라우저 저장소 | 고르던 답. 키는 `hus-visual-decision:<질문 파일 이름>`. 제출하면 지워집니다 | `127.0.0.1`의 사이트 데이터를 지웁니다 |
-| `~/.hus-visual-decision/no-env-check` | "다시 묻지 않기"를 고를 때만: Node.js 점검을 멈추는 빈 파일 | 파일을 지웁니다 |
+| 플러그인 데이터 폴더(`~/.claude/plugins/data/…`)의 `no-env-check` | "다시 묻지 않기"를 고를 때만: Node.js 점검을 멈추는 빈 파일. 0.10까지는 `~/.hus-visual-decision/`에 두었고, 그 파일도 그대로 인정됩니다 | 파일을 지우거나 플러그인을 삭제합니다 |
 | 프로젝트 루트(git 루트, 없으면 작업 폴더)의 `.hus-visual-decision/decisions/` | 제출한 묶음마다 마크다운 파일 하나. 팀과 결정을 나누려면 커밋하고, 이 컴퓨터에만 두려면 `.hus-visual-decision/`을 `.gitignore`에 넣습니다 | 사용자 문서입니다. 두거나 지웁니다 |
 
 0.7.0 전에는 기록이 `docs/decisions/`에 쌓였고, `.hus-visual-decision/`에는 `config.json`, `pending/`, `answers/`도 있었습니다. 이것들은 이제 쓰지 않습니다. 예전 기록은 `mkdir -p .hus-visual-decision && mv docs/decisions .hus-visual-decision/decisions`로 옮기고, 나머지는 지우면 됩니다.
