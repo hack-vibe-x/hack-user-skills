@@ -1,0 +1,1261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Decision</title>
+<style>
+:root{
+  --bg:#f6f5f1; --surface:#fff; --surface2:#f0eee8; --line:#e2dfd6; --ink:#1c1b18; --muted:#6b675e;
+  --accent:#3b4bd8; --accent-soft:#e9ebfb; --good:#1f7a4d; --good-soft:#e4f3ea; --bad:#b4442c; --bad-soft:#f9e8e2;
+  --mk:#d9d5ca; --mk2:#bdb8aa;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#15151a; --surface:#1e1e25; --surface2:#272730; --line:#34343f; --ink:#ececf1; --muted:#9a9aa8;
+    --accent:#8f9bff; --accent-soft:#2a2d4d; --good:#5fc995; --good-soft:#1d3329; --bad:#f08a6c; --bad-soft:#3a2520;
+    --mk:#3a3a46; --mk2:#565665;
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+kbd{font:600 11px/1 ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:3px 5px;background:var(--surface);color:var(--muted)}
+
+.app{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:100%}
+/* left list */
+.nav{border-right:1px solid var(--line);padding:20px 12px;position:sticky;top:0;height:100vh;overflow:auto}
+.nav h1{font-size:13px;margin:0 8px 4px;letter-spacing:.02em}
+.nav .prog{margin:0 8px 14px;font-size:12px;color:var(--muted)}
+.nav .track{height:4px;border-radius:2px;background:var(--line);margin-top:6px;overflow:hidden}
+.nav .track i{display:block;height:100%;background:var(--accent);transition:width .2s}
+.nav button{position:relative;display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;width:100%;text-align:left;border:0;background:none;padding:8px;border-radius:8px;cursor:pointer;align-items:start}
+.nav button:hover{background:var(--surface2)}
+.nav button.cur{background:var(--surface);box-shadow:0 0 0 1px var(--line)}
+.nav .dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--mk2);margin-top:3px;display:grid;place-items:center;font-size:10px;color:#fff}
+.nav .done .dot{background:var(--accent);border-color:var(--accent)}
+.nav .defer .dot{background:var(--mk2);border-color:var(--mk2)}
+.nav .t{font-size:13.5px;line-height:1.35}
+.nav .a{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.nav .done .a{color:var(--accent)}
+.nav hr{border:0;border-top:1px solid var(--line);margin:10px 8px}
+
+/* main */
+.main{display:flex;flex-direction:column;min-height:100vh}
+.stage{flex:1;padding:36px 40px 24px;max-width:1080px;width:100%;margin:0 auto}
+.kicker{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-bottom:10px}
+.tag{background:var(--accent-soft);color:var(--accent);font-weight:600;padding:2px 8px;border-radius:99px}
+.tag.hard{background:var(--bad-soft);color:var(--bad)}
+h2{font-size:26px;line-height:1.3;margin:0 0 6px;letter-spacing:-.01em;text-wrap:balance}
+.ctx{color:var(--muted);margin:0 0 6px;max-width:68ch}
+.ctx code{font:12.5px ui-monospace,Menlo,monospace;overflow-wrap:anywhere}
+details.more{margin:0 0 4px;color:var(--muted);font-size:13.5px}
+details.more summary{cursor:pointer;width:max-content}
+details.more p{margin:6px 0 0;max-width:68ch}
+.facts{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 0}
+.facts span{font-size:12.5px;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:3px 8px}
+.facts b{font-variant-numeric:tabular-nums}
+.pattern{margin-top:28px;padding:10px 12px;border:1px dashed var(--mk2);border-radius:8px;font-size:12.5px;color:var(--muted)}
+.pattern b{color:var(--ink)}
+
+/* option cards: rows line up so differences read across */
+.opts{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));column-gap:14px;margin-top:22px}
+.opt{display:grid;grid-row:span var(--rows);grid-template-rows:subgrid;background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:14px 14px 12px;cursor:pointer;position:relative;outline:0;transition:border-color .12s, box-shadow .12s}
+.opt:hover{border-color:var(--mk2)}
+.opt:focus-visible,.pvopt:focus-visible,.item:focus-visible,button:focus-visible,h2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2:focus:not(:focus-visible){outline:0}
+.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.opt.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.opt-h{display:flex;gap:8px;align-items:center;padding-bottom:10px}
+.opt-h b{font-size:16px;line-height:1.3;flex:1}
+.rec{font-size:11px;font-weight:700;color:var(--good);background:var(--good-soft);padding:2px 7px;border-radius:99px;white-space:nowrap}
+.check{position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:none;place-items:center;font-size:13px}
+.opt.sel .check{display:grid}
+/* the thing being shown sits in a window frame on a different background, so it reads apart from the decision text */
+.opt-v{background:var(--surface2);margin:0 -14px 2px;padding:14px 14px 10px;border-block:1px solid var(--line);display:flex;flex-direction:column;justify-content:center}
+.opt-v + .dim{border-top:0}
+.win{border:1px solid var(--mk2);border-radius:8px;overflow:hidden;background:var(--surface);box-shadow:0 3px 10px rgb(0 0 0/.10)}
+.win-bar{display:flex;gap:4px;align-items:center;padding:5px 8px;border-bottom:1px solid var(--line);background:var(--surface)}
+.win-bar i{width:7px;height:7px;border-radius:50%;background:var(--mk2)}
+.win-bar span{margin-left:6px;font-size:10.5px;color:var(--muted)}
+.win .mk{border-radius:0;background:var(--surface)}
+.win .mk-card,.win .mk-split .l div,.win .mk-split .r{background:var(--surface2)}
+.win .mk-split .r .blk{background:var(--mk)}
+.opt-v .mx-wrap,.opt-v .pipe{background:none;padding:4px}
+.cap{font-size:12px;color:var(--muted);text-align:center;margin-top:6px}
+.dim{border-top:1px solid var(--line);padding:8px 0;display:grid;grid-template-columns:14px 1fr;column-gap:6px;align-content:start}
+.dim .dk{grid-column:1/-1;font-size:11.5px;color:var(--muted)}
+.dim .mark{font-weight:700;color:var(--mk2)}
+.dim .dv{font-size:14px;line-height:1.35}
+.dim.good .mark,.dim.good .dv{color:var(--good)}
+.dim.bad .mark,.dim.bad .dv{color:var(--bad)}
+.dim.good .dv,.dim.bad .dv{font-weight:600}
+.when{border-top:1px solid var(--line);padding-top:9px;font-size:12.5px;color:var(--muted)}
+.same{margin-top:12px;font-size:12.5px;color:var(--muted)}
+
+/* small screen drawings (mockups) */
+.mk{aspect-ratio:16/10;background:var(--surface2);border-radius:8px;padding:9px;display:flex;flex-direction:column;gap:5px;overflow:hidden}
+.mk i,.mk u{display:block;background:var(--mk);border-radius:3px;height:6px;text-decoration:none}
+.mk .s{width:55%}
+.mk-top{display:flex;justify-content:space-between;margin-bottom:2px}
+.mk-top i:first-child{width:32%;background:var(--mk2)}
+.mk-top i:last-child{width:14%;background:var(--accent);opacity:.7}
+.mk-tr{display:grid;grid-template-columns:1.6fr 1fr 1fr .6fr;gap:6px;padding:4px 0;border-top:1px solid var(--mk)}
+.mk-tr.h i{background:var(--mk2);height:4px}
+.mk-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex:1}
+.mk-card{background:var(--surface);border-radius:5px;padding:6px;display:flex;flex-direction:column;gap:4px}
+.mk-card u{width:14px;height:14px;border-radius:50%;background:var(--mk2)}
+.mk-split{display:grid;grid-template-columns:1fr 1.5fr;gap:6px;flex:1;min-height:0}
+.mk-split .l{display:flex;flex-direction:column;gap:4px}
+.mk-split .l div{background:var(--surface);border-radius:4px;padding:5px;display:flex;flex-direction:column;gap:3px}
+.mk-split .l div.on{box-shadow:inset 2px 0 0 var(--accent)}
+.mk-split .r{background:var(--surface);border-radius:5px;padding:8px;display:flex;flex-direction:column;gap:5px}
+.mk-split .r u{width:22px;height:22px;border-radius:50%;background:var(--mk2)}
+.mk-split .r .blk{flex:1;background:var(--surface2);border-radius:4px}
+.mk-form{justify-content:center;gap:7px;padding:14px 18px}
+.mk-form .inp{height:20px;border:1px solid var(--mk2);border-radius:5px;background:var(--surface)}
+.mk-btn{align-self:stretch;text-align:center;background:var(--accent);color:var(--surface);font-weight:700;font-size:13.5px;border-radius:6px;padding:7px 8px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mx-wrap{aspect-ratio:16/10;background:var(--surface2);border-radius:8px;display:grid;place-items:center;padding:12px}
+.mx{display:grid;grid-template-columns:repeat(var(--c),1fr);gap:var(--g,3px);width:100%}
+.mx i{aspect-ratio:1;background:var(--mk2);border-radius:2px}
+.mx i.x{background:var(--bad)}
+.mx.big{width:70%}
+.mx.big i{aspect-ratio:2/1;border-radius:5px}
+.pipe{min-height:96px;background:var(--surface2);border-radius:8px;display:flex;flex-wrap:wrap;align-items:center;align-content:center;justify-content:center;gap:6px 0;padding:8px}
+.pipe span{font-size:11.5px;font-weight:600;border:1.5px solid var(--mk2);color:var(--muted);border-radius:6px;padding:5px 6px;white-space:nowrap;background:var(--surface)}
+.pipe .st{display:flex;align-items:center;font-weight:inherit}
+.pipe em{width:18px;height:2px;background:var(--mk2)}
+.pipe span.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.pipe em.on{background:var(--accent)}
+.pipe span.stop{border-style:dashed}
+
+/* one big preview + option switching */
+.pvwrap{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;margin-top:22px;align-items:start}
+.pvframe{display:none;width:100%;border:0;background:#fff;pointer-events:none}
+.pvframe.on{display:block}
+.pvopts{display:flex;flex-direction:column;gap:10px}
+.pvopt{display:grid;grid-template-columns:34px 1fr auto;gap:4px 10px;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;outline:0}
+.pvopt:hover{border-color:var(--mk2)}
+.pvopt.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.pvopt .sw{width:34px;height:34px;border-radius:9px;grid-row:span 2}
+.pvopt b{font-size:15px}
+.pvopt .line{grid-column:2/-1;font-size:12.5px;color:var(--muted)}
+.pvopt .line em{font-style:normal;font-weight:600}
+.pvopt .line em.good{color:var(--good)} .pvopt .line em.bad{color:var(--bad)}
+
+/* pick several */
+.meter{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.meter .top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px}
+.meter .top b{font-size:16px;font-variant-numeric:tabular-nums}
+.meter .bar{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden}
+.meter .bar i{display:block;height:100%;background:var(--accent);transition:width .15s}
+.meter.over .bar i{background:var(--bad)} .meter.over .top b{color:var(--bad)}
+.items{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.item{display:grid;grid-template-columns:22px 1fr 120px 44px;gap:12px;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer;outline:0}
+.item.sel{border-color:var(--accent)}
+/* a recommended item or value laid out ahead of time, not chosen yet */
+.item.draft{border-style:dashed;border-color:var(--accent)}
+.item.draft .box{border-color:var(--accent);color:var(--accent)}
+.draft-note{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:12px;padding:9px 12px;border:1px dashed var(--accent);border-radius:10px;background:var(--accent-soft);font-size:13px}
+.draft-note .ghost{padding:5px 11px;font-weight:600;color:var(--accent);border-color:var(--accent)}
+.now .draft-b{font-size:12px;font-weight:600;color:var(--accent);border:1px dashed var(--accent);border-radius:99px;padding:1px 8px;margin-left:10px;vertical-align:middle;letter-spacing:0}
+.val.draft .now span:first-child{color:var(--muted)}
+.item .box{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--mk2);display:grid;place-items:center;color:#fff;font-size:12px}
+.item.sel .box{background:var(--accent);border-color:var(--accent)}
+.item b{font-size:15px} .item small{display:block;color:var(--muted);font-size:12.5px}
+.item .cost{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.item .cost i{display:block;height:100%;background:var(--mk2)}
+.item.sel .cost i{background:var(--accent)}
+.item .d{font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+
+/* small decision batch */
+.batch-top{display:flex;justify-content:space-between;align-items:center;margin-top:22px}
+.ghost{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;cursor:pointer}
+.ghost:hover{border-color:var(--mk2)}
+.rows{margin-top:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.row{display:grid;grid-template-columns:minmax(0,200px) 1fr;gap:14px;padding:12px 14px;align-items:center}
+.row+.row{border-top:1px solid var(--line)}
+.row .q{font-weight:600;font-size:14.5px}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px}
+.seg button{border:1.5px solid var(--line);background:var(--surface);border-radius:9px;padding:7px 10px;text-align:left;cursor:pointer;line-height:1.3}
+.seg button:hover{border-color:var(--mk2)}
+.seg button.sel{border-color:var(--accent);background:var(--accent-soft)}
+.seg b{font-size:13.5px;display:flex;gap:6px;align-items:center}
+.seg small{color:var(--muted);font-size:12px}
+.seg .r{font-size:10.5px;color:var(--good);font-weight:700}
+
+/* pick a value */
+.val{margin-top:22px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.val .now{font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.val .now small{font-size:15px;font-weight:500;color:var(--muted);margin-left:4px}
+.val input[type=range]{width:100%;margin:12px 0 6px;accent-color:var(--accent)}
+.presets{display:flex;gap:6px;flex-wrap:wrap}
+.presets button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 11px;font-size:13px;cursor:pointer}
+.presets button.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.presets button.draft{border-style:dashed;border-color:var(--accent);color:var(--accent)}
+.outs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
+.out{background:var(--surface2);border-radius:10px;padding:10px 12px}
+.out span{font-size:12px;color:var(--muted);display:block}
+.out b{font-size:17px}
+.out.good b{color:var(--good)} .out.bad b{color:var(--bad)}
+.out .viz{height:6px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}
+.out .viz i{display:block;height:100%;background:currentColor;opacity:.6}
+
+/* review screen */
+.sum{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.sum button{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:14px;width:100%;text-align:left;border:0;background:none;padding:11px 14px;cursor:pointer}
+.sum button+button{border-top:1px solid var(--line)}
+.sum button:hover{background:var(--surface2)}
+.sum .sq{color:var(--muted);font-size:13.5px}
+.sum .sa{font-weight:600}
+.sum .sa.none{color:var(--bad);font-weight:500}
+.sum .sn{display:block;font-weight:400;font-size:12.5px;color:var(--muted)}
+.go{margin-top:16px;display:flex;gap:12px;align-items:center}
+.primary{background:var(--accent);color:var(--surface);border:0;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer}
+.primary:disabled{opacity:.4;cursor:not-allowed}
+.vimg{display:block;width:100%}
+.vframe{display:block;width:100%;border:0;background:#fff;pointer-events:none}
+.err{margin:40px;color:var(--bad)}
+pre{background:var(--surface2);border-radius:10px;padding:12px;font:12px/1.5 ui-monospace,Menlo,monospace;overflow:auto;max-height:260px}
+
+/* bottom bar */
+.bar{position:sticky;bottom:0;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-top:1px solid var(--line)}
+.bar-in{max-width:1080px;margin:0 auto;padding:10px 40px;display:flex;gap:10px;align-items:center}
+.txt{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 11px;outline:0}
+.txt:focus{border-color:var(--accent)}
+.extra{margin-top:22px;display:grid;gap:12px}
+.fld{display:grid;gap:5px}
+.fld span{font-size:13px;font-weight:600}
+/* own answer under the options of a pick question */
+.own{margin-top:12px;border:1.5px dashed var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
+.own.sel{border-style:solid;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.own .txt{margin-top:6px}
+.cant{border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.cant-t{display:flex;justify-content:space-between;width:100%;border:0;background:none;padding:10px 12px;cursor:pointer;font-weight:600;font-size:13px;text-align:left}
+.cant-t i{font-style:normal;color:var(--muted)}
+.cant.open{padding-bottom:12px}
+.cant p{margin:0 12px 8px;font-size:12.5px;color:var(--muted)}
+.reasons{display:grid;grid-template-columns:repeat(var(--n,3),1fr);gap:8px;margin:0 12px}
+.cant .must{margin:0 12px 8px;font-size:12.5px;color:var(--bad)}
+.cant .txt{margin:8px 12px 0;width:calc(100% - 24px)}
+.bar .defer.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.bar-in{position:relative}
+.reason{display:block;width:100%;text-align:left;border:1.5px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 11px;cursor:pointer;line-height:1.35}
+.reason:hover{border-color:var(--mk2)}
+.reason.sel{border-color:var(--accent);background:var(--accent-soft)}
+.reason b{display:block;font-size:14px}
+.reason small{font-size:12.5px;color:var(--muted)}
+.dim-all{opacity:.4}
+.keys{font-size:12px;color:var(--muted);white-space:nowrap}
+.nav .nav-cancel{display:block;width:auto;margin:6px 8px 0;padding:6px 8px;font-size:12.5px;color:var(--muted)}
+.nav .nav-cancel:hover{color:var(--bad);background:var(--bad-soft)}
+.banner{position:sticky;top:0;z-index:5;background:var(--bad-soft);color:var(--bad);border-bottom:1px solid var(--line);padding:8px 16px;font-size:13px;text-align:center}
+
+/* how hard it is to go back: three bars */
+:root{--warn:#8a5d00;--warn-soft:#fbf0d6}
+@media (prefers-color-scheme: dark){:root{--warn:#e3b456;--warn-soft:#3a3020}}
+.undo{display:inline-flex;gap:6px;align-items:center;font-size:11.5px;font-weight:600;padding:2px 9px 2px 7px;border-radius:99px;white-space:nowrap}
+.undo .um{display:inline-flex;gap:2px}
+.undo .um i{width:5px;height:10px;border-radius:2px;background:currentColor;opacity:.22}
+.undo .um i.on{opacity:1}
+.undo.easy{background:var(--good-soft);color:var(--good)}
+.undo.costly{background:var(--warn-soft);color:var(--warn)}
+.undo.none{background:var(--bad-soft);color:var(--bad)}
+.conf{display:inline-block;font-size:10.5px;font-weight:700;border-radius:99px;padding:0 7px;margin-left:5px;vertical-align:1px;white-space:nowrap;line-height:1.6}
+.conf.high{background:var(--good-soft);color:var(--good)}
+.conf.mid{background:var(--warn-soft);color:var(--warn)}
+.conf.low{background:var(--surface2);color:var(--muted);border:1px dashed var(--mk2)}
+
+/* "?" after a word that needs an explanation, and the box that explains it */
+.hq{display:inline-grid;place-items:center;width:16px;height:16px;margin:0 2px 0 3px;padding:0;border-radius:50%;border:1px solid var(--mk2);background:var(--surface);color:var(--muted);font:700 10.5px/1 -apple-system,sans-serif;cursor:help;vertical-align:1px}
+.hq:hover,.hq.on,.hq:focus-visible{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+.hq:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+#tip{position:fixed;z-index:60;width:max-content;max-width:min(300px,calc(100vw - 16px));padding:9px 12px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:13px;line-height:1.5;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+#tip b{display:block;margin-bottom:2px}
+#tip[hidden]{display:none}
+/* glossary and panels above the options */
+.terms{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+.term{font-size:12.5px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:4px 10px;max-width:440px}
+.term b{margin-right:6px}
+.term span{color:var(--muted)}
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:18px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.panel h4{margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:600}
+.panel p{margin:0;font-size:13.5px;line-height:1.5}
+.recnote{margin-top:18px;border:1.5px solid var(--good);background:var(--good-soft);border-radius:12px;padding:10px 14px;font-size:13.5px;line-height:1.5}
+.recnote>b{color:var(--good)}
+.recnote .cond{display:block;margin-top:2px}
+.recnote .why{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.gate{margin-top:14px;border:1.5px dashed var(--mk2);background:var(--surface);border-radius:12px;padding:9px 14px;font-size:13.5px}
+.gate.open{border-style:solid;border-color:var(--good);color:var(--good)}
+.gate.flash{animation:flash .6s}
+@keyframes flash{50%{background:var(--warn-soft)}}
+.tools{display:flex;justify-content:space-between;align-items:center;gap:6px 14px;flex-wrap:wrap;margin-top:18px;font-size:12.5px;color:var(--muted)}
+.seg2{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface);vertical-align:middle;margin-left:6px}
+.seg2 button{border:0;background:none;padding:4px 10px;cursor:pointer;font-size:12.5px}
+.seg2 button+button{border-left:1px solid var(--line)}
+.seg2 button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.linkb{border:0;background:none;color:var(--accent);cursor:pointer;padding:0;font-size:inherit;text-decoration:underline;text-underline-offset:2px}
+.tools+.opts{margin-top:10px}
+
+/* card parts */
+.opt.base{border-style:dashed}
+.opt.locked{cursor:not-allowed}
+.opt.locked .opt-h,.opt.locked .gist{opacity:.6}
+.opt-h{flex-wrap:wrap}
+.opt-h b{flex:1 1 7em;min-width:5em}
+.basetag{font-size:11px;font-weight:700;color:var(--muted);background:var(--surface2);padding:2px 7px;border-radius:99px;white-space:nowrap}
+.gist{font-size:14px;font-weight:700;line-height:1.4;padding:0 0 10px}
+.gist:not(:empty)::before{content:"→ ";color:var(--accent)}
+.gist:empty{padding:0}
+.dim .dk{display:flex;gap:5px;align-items:baseline}
+.dim .dk .n{flex:0 0 auto;width:15px;height:15px;border-radius:50%;background:var(--surface2);font-size:10px;font-weight:700;display:inline-grid;place-items:center}
+.dim.hl .dk .n{background:var(--accent);color:#fff}
+.dim .dk .anc{margin-left:auto;white-space:nowrap;padding-left:6px}
+.dim.unsure .dv{text-decoration:underline dashed;text-underline-offset:3px;text-decoration-thickness:1px}
+.dim.unsure .mark{opacity:.55}
+.dim .why{grid-column:2;font-size:11.5px;color:var(--muted);margin-top:2px}
+.dim .scale{grid-column:2;position:relative;height:6px;border-radius:3px;background:var(--surface2);margin-top:6px}
+.dim .scale i{position:absolute;top:0;bottom:0;left:0;border-radius:3px;background:var(--mk2)}
+.dim.good .scale i{background:var(--good)} .dim.bad .scale i{background:var(--bad)}
+.dim .scale i.rng{opacity:.35}
+.dim .scale u{position:absolute;top:-3px;width:12px;height:12px;border-radius:50%;transform:translateX(-50%);background:var(--surface);border:2.5px solid var(--mk2)}
+.dim.good .scale u{border-color:var(--good)} .dim.bad .scale u{border-color:var(--bad)}
+.give{border-top:1px solid var(--line);padding:9px 0 4px;font-size:13px;line-height:1.45}
+.give:empty{border:0;padding:0}
+.when:empty{border:0;padding:0}
+.callout{border-radius:8px;padding:7px 9px;background:var(--surface2);font-size:13px;line-height:1.45}
+.callout+.callout,.xo .callout{margin-top:6px}
+.callout>b{display:block;font-size:11.5px;color:var(--muted)}
+.callout.flaw{background:var(--warn-soft)} .callout.flaw>b{color:var(--warn)}
+.callout .plus{color:var(--good);font-weight:700} .callout .minus{color:var(--bad);font-weight:700}
+.callout ul{margin:2px 0 0;padding-left:16px}
+.callout .how{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+details.xo{border-top:1px solid var(--line);margin-top:8px;padding-top:8px;font-size:13px;cursor:default}
+details.xo>summary{cursor:pointer;color:var(--accent);font-size:12.5px;font-weight:600}
+details.xo .lens{margin-top:8px}
+details.xo .lens b{display:block;font-size:11.5px;color:var(--accent)}
+details.xo .ex{margin:8px 0 0;color:var(--ink)}
+details.xo h5{margin:10px 0 3px;font-size:11.5px;color:var(--muted)}
+details.xo ul.ev{margin:0;padding-left:16px}
+details.xo p.p{margin:0}
+.src{font-size:10.5px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:4px;background:var(--surface2);color:var(--muted)}
+.src.measured{background:var(--good-soft);color:var(--good)} .src.file{background:var(--accent-soft);color:var(--accent)}
+
+/* numbered notes on a picture, and the part that differs */
+.vwrap{position:relative}
+.vclip{position:absolute;inset:0;overflow:hidden;border-radius:8px;pointer-events:none}
+.focus{position:absolute;border:2px solid var(--accent);border-radius:6px;box-shadow:0 0 0 999px rgb(0 0 0/.16)}
+.pin{position:absolute;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;box-shadow:0 0 0 2px var(--surface);z-index:2;cursor:help}
+.pin::after{content:attr(data-note);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);width:max-content;max-width:180px;background:var(--ink);color:var(--bg);font-size:11.5px;font-weight:500;line-height:1.35;padding:5px 8px;border-radius:6px;opacity:0;pointer-events:none;transition:opacity .12s}
+.pin:hover::after,.pin.hl::after{opacity:1}
+.pin.hl{box-shadow:0 0 0 2px var(--surface),0 0 0 5px var(--accent-soft)}
+
+/* before / after */
+.dside{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.dside .mk-btn,.swipe .mk-btn{font-size:11.5px;padding:6px 4px}
+.dside .mk,.swipe .mk{aspect-ratio:auto}
+.dside .mk-form,.swipe .mk-form{padding:10px;gap:6px}
+.dside small,.swipe .lbl{display:block;font-size:10.5px;color:var(--muted);margin-bottom:3px}
+.swipe .sw-in{position:relative}
+.swipe .aft{position:absolute;top:0;left:0;right:0}
+.swipe .lbl{position:absolute;top:-16px;margin:0;font-weight:700}
+.swipe .lbl.l{left:0} .swipe .lbl.r{right:0}
+.swipe .sw-in{margin-top:16px}
+.swipe .knife{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);z-index:2;pointer-events:none}
+.swr{width:100%;margin:8px 0 0;accent-color:var(--accent)}
+.lines{font:12.5px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface);border-radius:8px;padding:8px 10px;border:1px solid var(--line)}
+.lines div{white-space:pre-wrap;word-break:break-all}
+.lines .m{color:var(--bad);background:var(--bad-soft)} .lines .p{color:var(--good);background:var(--good-soft)}
+
+/* timeline */
+.tl{position:relative;padding:22px 2px 2px}
+.tl-lane{display:grid;grid-template-columns:62px 1fr;gap:6px;align-items:center;margin-bottom:6px}
+.tl-lane>span{font-size:10.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-track{position:relative;height:22px;background:var(--surface);border-radius:5px;border:1px solid var(--line)}
+.tl-it{position:absolute;top:2px;bottom:2px;border-radius:4px;background:var(--mk2);color:var(--ink);font-size:10.5px;line-height:16px;padding:0 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:6px}
+.tl-it.bad{background:var(--bad);color:#fff} .tl-it.good{background:var(--good);color:#fff}
+.tl-ax{display:grid;grid-template-columns:62px 1fr;gap:6px}
+.tl-ax div{position:relative;height:14px}
+.tl-ax em{position:absolute;transform:translateX(-50%);font-size:10px;font-style:normal;color:var(--muted);white-space:nowrap}
+.tl-ax em.first{transform:none} .tl-ax em.last{transform:translateX(-100%)}
+.tl-pnr{position:absolute;top:0;bottom:16px;width:0;border-left:2px solid var(--bad)}
+.tl-pnr span{position:absolute;top:0;left:4px;font-size:10px;font-weight:700;color:var(--bad);white-space:nowrap}
+.tl-pnr.end span{left:auto;right:4px}
+.tl-free{position:absolute;top:2px;left:70px;font-size:10px;font-weight:700;color:var(--good)}
+
+/* impact rings, story panels, odds, blast */
+.svgv svg{display:block;width:100%;height:auto;max-height:260px}
+.svgv text{font:11px -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;fill:var(--muted)}
+.svgv text.ink{fill:var(--ink);font-weight:600}
+.story{display:grid;grid-template-columns:repeat(var(--k,3),minmax(0,1fr));gap:6px}
+.story>div{background:var(--surface2);border-radius:7px;padding:5px;min-width:0}
+.story .mk{padding:5px;gap:3px}
+.story p{margin:4px 1px 0;font-size:11px;line-height:1.35;color:var(--muted)}
+.odds{display:grid;grid-template-columns:repeat(20,1fr);gap:2px}
+.odds i{aspect-ratio:1;border-radius:2px;background:var(--mk)}
+.odds i.x{background:var(--bad)} .odds i.u{background:none;box-shadow:inset 0 0 0 1.5px var(--bad)}
+.odds-cap{font-size:11.5px;color:var(--muted);margin-top:4px}
+.blast{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.blast span{font:600 13.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;padding:6px 9px;border-radius:7px;background:var(--surface2)}
+.blast .add{color:var(--good)} .blast .chg{color:var(--warn)} .blast .del{color:var(--bad);background:var(--bad-soft)}
+.blast-why{font-size:12.5px;color:var(--muted);margin-top:8px}
+
+/* the check that opens under a choice */
+.intent{margin-top:18px;border:2px solid var(--accent);background:var(--surface);border-radius:14px;padding:14px 16px;box-shadow:0 0 0 4px var(--accent-soft);scroll-margin:24px 0 90px}
+.intent .ik{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.02em}
+.intent .im{font-size:16px;line-height:1.5;margin:6px 0 4px;font-weight:600;max-width:72ch}
+.intent .iq{margin:0 0 12px;color:var(--muted)}
+.intent .ib{display:flex;gap:8px;flex-wrap:wrap}
+.intent.ok{border-color:var(--good);box-shadow:none}
+.intent.ok .ik{color:var(--good)}
+.intent .idone{color:var(--good);font-weight:600;font-size:13.5px;display:flex;gap:10px;align-items:center}
+
+/* value: priority, all outcomes at once, chances, assumptions */
+.vals{margin-top:18px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.vals .vq{font-size:13.5px;font-weight:600;margin-bottom:8px}
+.vals .vq small{font-weight:400;color:var(--muted)}
+.vscale{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;font-size:12.5px;color:var(--muted)}
+.vscale .btns{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.vscale .btns button{border:1.5px solid var(--line);background:var(--surface);border-radius:7px;padding:5px 2px;font-size:12px;cursor:pointer}
+.vscale .btns button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+.vmatch{margin-top:8px;font-size:13px}
+.ov{margin-top:16px;display:grid;gap:8px}
+.ovr{display:grid;grid-template-columns:minmax(90px,160px) 1fr;gap:10px;align-items:end}
+.ovr .ok{font-size:12px;color:var(--muted);line-height:1.3}
+.ovb{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;height:46px;align-items:end}
+.ovb span{position:relative;height:100%;display:flex;align-items:flex-end;justify-content:center}
+.ovb span i{display:block;width:60%;max-width:34px;border-radius:3px 3px 0 0;background:var(--mk2);min-height:2px}
+.ovb span.good i{background:var(--good);opacity:.5} .ovb span.bad i{background:var(--bad);opacity:.5}
+.ovb span.on i{opacity:1;box-shadow:0 0 0 2px var(--accent)}
+.ovx{display:grid;grid-template-columns:minmax(90px,160px) 1fr;gap:10px}
+.ovx div{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.ovx em{font-style:normal;font-size:11px;color:var(--muted);text-align:center}
+.ovx em.on{color:var(--accent);font-weight:700}
+.presets em{font-style:normal;font-size:10.5px;font-weight:700;color:var(--accent);margin-left:4px}
+.out small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.out .odds{margin-top:8px}
+.assume{margin-top:12px;font-size:12.5px;color:var(--muted);border-left:3px solid var(--line);padding-left:9px}
+
+/* multi: a small picture per item */
+.items.thumbs .item{grid-template-columns:22px 120px 1fr 120px 44px}
+.item .thumb{min-width:0;overflow:hidden;border-radius:6px}
+.item .thumb .mx{width:100%}
+.item .thumb .mx i{aspect-ratio:auto;height:9px}
+.item .thumb .win-bar{display:none}
+.item .thumb .mk,.item .thumb .mx-wrap,.item .thumb .pipe{aspect-ratio:auto;min-height:0;height:66px;padding:5px}
+
+/* overview: a map of what will be decided, not a place to decide */
+.nav .mapbtn{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;width:100%;text-align:left;border:1px dashed var(--mk2);background:var(--surface2);padding:8px;border-radius:8px;cursor:pointer;margin-bottom:8px}
+.nav .mapbtn.cur{border-style:solid;border-color:var(--ink)}
+.nav .mapbtn .mi{font-size:13px;color:var(--muted);text-align:center}
+.nav .mapbtn .t{font-size:13px;font-weight:600}
+.tag.map{background:var(--ink);color:var(--bg)}
+.mapnote{margin:10px 0 0;padding:12px 14px;border-radius:12px;background:var(--surface2);font-size:14px;line-height:1.55;max-width:76ch}
+.route{list-style:none;margin:22px 0 0;padding:0;position:relative}
+.route::before{content:"";position:absolute;left:15px;top:14px;bottom:14px;border-left:2px dotted var(--mk2)}
+.route li{position:relative;transition:opacity .15s}
+.route li.fade{opacity:.35}
+.route .stop{display:grid;grid-template-columns:32px minmax(0,1fr) auto;gap:12px;align-items:start;width:100%;text-align:left;border:0;background:none;padding:10px 0;cursor:pointer}
+.route .stop:hover .mt b{text-decoration:underline;text-underline-offset:3px}
+.route .no{width:32px;height:32px;border-radius:50%;background:var(--bg);border:2px solid var(--mk2);display:grid;place-items:center;font-weight:700;font-size:13px;position:relative}
+.route li.done .no{background:var(--accent);border-color:var(--accent);color:#fff}
+.route .mt b{display:block;font-size:15px;line-height:1.35}
+.route .mt small{display:block;color:var(--muted);font-size:12.5px}
+.route .mt small.dep{color:var(--warn)}
+.route .mr{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.route .th{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.route .st{font-size:12px;color:var(--muted)}
+.route li.done .st{color:var(--accent)}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:0 8px;font-size:11.5px;color:var(--muted);white-space:nowrap}
+h3.sec{font-size:13px;color:var(--muted);margin:26px 0 0;font-weight:600}
+.themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+.theme{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;cursor:pointer;text-align:left}
+.theme.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.theme b{font-size:14px;display:block} .theme small{font-size:12.5px;color:var(--muted);display:block}
+.theme span{font-size:11.5px;color:var(--accent);font-weight:600}
+
+/* review */
+.sum .srow button{display:inline-block;width:auto;grid-template-columns:none;border-top:0;text-align:center}
+.sum .srow .ghost{border:1px solid var(--line);padding:6px 12px}
+.sum .srow .whyc button{border:1px solid var(--line);padding:2px 9px}
+.sum .srow .whyc button.on{border-color:var(--accent)}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) auto;gap:14px;padding:12px 14px;align-items:start}
+.srow+.srow{border-top:1px solid var(--line)}
+.srow .sq{color:var(--muted);font-size:13.5px;display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.srow .who{display:block;font-size:12px;margin-top:3px}
+.srow .who.me{color:var(--accent)} .srow .who.ai{color:var(--warn)}
+.whyq{margin-top:7px;font-size:12px;color:var(--muted)}
+.whyc{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.whyc button{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:2px 9px;font-size:12px;cursor:pointer}
+.whyc button.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:600}
+
+/* three layers: what it is in plain words, what you need to choose, everything else */
+.lk{display:block;font-size:11.5px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+.plain{margin:10px 0 10px;padding:12px 16px;border-radius:12px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);max-width:76ch}
+.plain .lk{color:var(--accent)}
+.plain p{margin:4px 0 0;font-size:16px;line-height:1.6}
+.lk2{margin-top:24px;padding-top:12px;border-top:1px solid var(--line)}
+.lk2+div>.recnote:first-child,.lk2+div>.tools:first-child,.lk2+div>.gate:first-child,.lk2+div>.vals:first-child,.lk2+div>.meter:first-child,.lk2+div>.pvwrap:first-child,.lk2+div>.batch-top:first-child,.lk2+div>.opts:first-child,.lk2+div>.items:first-child{margin-top:10px}
+.deep3{margin-top:22px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.deep3 details.more{margin:0}
+
+.howto{margin:16px 0 0;font-size:14px;font-weight:600}
+.howto+.tools{margin-top:6px}
+.tools .seg2 button{font-size:12px}
+/* other ways to answer, right under the options: cards too, but grey and dashed so they never read as an option */
+.alts-h{margin-top:22px;font-size:12px;font-weight:700;color:var(--muted)}
+.alts{display:grid;grid-template-columns:repeat(var(--k,2),minmax(0,1fr));gap:14px;margin-top:8px}
+.alt{display:grid;grid-template-columns:32px minmax(0,1fr);gap:10px;align-items:center;text-align:left;border:1.5px dashed var(--mk2);background:var(--surface2);border-radius:14px;padding:12px 14px;cursor:pointer;color:var(--ink)}
+.alt:hover{border-color:var(--ink)}
+.alt .ai{width:32px;height:32px;border-radius:50%;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;font-size:15px;color:var(--muted)}
+.alt b{display:block;font-size:14.5px}
+.alt small{display:block;font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:1px}
+.alt.on{border-style:solid;border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent-soft)}
+.alt.on .ai{background:var(--accent);border-color:var(--accent);color:#fff}
+.altp{margin-top:8px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
+.altp.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.altp p{margin:0 0 8px;font-size:12.5px;color:var(--muted)}
+.altp .must{color:var(--bad)}
+.altp .reasons{margin:0}
+.intent .inote{margin:0 0 12px;max-width:72ch}
+.intent.back{border-color:var(--warn);box-shadow:0 0 0 4px var(--warn-soft)}
+.intent.back .ik{color:var(--warn)}
+
+/* One meaning per colour: green and red only for good and bad (red also for "cannot be undone"); blue for what you chose or can press. Everything else is grey. */
+.undo.easy,.undo.costly{background:var(--surface2);color:var(--ink)}
+.conf.high,.conf.mid,.conf.low{background:none;color:var(--muted);font-weight:600}
+.conf.high{border:1px solid var(--mk2)} .conf.mid{border:1px solid var(--line)} .conf.low{border:1px dashed var(--mk2)}
+.rec{background:var(--surface);color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.seg .r{color:var(--ink)}
+.recnote{border-color:var(--line);background:var(--surface)} .recnote>b{color:var(--ink)}
+.gate.open{border-color:var(--line);color:var(--muted)}
+.callout.flaw{background:var(--surface2)} .callout.flaw>b{color:var(--ink)}
+.blast .add,.blast .chg{color:var(--ink)}
+.plain{border-left-color:var(--ink)} .plain .lk{color:var(--muted)}
+.plain .now{margin:6px 0 0;font-size:13.5px;color:var(--muted);line-height:1.5}
+.plain .facts,.plain .terms{margin-top:8px}
+.intent.ok{border-color:var(--line);box-shadow:none} .intent.ok .ik{color:var(--muted)} .intent .idone{color:var(--ink)}
+.intent.back{border-color:var(--mk2);border-style:dashed;box-shadow:none} .intent.back .ik{color:var(--muted)}
+.intent.light{border:1px solid var(--line);box-shadow:none;padding:10px 14px}
+.intent.light .ik{color:var(--muted)}
+.intent.light .im{font-size:14.5px;margin:2px 0 8px}
+.intent.light .inote{margin:0}
+.srow .who.ai,.srow .who.me{color:var(--muted)}
+.howrow{display:flex;justify-content:space-between;align-items:flex-start;gap:6px 16px;flex-wrap:wrap;margin-top:16px}
+.howrow .howto{margin:0}
+.howto.locked{color:var(--bad)}
+.howto.flash{animation:flash .6s}
+.howrow+.opts{margin-top:10px}
+details.viewset{font-size:12.5px;color:var(--muted);position:relative}
+details.viewset>summary{cursor:pointer;list-style:none;border:1px solid var(--line);border-radius:8px;padding:3px 10px;background:var(--surface)}
+details.viewset>summary::-webkit-details-marker{display:none}
+details.viewset>summary::before{content:"⚙ ";}
+details.viewset[open]>summary{border-color:var(--mk2)}
+.vsb{position:absolute;right:0;top:calc(100% + 6px);z-index:5;width:min(440px,86vw);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;box-shadow:0 8px 24px rgb(0 0 0/.12);display:grid;gap:8px}
+.vsr{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+details.xo .when-x{margin:0 0 6px}
+details.xo .when-x b{font-size:11.5px;color:var(--muted);margin-right:4px}
+.ovr{grid-template-columns:minmax(90px,150px) 1fr minmax(96px,170px)}
+.ovx{grid-template-columns:minmax(90px,150px) 1fr minmax(96px,170px)}
+.ov-v{font-size:14px;font-weight:700;text-align:right;align-self:center}
+.ov-v.good{color:var(--good)} .ov-v.bad{color:var(--bad)}
+details.vout{margin-top:12px}
+
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:12px}
+  .nav .list{display:flex;gap:4px;overflow-x:auto}
+  .nav .list{scrollbar-width:none}
+  .nav .list button{flex:0 0 auto;width:auto;max-width:190px}
+  .nav .list .t{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nav hr{display:none}
+  .stage{padding:22px 16px}
+  .bar-in{padding:10px 16px;flex-wrap:wrap}
+  .keys{display:none}
+  .reasons{grid-template-columns:1fr}
+  .bar .sp{display:none}
+  .bar-in{justify-content:space-between}
+  .opts{grid-template-columns:1fr;row-gap:0}
+  .opt{margin-bottom:14px}
+  .pvwrap{grid-template-columns:1fr}
+  .row{grid-template-columns:1fr}
+  .seg{grid-auto-flow:row}
+  .item{grid-template-columns:22px 1fr 44px}
+  .item .cost{display:none}
+  .outs{grid-template-columns:1fr}
+  h2{font-size:22px}
+  .items.thumbs .item{grid-template-columns:22px 84px 1fr 44px}
+  .srow{grid-template-columns:minmax(0,1fr)}
+  .route .stop{grid-template-columns:32px minmax(0,1fr)}
+  .route .mr{grid-column:2;align-items:flex-start}
+  .route .th{justify-content:flex-start}
+  .vscale{grid-template-columns:1fr}
+  .ovr,.ovx{grid-template-columns:64px 1fr 76px}
+  .vsb{left:0;right:auto}
+  .plain p{font-size:15px}
+  .alts{grid-template-columns:minmax(0,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="nav" id="nav"></nav>
+  <main class="main">
+    <div class="banner" id="banner" role="alert" hidden></div>
+    <div class="stage" id="stage"></div>
+    <div class="bar"><div class="bar-in" id="bar"></div></div>
+  </main>
+</div>
+<div class="sr" id="live" role="status" aria-live="polite"></div>
+
+<script>
+/* Questions come from the server (/api/questions, with the UI strings for the chosen language); answers go to /api/submit.
+   /api/live is held open while the page is open, so the server can tell when the tab is gone. */
+const rep=(n,f)=>Array.from({length:n},(_,i)=>f(i)).join('');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let META={}, D=[], S={}, KEY='vd', cur=0, sent=null, ended=null, panel=null, live=null;
+// Page-only state, not part of the answers: compare mode per question, "all rows" per question, which hard decisions were read through, the theme lit on the overview.
+const VIEW={mode:{},all:{},seen:{},theme:null};
+// Set when a question was opened from the review, so confirming it goes back there.
+let backToReview=false;
+const T=(k,v)=>String((META.strings&&META.strings[k])??k).replace(/\{(\w+)\}/g,(m,n)=>v&&n in v?v[n]:m);
+/* "?" next to a word that needs an explanation. The words come from the question file (terms at the top and in each question)
+   and from the built-in list in the language file (gl.<name>.w: the words, split by "|"; gl.<name>.m: what they mean).
+   One "?" per word in each block of text; nothing inside a button, link or the word list itself. */
+const TIP={el:null,box:null,pin:false};
+function termList(d){
+  const own=[...(META.terms||[]),...((d&&d.terms)||[])].filter(t=>Array.isArray(t)&&t[0]&&t[1]);
+  const built=[], St=META.strings||{};
+  Object.keys(St).forEach(k=>{ const m=k.match(/^gl\.(.+)\.w$/); if(m&&St['gl.'+m[1]+'.m']) St[k].split('|').forEach(w=>w.trim()&&built.push([w.trim(),St['gl.'+m[1]+'.m']])); });
+  const seen=new Set();
+  return [...own,...built].filter(t=>{ const k=String(t[0]).toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; }).sort((a,b)=>String(b[0]).length-String(a[0]).length);
+}
+const reEsc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+function annotate(root,terms){
+  if(!root||!terms.length) return;
+  const re=new RegExp(terms.map(t=>{ const w=String(t[0]); return (/^[A-Za-z0-9]/.test(w)?'(?<![A-Za-z0-9])':'')+reEsc(w)+(/[A-Za-z0-9]$/.test(w)?'(?![A-Za-z0-9])':''); }).join('|'),'gi');
+  const means=new Map(terms.map(t=>[String(t[0]).toLowerCase(),String(t[1])]));
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.nodeValue.trim()&&!n.parentElement.closest('button,a,input,textarea,select,option,summary,script,style,svg,.terms,.hq')?NodeFilter.FILTER_ACCEPT:NodeFilter.FILTER_REJECT});
+  const nodes=[]; while(walker.nextNode()) nodes.push(walker.currentNode);
+  const used=new Map();
+  for(const n of nodes){
+    const text=n.nodeValue, block=n.parentElement.closest('p,li,td,th,h1,h2,h3,h4,h5,dd,dt,div')||root;
+    if(!used.has(block)) used.set(block,new Set());
+    const got=used.get(block); let last=0, frag=null, m; re.lastIndex=0;
+    while((m=re.exec(text))){
+      const key=m[0].toLowerCase(); if(got.has(key)||!means.has(key)) continue; got.add(key);
+      frag=frag||document.createDocumentFragment();
+      const end=m.index+m[0].length;
+      frag.append(text.slice(last,end));
+      const b=document.createElement('button'); b.type='button'; b.className='hq'; b.textContent='?';
+      b.dataset.word=m[0]; b.dataset.tip=means.get(key); b.setAttribute('aria-label',T('tip.aria',{x:m[0]}));
+      frag.append(b); last=end;
+    }
+    if(frag){ frag.append(text.slice(last)); n.replaceWith(frag); }
+  }
+}
+function hideTip(){ TIP.pin=false; if(TIP.box) TIP.box.hidden=true; if(TIP.el){ TIP.el.removeAttribute('aria-describedby'); TIP.el.classList.remove('on'); TIP.el=null; } }
+function showTip(el){
+  if(TIP.el===el) return; hideTip();
+  if(!TIP.box){ const b=document.createElement('div'); b.id='tip'; b.setAttribute('role','tooltip'); document.body.appendChild(b); TIP.box=b; }
+  const b=TIP.box; b.textContent=''; const w=document.createElement('b'); w.textContent=el.dataset.word; const m=document.createElement('span'); m.textContent=el.dataset.tip; b.append(w,m);
+  b.hidden=false;
+  const r=el.getBoundingClientRect(), bw=b.offsetWidth, bh=b.offsetHeight;
+  b.style.left=Math.min(Math.max(8,r.left+r.width/2-bw/2),innerWidth-bw-8)+'px';
+  b.style.top=(r.bottom+8+bh>innerHeight-8?Math.max(8,r.top-bh-8):r.bottom+8)+'px';
+  el.setAttribute('aria-describedby','tip'); el.classList.add('on'); TIP.el=el;
+}
+const annotateStage=()=>{ hideTip(); annotate(document.getElementById('stage'),termList(cur>=0&&cur<D.length?D[cur]:null)); };
+const REASON_KEYS=['info','options','delegate'];
+// Hard to undo: marked noDelegate, or undo level "none". Claude cannot decide these, and the options open only after the comparison was read.
+const undoOf=u=>!u?null:typeof u==='string'?{level:u}:u;
+const hard=d=>!!d.noDelegate||undoOf(d.undo)?.level==='none';
+const reasonsFor=d=>hard(d)?REASON_KEYS.filter(k=>k!=='delegate'):REASON_KEYS;
+const reasonTitle=k=>T('reason.'+k+'.title'), reasonDesc=k=>T('reason.'+k+'.desc');
+const locked=()=>!!(sent||ended);
+const hasMap=()=>D.length>=3;
+const first=()=>hasMap()?-1:0;
+function announce(msg){ const el=document.getElementById('live'); el.textContent=''; setTimeout(()=>{ el.textContent=msg; },30); }
+
+const UNDO_N={easy:1,costly:2,none:3};
+const undoBadge=u=>{ u=undoOf(u); if(!u||!UNDO_N[u.level]) return ''; return `<span class="undo ${u.level}"><span class="um" aria-hidden="true">${rep(3,i=>`<i class="${i<UNDO_N[u.level]?'on':''}"></i>`)}</span>${esc(T('undo.'+u.level))}</span>`; };
+const confTag=c=>['high','mid','low'].includes(c)?`<span class="conf ${c}">${esc(T('conf.'+c))}</span>`:'';
+const callout=(cls,title,html)=>`<div class="callout ${cls}"><b>${esc(title)}</b>${html}</div>`;
+
+const win=h=>`<div class="win"><div class="win-bar" aria-hidden="true"><i></i><i></i><i></i><span>${T('win.preview')}</span></div>${h}</div>`;
+const mkTop='<div class="mk-top"><i></i><i></i></div>';
+const SCREENS={
+  table:`<div class="mk">${mkTop}<div class="mk-tr h"><i></i><i></i><i></i><i></i></div>${rep(6,()=>'<div class="mk-tr"><i></i><i></i><i></i><i></i></div>')}</div>`,
+  cards:`<div class="mk">${mkTop}<div class="mk-cards">${rep(6,()=>'<div class="mk-card"><u></u><i></i><i class="s"></i></div>')}</div></div>`,
+  split:`<div class="mk">${mkTop}<div class="mk-split"><div class="l">${rep(4,i=>`<div class="${i==0?'on':''}"><i></i><i class="s"></i></div>`)}</div><div class="r"><u></u><i></i><i class="s"></i><div class="blk"></div></div></div></div>`,
+};
+const pct=(x,max)=>Math.max(0,Math.min(100,(+x||0)/max*100));
+// The picture attached to an option (or a panel). Screens go in a window frame; diagrams do not.
+function visual(v,d){
+  if(!v||typeof v!=='object') return '';
+  const framed=h=>v.screen===false?h:win(h);
+  if(v.type==='screen') return win(SCREENS[v.layout]||SCREENS.table);
+  if(v.type==='button') return win(`<div class="mk mk-form"><i style="width:40%;background:var(--mk2)"></i><div class="inp"></div><div class="inp"></div><span class="mk-btn">${esc(v.text)}</span></div>`);
+  if(v.type==='grid') return `<div class="mx-wrap"><div class="mx ${v.big?'big':''}" style="--c:${+v.cols};${v.cols>20?'--g:1.5px':''}">${rep(v.cols*(v.rows||1),i=>`<i class="${(v.mark||[]).includes(i)?'x':''}"></i>`)}</div></div>`;
+  // Each step keeps its incoming line, so a wrapped flow never leaves a line dangling at the end of a row.
+  if(v.type==='steps') return `<div class="pipe">${v.steps.map((x,i)=>`<b class="st">${i?`<em class="${i<=v.reach?'on':''}"></em>`:''}<span class="${i<=v.reach?'on':'stop'}">${esc(x)}</span></b>`).join('')}</div>`;
+  if(v.type==='image') return framed(`<img class="vimg" src="/file?path=${encodeURIComponent(v.src)}" alt="">`);
+  // allow-same-origin only lets this page measure the drawing (fitFrame); scripts inside still never run.
+  if(v.type==='html') return framed(`<iframe class="vframe" sandbox="allow-same-origin" srcdoc="${esc(v.html)}" data-min="${+v.height||0}" style="height:${+v.height||180}px" tabindex="-1" aria-hidden="true"></iframe>`);
+  if(v.type==='diff') return diffVisual(v,d);
+  if(v.type==='timeline') return timeline(v);
+  if(v.type==='impact') return `<div class="svgv">${impact(v)}</div>`;
+  if(v.type==='story'){ const ps=v.panels||[]; return `<div class="story" style="--k:${Math.min(4,ps.length)||1}">${ps.map(p=>`<div>${visual(p.visual,d)}<p>${esc(p.caption)}</p></div>`).join('')}</div>`; }
+  if(v.type==='odds') return odds(v);
+  if(v.type==='blast') return `<div class="blast"><span class="add">+${+v.add||0} ${esc(T('blast.add'))}</span><span class="chg">~${+v.change||0} ${esc(T('blast.change'))}</span><span class="${+v.del?'del':''}">−${+v.del||0} ${esc(T('blast.del'))}</span></div>${v.why?`<div class="blast-why">${esc(v.why)}</div>`:''}`;
+  return '';
+}
+// Numbered notes on a picture point at the comparison rows with the same number; focus dims everything but the part that differs.
+function visualWrap(v,d){
+  if(!v) return '';
+  const h=visual(v,d);
+  if(!(v.notes&&v.notes.length)&&!v.focus) return h;
+  const f=Array.isArray(v.focus)?`<span class="vclip"><span class="focus" style="left:${+v.focus[0]}%;top:${+v.focus[1]}%;width:${+v.focus[2]}%;height:${+v.focus[3]}%"></span></span>`:'';
+  const pins=(v.notes||[]).map(n=>`<span class="pin" ${n.dim!=null?`data-dim="${+n.dim}"`:''} data-note="${esc(n.text)}" style="left:${+n.at[0]}%;top:${+n.at[1]}%" title="${esc(n.text)}">${n.dim!=null?+n.dim+1:'•'}</span>`).join('');
+  return `<div class="vwrap">${h}${f}${pins}</div>`;
+}
+// The words before and after: given as text, or read off two buttons. A text diff is offered only when text is given (for settings or code);
+// for a button, the card's own name already says the new words.
+const diffText=v=>Array.isArray(v.text)?v.text:(v.before?.type==='button'&&v.after?.type==='button'?[v.before.text,v.after.text]:null);
+function diffVisual(v,d){
+  if(!v.after) return `${visual(v.before,d)}<div class="cap">${esc(T('diff.none'))}</div>`;
+  const m=VIEW.mode[d?.id]||'after', tx=diffText(v);
+  // By default a card shows only what it would look like, so it is clear what is being chosen; today's version is named under it.
+  if(m==='after') return `${visual(v.after,d)}${tx?`<div class="cap">${esc(T('diff.nowWas',{x:tx[0]}))}</div>`:''}`;
+  if(m==='text'&&Array.isArray(v.text)) return `<div class="lines"><div class="m">- ${esc(tx[0])}</div><div class="p">+ ${esc(tx[1])}</div><div>  ${String(tx[0]).length} → ${String(tx[1]).length}</div></div>`;
+  if(m==='swipe') return `<div class="swipe"><div class="sw-in"><span class="lbl l">${esc(T('diff.before'))}</span><span class="lbl r">${esc(T('diff.new'))}</span><div>${visual(v.before,d)}</div><div class="aft" style="clip-path:inset(0 0 0 50%)">${visual(v.after,d)}</div><i class="knife" style="left:50%"></i></div><input class="swr" type="range" min="0" max="100" value="50" aria-label="${esc(T('diff.swipe'))}"></div>`;
+  return `<div class="dside"><div><small>${esc(T('diff.before'))}</small>${visual(v.before,d)}</div><div><small>${esc(T('diff.new'))}</small>${visual(v.after,d)}</div></div>`;
+}
+function timeline(t){
+  const max=+t.max||1, P=x=>pct(x,max);
+  const lanes=(t.lanes||[]).map(l=>`<div class="tl-lane"><span title="${esc(l.name)}">${esc(l.name)}</span><div class="tl-track">${(l.items||[]).map(it=>`<div class="tl-it ${it.t||''}" style="left:${P(it.from)}%;width:${Math.max(2,P(it.to)-P(it.from))}%" title="${esc(it.label)}">${esc(it.label)}</div>`).join('')}</div></div>`).join('');
+  const ticks=t.ticks||[[0,'0'],[max,String(max)]];
+  const ax=`<div class="tl-ax"><span></span><div>${ticks.map((k,i)=>`<em class="${i===0?'first':i===ticks.length-1?'last':''}" style="left:${P(k[0])}%">${esc(k[1])}</em>`).join('')}</div></div>`;
+  const p=t.pnr!=null?`<div class="tl-pnr ${P(t.pnr)>60?'end':''}" style="left:calc(70px + (100% - 74px) * ${P(t.pnr)/100})"><span>${esc(t.pnrLabel||T('tl.pnr'))}</span></div>`:`<span class="tl-free">${esc(T('tl.free'))}</span>`;
+  return `<div class="tl">${p}${lanes}${ax}</div>`;
+}
+function impact(m){
+  const cx=150,cy=100, R=[62,108,150], rings=(m.rings||[]).slice(0,3);
+  const col=t=>t==='bad'?'var(--bad)':t==='unsure'?'var(--warn)':'var(--mk2)';
+  const nodes=rings.map((ring,k)=>ring.map((n,i)=>{ const a=-Math.PI/2+(i+.5+k*.35)*2*Math.PI/ring.length; const x=cx+R[k]*Math.cos(a), y=cy+R[k]*.72*Math.sin(a);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" style="fill:${col(n.t)}${n.t==='unsure'?';fill-opacity:.25;stroke:var(--warn);stroke-dasharray:2 2':''}"/><text x="${x.toFixed(1)}" y="${(y-9).toFixed(1)}" text-anchor="middle" class="${n.t==='bad'?'ink':''}">${esc(n.l)}</text>`; }).join('')).join('');
+  return `<svg viewBox="0 0 300 ${m.legend?218:200}" role="img" aria-label="${esc(m.center)}">${rings.map((r,k)=>`<ellipse cx="${cx}" cy="${cy}" rx="${R[k]}" ry="${R[k]*.72}" style="fill:none;stroke:var(--line);${k?'stroke-dasharray:3 3':''}"/>`).join('')}
+    <circle cx="${cx}" cy="${cy}" r="24" style="fill:var(--bad-soft);stroke:var(--bad)"/><text x="${cx}" y="${cy+4}" text-anchor="middle" class="ink">${esc(m.center)}</text>${nodes}
+    ${m.legend?`<text x="4" y="212">${esc(m.legend)}</text>`:''}</svg>`;
+}
+function odds(v){
+  const of=Math.min(+v.of||100,200), hit=+v.hit||0, lo=v.lo!=null?+v.lo:hit, hi=v.hi!=null?+v.hi:hit;
+  return `<div class="odds" aria-label="${esc(T('odds.cap',{hit,of}))}">${rep(of,i=>`<i class="${i<lo?'x':i<hi?'u':''}"></i>`)}</div><div class="odds-cap">${esc(T('odds.cap',{hit,of}))}${hi>lo?' · '+esc(T('odds.range',{lo,hi})):''}</div>`;
+}
+// The preview of a "preview" decision runs in its own sandboxed frame (no scripts, no access to this page), one frame per option.
+const PV_CSS=`*{box-sizing:border-box}html,body{margin:0;background:#fff;color:#1c1b18;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif}
+.pv{padding:26px 26px 20px}.pv-badge{display:inline-block;font-size:11.5px;font-weight:700;color:var(--pv);border:1.5px solid var(--pv);border-radius:99px;padding:1px 8px}
+.pv h3{font-size:22px;line-height:1.3;margin:10px 0 6px}.pv p{margin:0 0 14px;color:#5d5a52;font-size:14px}.pv a{color:var(--pv);text-decoration:underline}
+.pv-btn{display:inline-block;background:var(--pv);color:#fff;font-weight:700;border-radius:8px;padding:9px 16px;font-size:14px}
+.pv-chart{display:flex;align-items:flex-end;gap:6px;height:64px;margin-top:20px;border-top:1px solid #eceae4;padding-top:12px}
+.pv-chart i{flex:1;background:var(--pv);border-radius:3px 3px 0 0;opacity:.85}.pv-chart i:nth-child(odd){opacity:.35}`;
+const builtinPreview=()=>`<span class="pv-badge">${esc(T('pv.badge'))}</span><h3>${esc(T('pv.title'))}</h3><p>${esc(T('pv.body'))}<a>${esc(T('pv.link'))}</a></p><span class="pv-btn">${esc(T('pv.button'))}</span><div class="pv-chart">${[40,62,35,80,55,92,70,48].map(h=>`<i style="height:${h}%"></i>`).join('')}</div>`;
+const vars=o=>Object.entries(o.vars||{'--pv':o.color||'#3b4bd8'});
+const pvDoc=(d,o)=>`<!doctype html><meta charset="utf-8"><style>${PV_CSS}:root{${vars(o).map(v=>v.join(':')).join(';')}}</style><div class="pv">${(d.preview&&d.preview.html)||builtinPreview()}</div>`;
+
+// Saved answers carry the hash of the question file they belong to, so answers for another version never come back.
+const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify({hash:META.hash,S})); }catch(e){} };
+const A=id=>S[id]||(S[id]={});
+const recOf=list=>list.find(o=>o.rec)||list[0];
+const recItems=d=>d.items.filter(i=>i.rec).map(i=>i.id);
+// multi and value questions show the recommendation ahead of time. Until the person acts on it, it is a draft, not an answer.
+function isDraft(d){ const a=S[d.id]||{}; if(a.defer) return false;
+  if(d.type==='multi') return !a.choices;
+  if(d.type==='value') return a.choice==null;
+  return false; }
+const multiSel=d=>{ const a=S[d.id]; return a&&a.choices?a.choices:recItems(d); };
+const stopIdx=d=>{ const a=S[d.id]; const i=a&&a.choice!=null?d.stops.findIndex(s=>s.v===a.choice):-1; return i>=0?i:d.stops.indexOf(recOf(d.stops)); };
+function commitDraft(d){ if(!d||!isDraft(d)) return false; const a=A(d.id);
+  if(d.type==='multi') a.choices=recItems(d);
+  if(d.type==='value') a.choice=d.stops[stopIdx(d)].v;
+  delete a.ok; save(); return true; }
+
+// Whether there is an answer on the page (picked, typed, or all items chosen), confirmed or not.
+function answered(d,a){ if(!a) return false;
+  if(d.type==='batch') return !!a.choices&&d.items.every(i=>a.choices[i.id]);
+  if(d.type==='multi') return Array.isArray(a.choices);
+  if(d.type==='pick'&&a.own) return true;
+  return a.choice!=null; }
+// An answer counts once the person said it is what they meant (the check under the options). Sent-back questions need no check.
+// The full check (answer it before moving on) is for decisions that take work to undo or cannot be undone.
+// On easy ones the same sentence shows in one line under the choice, and "Next" settles it, so the check is not clicked through out of habit.
+const weighty=(d,a)=>{ if(hard(d)) return true; const lv=chosenUndo(d,a)?.level; return lv==='costly'||lv==='none'; };
+function isDone(d){ const a=S[d.id]; if(!a) return false; const has=!!a.defer||answered(d,a); return has&&(!!a.ok||!weighty(d,a)); }
+const pending=d=>{ const a=S[d?.id]; return !!d&&!!a&&!a.ok&&(!!a.defer||answered(d,a))&&weighty(d,a); };
+function answerText(d){ const a=S[d.id]; if(!a) return ''; if(a.defer) return T('ans.sentBack',{reason:reasonTitle(a.defer)});
+  if(d.type==='pick'&&a.own) return T('ans.own',{x:a.own});
+  if(d.type==='pick'||d.type==='preview'){ const o=d.options.find(o=>o.key===a.choice); return o?o.label:''; }
+  if(d.type==='multi') return a.choices? d.items.filter(i=>a.choices.includes(i.id)).map(i=>i.label).join(', ')||T('ans.nothing') : '';
+  if(d.type==='batch') return answered(d,a)? d.items.map(i=>i.options.find(o=>o.key===a.choices[i.id])?.label??'').join(' · ') : (a.choices?T('ans.chosen',{n:Object.keys(a.choices).length,m:d.items.length}):'');
+  if(d.type==='value') return a.choice!=null? a.choice+(d.unit||'') : '';
+  return ''; }
+// What the current answer will do, in one plain sentence: the option's own "means", or one put together from what it says.
+function meansOf(d,a){
+  if(!a) return '';
+  if(d.type==='pick'&&a.own) return T('means.own',{x:a.own});
+  if(d.type==='pick'||d.type==='preview'){ const o=d.options.find(o=>o.key===a.choice); if(!o) return '';
+    if(o.means) return o.means;
+    if(o.after&&o.after.length) return T('means.after',{x:o.label,y:o.after.join(', ')});
+    return T('means.plain',{x:o.label})+(o.desc?' '+o.desc:''); }
+  if(d.type==='value'){ const s=d.stops[stopIdx(d)]; if(s.means) return s.means;
+    const outs=(s.outs||[]).map(o=>`${o.k} ${o.v}`).join(', ');
+    const x=`${s.v}${d.unit||''}`.trim();
+    return outs?T('means.value',{x,y:outs}):T('means.plain',{x}); }
+  if(d.type==='multi'){ const c=a.choices||[]; const inn=d.items.filter(i=>c.includes(i.id)).map(i=>i.label), out=d.items.filter(i=>!c.includes(i.id)).map(i=>i.label);
+    if(!inn.length) return T('means.multiNone'); if(!out.length) return T('means.multiAll',{x:inn.join(', ')});
+    return T('means.multi',{x:inn.join(', '),y:out.join(', ')}); }
+  if(d.type==='batch') return d.items.map(i=>{ const o=i.options.find(o=>o.key===(a.choices||{})[i.id]); return o?`${i.q}: ${o.label}${o.sub?' ('+o.sub+')':''}`:''; }).filter(Boolean).join(' · ');
+  return ''; }
+const doneCount=()=>D.filter(isDone).length;
+function contrast(hex){ if(!/^#[0-9a-f]{6}$/i.test(hex||'')) return null; const c=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:((v+.055)/1.055)**2.4); return 1.05/(.2126*c[0]+.7152*c[1]+.0722*c[2]+.05); }
+const recLabel=d=>{ if(d.type==='pick'||d.type==='preview') return d.options.find(o=>o.rec)?.label;
+  if(d.type==='value'){ const s=d.stops.find(s=>s.rec); return s?`${s.v}${d.unit||''}`.trim():null; }
+  if(d.type==='multi') return d.items.filter(i=>i.rec).map(i=>i.label).join(', ')||null;
+  return null; };
+const chosenUndo=(d,a)=>{ if(d.type==='pick'&&a&&a.choice!=null) return undoOf(d.options.find(o=>o.key===a.choice)?.undo)||undoOf(d.undo); return undoOf(d.undo)||(hard(d)?{level:'none'}:null); };
+
+function renderNav(){
+  const n=doneCount();
+  document.getElementById('nav').innerHTML=`<h1>${esc(META.title||T('nav.title'))} · ${D.length}</h1>
+    <div class="prog">${T('nav.progress',{n,m:D.length})}<div class="track" aria-hidden="true"><i style="width:${n/D.length*100}%"></i></div></div>
+    ${hasMap()?`<button data-go="-1" class="mapbtn ${cur===-1?'cur':''}" ${cur===-1?'aria-current="step"':''}><span class="mi" aria-hidden="true">▤</span><span><span class="t">${T('map.nav')}</span><span class="a">${T('map.navSub')}</span></span></button>`:''}
+    <div class="list">${D.map((d,i)=>{ const a=S[d.id]||{}; const done=isDone(d); const cls=a.defer?'defer':done?'done':'';
+      const sub=answerText(d)||(isDraft(d)?T('nav.draft'):'')||d.tag||'';
+      return `<button data-go="${i}" class="${cls} ${i===cur?'cur':''}" ${i===cur?'aria-current="step"':''}><span class="dot" aria-hidden="true">${a.defer?'↩':done?'✓':''}</span><span><span class="t">${esc(d.short||d.q)}</span><span class="a">${esc(sub)}</span>${done?'':`<span class="sr">, ${T('sr.open')}</span>`}</span></button>`; }).join('')}
+    <hr><button data-go="${D.length}" class="${cur===D.length?'cur':''}" ${cur===D.length?'aria-current="step"':''}><span class="dot" style="border-style:dashed" aria-hidden="true"></span><span><span class="t">${T('nav.review')}</span><span class="a">${n===D.length?T('nav.all'):T('nav.left',{n:D.length-n})}</span></span></button></div>
+    ${locked()?'':`<button class="nav-cancel" data-cancel>${T('nav.cancel')}</button>`}`;
+  // On a phone the list scrolls sideways and is redrawn on every change: keep where it was, and bring the current question into view.
+  const l=document.querySelector('#nav .list'), c=l.querySelector('.cur');
+  l.scrollLeft=navScroll;
+  if(c&&l.scrollWidth>l.clientWidth){ const x=c.getBoundingClientRect().left-l.getBoundingClientRect().left+l.scrollLeft; if(x<l.scrollLeft||x+c.offsetWidth>l.scrollLeft+l.clientWidth) l.scrollLeft=x-16; }
+  navScroll=l.scrollLeft;
+}
+let navScroll=0;
+document.addEventListener('scroll',e=>{ if(e.target.classList&&e.target.classList.contains('list')) navScroll=e.target.scrollLeft; },true);
+const panelsOf=d=>d.panels?`<div class="panels">${d.panels.map(p=>`<div class="panel"><h4>${esc(p.title)}</h4>${p.visual?visual(p.visual,d):''}${p.text?`<p>${esc(p.text)}</p>`:''}</div>`).join('')}</div>`:'';
+function head(d){
+  return `<div class="kicker">${d.tag?`<span class="tag">${esc(d.tag)}</span>`:''}${hard(d)?`<span class="tag hard">${T('head.noDelegate')}</span>`:''}${undoBadge(d.undo)}<span>${cur+1} / ${D.length}</span></div>
+  <h2 id="qh" tabindex="-1">${esc(d.q)}</h2>
+  ${d.plain||d.ctx||d.facts||d.terms?`<div class="plain">${d.plain||d.ctx?`<span class="lk">${esc(T('layer.1'))}</span><p>${esc(d.plain||d.ctx)}</p>`:''}${d.plain&&d.ctx?`<p class="now">${esc(d.ctx)}</p>`:''}
+    ${d.facts?`<div class="facts">${d.facts.map(f=>`<span>${esc(f[0])} <b>${esc(f[1])}</b></span>`).join('')}</div>`:''}
+    ${d.terms?`<div class="terms">${d.terms.map(t=>`<span class="term"><b>${esc(t[0])}</b><span>${esc(t[1])}</span></span>`).join('')}</div>`:''}</div>`:''}
+  ${d.more?`<details class="more"><summary>${esc(T('layer.3'))} · ${T('head.more')}</summary><p>${esc(d.more)}</p></details>`:''}`;
+}
+const mark=t=>t==='good'?'＋':t==='bad'?'－':'·';
+const recBadge=()=>`<span class="rec">${T('pick.rec')}</span>`;
+function recNote(d){ const n=d.recNote; const x=recLabel(d); if(!n||!x) return '';
+  return `<div class="recnote"><b>${esc(T('rec.box',{x}))}</b>${confTag(n.conf)}${n.if?`<span class="cond">${esc(T('rec.if',{x:n.if}))}</span>`:''}${n.why?`<span class="why">${esc(n.why)}</span>`:''}</div>`; }
+// Only the chosen radio (or the first one) is in the tab order; arrow keys move within the group.
+const tabFor=(key,list,chosen)=>key===(chosen!=null&&list.some(o=>o.key===chosen)?chosen:list[0].key)?0:-1;
+const stopsHtml=(d,i,draft,mine)=>d.stops.filter(s=>s.label).map(s=>{ const j=d.stops.indexOf(s), on=i===j; return `<button class="${on?(draft?'draft':'sel'):''}" aria-pressed="${on&&!draft}" data-stop="${j}">${esc(s.label)} ${esc(s.v)}${j===mine?`<em>${esc(T('values.mine'))}</em>`:''}</button>`; }).join('');
+const outsHtml=(d,i)=>(d.stops[i].outs||[]).map(o=>`<div class="out ${o.t||''}"><span>${esc(o.k)}</span><b>${esc(o.v)}</b>${confTag(o.conf)}${o.why?`<small>${esc(o.why)}</small>`:''}${o.odds?odds(o.odds):o.p!=null?`<div class="viz" aria-hidden="true"><i style="width:${o.p}%"></i></div>`:''}</div>`).join('');
+const valueText=(d,i)=>`${d.stops[i].v}${d.unit||''}${d.stops[i].label?' · '+d.stops[i].label:''}`.trim();
+// A pick question takes a typed answer of the person's own unless it says "ownAnswer": false.
+const ownOk=d=>d.type==='pick'&&d.ownAnswer!==false;
+const draftNote=(kind)=>`<div class="draft-note" id="draftnote"><span>${T('draft.'+kind)}</span><button class="ghost" data-confirm>${T('draft.confirm')}</button></div>`;
+
+// Rows: plain names ("Effort") or { q, short, now, max }. Cells: [value, mark] or { v, t, n, lo, hi, conf, why }.
+const dimOf=k=>typeof k==='string'?{q:k}:{...k,q:k.q||''};
+const cellOf=c=>Array.isArray(c)?{v:c[0]??'',t:c[1]||''}:(c&&typeof c==='object'?{...c,v:c.v??'',t:c.t||''}:{v:'',t:''});
+const RANK={good:2,'':1,bad:0};
+function dimInfo(d){
+  const dims=(d.dims||[]).map(dimOf), cells=d.options.map(o=>dims.map((x,j)=>cellOf((o.d||[])[j])));
+  const same=dims.map((x,j)=>d.options.length>1&&cells.every(c=>String(c[j].v)===String(cells[0][j].v)));
+  let vis=dims.map((x,j)=>j).filter(j=>VIEW.all[d.id]||!same[j]);
+  if(!vis.length) vis=dims.map((x,j)=>j);
+  const max=dims.map((x,j)=>+x.max||Math.max(0,...cells.map(c=>+(c[j].hi??c[j].n)||0)));
+  return {dims,cells,same,vis,max};
+}
+function dimRow(info,i,j,numbered){
+  const c=info.cells[i][j], x=info.dims[j], max=info.max[j];
+  let sc='';
+  if(c.n!=null&&max>0) sc=c.lo!=null&&c.hi!=null?`<span class="scale" aria-hidden="true"><i class="rng" style="left:${pct(c.lo,max)}%;width:${Math.max(2,pct(c.hi,max)-pct(c.lo,max))}%"></i><u style="left:${pct(c.n,max)}%"></u></span>`:`<span class="scale" aria-hidden="true"><i style="width:${Math.max(1.5,pct(c.n,max))}%"></i></span>`;
+  return `<div class="dim ${c.t} ${c.conf==='low'?'unsure':''}" data-dim="${j}"><span class="dk">${numbered?`<span class="n" aria-hidden="true">${j+1}</span>`:''}<span>${esc(x.q)}</span>${x.now?`<span class="anc">${esc(x.now)}</span>`:''}</span><span class="mark" aria-hidden="true">${mark(c.t)}</span><span class="dv">${esc(c.v)}${confTag(c.conf)}</span>${c.why?`<span class="why">${esc(c.why)}</span>`:''}${sc}</div>`;
+}
+// What a non-recommended option gains and loses against the recommended one, row by row.
+function delta(d,info,i){
+  const r=d.options.findIndex(o=>o.rec); if(r<0||r===i||d.options[i].baseline) return '';
+  const gain=[],lose=[];
+  info.dims.forEach((x,j)=>{ const a=RANK[info.cells[i][j].t], b=RANK[info.cells[r][j].t]; const name=x.short||x.q;
+    if(a>b) gain.push(`${name}: ${info.cells[i][j].v}`); if(a<b) lose.push(`${name}: ${info.cells[r][j].v}`); });
+  if(!gain.length&&!lose.length) return '';
+  return callout('',T('card.vsRec',{x:d.options[r].label}),`${gain.length?`<span class="plus">${esc(T('card.gain'))}</span> ${esc(gain.join(' · '))}`:''}${gain.length&&lose.length?'<br>':''}${lose.length?`<span class="minus">${esc(T('card.lose'))}</span> ${esc(lose.join(' · '))}`:''}`);
+}
+const SRC=['measured','file','estimate'];
+function moreOf(d,info,i){
+  const o=d.options[i], m=[], u=undoOf(o.undo);
+  if(o.gist&&o.when) m.push(`<p class="ex when-x"><b>${esc(T('card.when'))}</b> ${esc(o.when)}</p>`);
+  if(o.rec&&o.flaw) m.push(callout('flaw',T('card.flaw'),esc(o.flaw)));
+  m.push(delta(d,info,i));
+  if((o.after&&o.after.length)||u?.how) m.push(callout('',T('card.after'),`${o.after&&o.after.length?`<ul>${o.after.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}${u?.how?`<span class="how">${esc(T('card.how',{x:u.how}))}</span>`:''}`));
+  if(o.lens) m.push(`<div class="lens"><b>${esc(T('card.lens'))}${d.lens?' · '+esc(d.lens):''}</b>${esc(o.lens)}</div>`);
+  if(o.example) m.push(`<p class="ex">${esc(T('card.example'))} ${esc(o.example)}</p>`);
+  const t=o.detail;
+  if(t){ if(t.evidence&&t.evidence.length) m.push(`<h5>${esc(T('card.evidence'))}</h5><ul class="ev">${t.evidence.map(e=>{ const k=SRC.includes(e[0])?e[0]:'estimate'; return `<li><span class="src ${k}">${esc(T('src.'+k))}</span>${esc(e[1])}</li>`; }).join('')}</ul>`);
+    if(t.prereq) m.push(`<h5>${esc(T('card.prereq'))}</h5><p class="p">${esc(t.prereq)}</p>`);
+    if(t.confusion) m.push(`<h5>${esc(T('card.confusion'))}</h5><p class="p">${esc(t.confusion)}</p>`);
+    if(t.visual) m.push(`<div style="margin-top:8px">${visual(t.visual,d)}</div>`); }
+  return m.filter(Boolean).join('');
+}
+// Hard-to-undo decisions open their options only after the comparison has been on screen.
+const gateLocked=(d,a)=>hard(d)&&(d.type==='pick'||d.type==='preview')&&!VIEW.seen[d.id]&&!answered(d,a);
+function gate(d,a){ if(!hard(d)||!(d.type==='pick'||d.type==='preview')) return '';
+  return gateLocked(d,a)?`<div class="gate" id="gate" role="status">${T('gate.locked')}</div>`:`<div class="gate open" id="gate">${T('gate.open')}</div>`; }
+// One line above the cards says how to answer (or, on a hard-to-undo decision, that the options open after reading).
+// Ways of looking at the cards, which never change the answer, are folded into a small "view settings".
+function howRow(d,info,a){
+  const lockNow=gateLocked(d,a), n=d.options.length;
+  const msg=hard(d)?T(lockNow?'gate.locked':'gate.open2',{n}):T('pick.howto',{n});
+  return `<div class="howrow"><p class="howto ${lockNow?'locked':''}" id="gate" role="status">${esc(msg)}</p>${viewSet(d,info)}</div>`;
+}
+function viewSet(d,info){
+  const sameN=info.same.filter(Boolean).length;
+  const diffs=d.options.some(o=>o.visual?.type==='diff'), canText=d.options.some(o=>o.visual?.type==='diff'&&Array.isArray(o.visual.text)), m=VIEW.mode[d.id]||'after';
+  const numbered=d.options.some(o=>o.visual?.notes?.length);
+  const hasMore=d.options.some(o=>(o.gist&&o.when)||(o.rec&&o.flaw)||(o.after&&o.after.length)||o.lens||o.example||o.detail||undoOf(o.undo)?.how||(!o.rec&&d.options.some(x=>x.rec)&&(d.dims||[]).length));
+  const rows=[
+    diffs?`<div class="vsr"><span>${esc(T('diff.mode'))}</span><span class="seg2">${['after','side','swipe',...(canText?['text']:[])].map(k=>`<button data-mode="${k}" class="${m===k?'on':''}" aria-pressed="${m===k}">${esc(T('diff.'+k))}</button>`).join('')}</span></div>`:'',
+    sameN?`<div class="vsr"><span>${esc(T('rows.hidden',{n:sameN}))}</span><button class="linkb" data-allrows>${esc(T(VIEW.all[d.id]?'rows.diff':'rows.all'))}</button></div>`:'',
+    hasMore?`<div class="vsr"><span>${esc(T('view.cards'))}</span><button class="linkb" data-openall>${esc(T('layer.openAll'))}</button></div>`:'',
+    numbered?`<div class="vsr"><span>${esc(T('rows.pins'))}</span></div>`:''].filter(Boolean);
+  return rows.length?`<details class="viewset" ${VIEW.setOpen?'open':''}><summary>${esc(T('view.title'))}</summary><div class="vsb">${rows.join('')}</div></details>`:'';
+}
+
+function body(d){
+  const a=S[d.id]||{};
+  if(d.type==='pick'){ const info=dimInfo(d), lockNow=gateLocked(d,a), numbered=d.options.some(o=>o.visual?.notes?.length);
+    const sameAuto=VIEW.all[d.id]?[]:info.dims.map((x,j)=>j).filter(j=>info.same[j]).map(j=>`${info.dims[j].short||info.dims[j].q}: ${info.cells[0][j].v}`);
+    return `${recNote(d)}${howRow(d,info,a)}<div class="opts" role="radiogroup" aria-labelledby="qh" style="--n:${d.options.length};--rows:${info.vis.length+5}">
+    ${d.options.map((o,i)=>{ const more=moreOf(d,info,i); return `<div class="opt ${a.choice===o.key?'sel':''} ${o.baseline?'base':''} ${lockNow?'locked':''}" role="radio" aria-checked="${a.choice===o.key}" ${lockNow?'aria-disabled="true"':''} tabindex="${tabFor(o.key,d.options,a.choice)}" data-pick="${esc(o.key)}" aria-label="${esc(o.label)}${o.rec?' ('+esc(T('pick.rec'))+')':''}">
+      <span class="check" aria-hidden="true">✓</span>
+      <div class="opt-h"><kbd aria-hidden="true">${i+1}</kbd><b>${esc(o.label)}</b>${o.rec?recBadge():''}${o.baseline?`<span class="basetag">${esc(T('card.baseline'))}</span>`:''}${undoBadge(o.undo)}</div>
+      <div class="gist">${esc(o.gist||o.when||'')}</div>
+      <div class="opt-v">${visualWrap(o.visual,d)}${o.cap?`<div class="cap">${esc(o.cap)}</div>`:''}</div>
+      ${info.vis.map(j=>dimRow(info,i,j,numbered)).join('')}
+      <div class="give">${o.give?callout('',T(o.baseline?'card.giveBase':'card.give'),esc(o.give)):''}</div>
+      ${more?`<details class="xo"><summary>${esc(T('card.more'))}</summary>${more}</details>`:'<div></div>'}</div>`; }).join('')}
+    </div>${d.same||sameAuto.length?`<div class="same">${esc([d.same,sameAuto.length?T('rows.same',{x:sameAuto.join(' · ')}):''].filter(Boolean).join(' '))}</div>`:''}<div id="seenmark" style="height:1px"></div>`; }
+
+  if(d.type==='preview'){ const shown=(d.options.find(o=>o.key===a.choice)||recOf(d.options)).key; const h=+(d.preview&&d.preview.height)||320; const lockNow=gateLocked(d,a);
+    return `${recNote(d)}${gate(d,a)}<div class="pvwrap">${win(d.options.map(o=>`<iframe class="pvframe ${o.key===shown?'on':''}" data-pv="${esc(o.key)}" sandbox srcdoc="${esc(pvDoc(d,o))}" style="height:${h}px" tabindex="-1" aria-hidden="true"></iframe>`).join(''))}
+      <div class="pvopts" role="radiogroup" aria-labelledby="qh">${d.options.map((o,i)=>{ const c=contrast(o.color); return `<div class="pvopt ${a.choice===o.key?'sel':''} ${lockNow?'locked':''}" role="radio" aria-checked="${a.choice===o.key}" tabindex="${tabFor(o.key,d.options,a.choice)}" data-pick="${esc(o.key)}" data-hover="${esc(o.key)}">
+        <span class="sw" style="background:${esc(o.color||'var(--mk)')}" aria-hidden="true"></span><b>${esc(o.label)} ${o.rec?recBadge():''}</b><kbd aria-hidden="true">${i+1}</kbd>
+        <span class="line">${esc(o.desc)}${c?` · ${T('prev.contrast')} <em class="${c>=4.5?'good':'bad'}">${c.toFixed(1)} : 1 ${c>=4.5?T('prev.ok'):T('prev.bad')}</em>`:''}</span></div>`; }).join('')}<div id="seenmark" style="height:1px"></div></div></div>`; }
+
+  if(d.type==='multi'){ const draft=isDraft(d); const sel=multiSel(d); const total=d.items.filter(i=>sel.includes(i.id)).reduce((s,i)=>s+(i.cost||0),0); const u=esc(d.unit||''); const over=d.budget!=null&&total>d.budget; const mx=Math.max(...d.items.map(i=>i.cost||0))||1;
+    const diff=d.budget==null?'':over?T('multi.over',{x:+(total-d.budget).toFixed(1),u}):total<d.budget?T('multi.left',{x:+(d.budget-total).toFixed(1),u}):T('multi.exact');
+    const thumbs=d.items.some(i=>i.visual);
+    return `${recNote(d)}${d.budget!=null?`<div class="meter ${over?'over':''}"><div class="top"><span>${draft?T('multi.draftSel',{n:sel.length}):T('multi.selected',{n:sel.length})}</span><span><b>${total}${u}</b> / ${d.budget}${u} · ${diff}</span></div>
+      <div class="bar" aria-hidden="true"><i style="width:${Math.min(100,total/d.budget*100)}%"></i></div></div>`:''}
+      ${draft?draftNote('multi'):''}
+      <div class="items ${thumbs?'thumbs':''}" role="group" aria-labelledby="qh">${d.items.map(i=>{ const on=sel.includes(i.id); const cls=on?(draft?'draft':'sel'):''; return `<div class="item ${cls}" role="checkbox" aria-checked="${on&&!draft}" tabindex="0" data-toggle="${esc(i.id)}">
+        <span class="box" aria-hidden="true">${on?'✓':''}</span>${thumbs?`<span class="thumb" aria-hidden="true">${visual(i.visual,d)}</span>`:''}<span><b>${esc(i.label)}</b> ${i.rec?recBadge():''}<small>${esc(i.sub)}</small></span>
+        <span class="cost" aria-hidden="true">${i.cost!=null?`<i style="width:${i.cost/mx*100}%"></i>`:''}</span><span class="d">${i.cost!=null?i.cost+u:''}</span></div>`; }).join('')}</div>`; }
+
+  if(d.type==='batch'){ const ch=a.choices||{};
+    return `<div class="batch-top"><span class="same" style="margin:0">${T('batch.chosen',{n:Object.keys(ch).length,m:d.items.length})}</span><button class="ghost" data-allrec>${T('batch.allrec')}</button></div>
+      <div class="rows">${d.items.map(i=>`<div class="row"><span class="q" id="bq-${esc(i.id)}">${esc(i.q)}</span><div class="seg" role="radiogroup" aria-labelledby="bq-${esc(i.id)}">${i.options.map(o=>`<button role="radio" aria-checked="${ch[i.id]===o.key}" tabindex="${tabFor(o.key,i.options,ch[i.id])}" class="${ch[i.id]===o.key?'sel':''}" data-seg="${esc(i.id)}" data-key="${esc(o.key)}"><b>${esc(o.label)}${o.rec?`<span class="r">${T('pick.rec')}</span>`:''}</b><small>${esc(o.sub)}</small></button>`).join('')}</div></div>`).join('')}</div>`; }
+
+  if(d.type==='value'){ const i=stopIdx(d); const draft=isDraft(d); const mine=myStop(d,a);
+    return `${valuesQ(d,a)}${recNote(d)}<div class="val ${draft?'draft':''}" id="val"><div class="now"><span id="vnow">${esc(d.stops[i].v)}</span><small>${esc(d.unit)}</small>${draft?`<span class="draft-b" id="vdraft">${T('draft.badge')}</span>`:''}</div>
+      <div id="vov">${overview(d,i)}</div>
+      <input type="range" id="vrange" min="0" max="${d.stops.length-1}" step="1" value="${i}" aria-labelledby="qh" aria-valuetext="${esc(valueText(d,i))}">
+      <div class="presets" id="vpre">${stopsHtml(d,i,draft,mine)}</div>
+      ${draft?draftNote('value'):''}
+      ${overview(d,i)?`<details class="xo vout"><summary>${esc(T('value.more'))}</summary><div class="outs" id="vouts">${outsHtml(d,i)}</div></details>`:`<div class="outs" id="vouts">${outsHtml(d,i)}</div>`}${d.assume?`<div class="assume">${esc(d.assume)}</div>`:''}</div>`; }
+  return '';
+}
+// "What matters more here?" on a value question: the person's answer marks the stop that fits it. It is a hint, not the answer.
+const myStop=(d,a)=>d.values&&a&&a.val!=null&&Array.isArray(d.values.map)?d.values.map[a.val]:null;
+function valuesQ(d,a){ const v=d.values; if(!v||!Array.isArray(v.labels)) return ''; const mine=myStop(d,a); const r=d.stops.findIndex(s=>s.rec);
+  return `<div class="vals"><div class="vq">${esc(v.q)} <small>${esc(T('values.skip'))}</small></div>
+    <div class="vscale"><span>${esc(v.left)}</span><div class="btns">${v.labels.map((l,i)=>`<button data-val="${i}" class="${a&&a.val===i?'on':''}" aria-pressed="${!!a&&a.val===i}">${esc(l)}</button>`).join('')}</div><span>${esc(v.right)}</span></div>
+    ${mine!=null&&d.stops[mine]?`<div class="vmatch">${esc(T('values.match',{x:valueText(d,mine)}))}${mine===r?esc(T('values.same')):''}</div>`:''}</div>`; }
+// Every stop's outcomes side by side; the slider only moves the highlight.
+function overview(d,i){
+  const keys=[]; d.stops.forEach(s=>(s.outs||[]).forEach(o=>{ if(o.p!=null&&!keys.includes(o.k)) keys.push(o.k); }));
+  if(!keys.length||d.stops.length<2) return '';
+  const curOf=k=>(d.stops[i].outs||[]).find(x=>x.k===k);
+  return `<div class="ov">${keys.map(k=>{ const c=curOf(k); return `<div class="ovr"><span class="ok">${esc(k)}</span><div class="ovb" aria-hidden="true">${d.stops.map((s,j)=>{ const o=(s.outs||[]).find(x=>x.k===k); return `<span class="${j===i?'on':''} ${o?.t||''}" title="${esc(s.v)}: ${esc(o?.v)}"><i style="height:${Math.max(2,+(o?.p)||0)}%"></i></span>`; }).join('')}</div><span class="ov-v ${c?.t||''}">${esc(c?.v??'')}${confTag(c?.conf)}</span></div>`; }).join('')}
+    <div class="ovx" aria-hidden="true"><span></span><div>${d.stops.map((s,j)=>`<em class="${j===i?'on':''}">${esc(s.v)}</em>`).join('')}</div><span></span></div></div>`;
+}
+// Opens under the options once there is an answer: says in plain words what it will do and asks if that is what was meant.
+function intent(d,a){ if(!a||!(a.defer||answered(d,a))) return '';
+  const last=cur===D.length-1||backToReview;
+  const m=a.defer?T('means.defer.'+a.defer,{x:recLabel(d)||''}):meansOf(d,a);
+  const field=a.defer?`<input class="txt" id="dnote" aria-label="${esc(T('cant.ph'))}" placeholder="${esc(T('cant.ph'))}" value="${esc(a.why||'')}">`:`<input class="txt" id="note" aria-label="${esc(T('extra.label'))}" placeholder="${esc(T('extra.ph'))}" value="${esc(a.note||'')}">`;
+  if(!weighty(d,a)) return `<section class="intent light ${a.defer?'back':''}" id="intent"><div class="ik">${esc(T(a.defer?'intent.lightBack':'intent.light'))}</div><p class="im">${esc(m)}</p><div class="inote">${field}</div></section>`;
+  return `<section class="intent ${a.ok?'ok':''} ${a.defer?'back':''}" id="intent" aria-labelledby="intq"><div class="ik">${esc(T('intent.kicker'))}</div><p class="im">${esc(m)}</p><p class="iq" id="intq">${esc(T('intent.q'))}</p>
+    <div class="inote">${field}</div>
+    ${a.ok?`<div class="idone">✓ ${esc(T('intent.done'))} <button class="linkb" data-intent-no>${esc(T('intent.change'))}</button></div>`:`<div class="ib"><button class="primary" data-intent-yes>${esc(T(last?(backToReview?'intent.yesBack':'intent.yesLast'):'intent.yes'))}</button><button class="ghost" data-intent-no>${esc(T('intent.no'))}</button></div>`}</section>`; }
+const refreshIntent=()=>{ const d=D[cur]; const w=document.getElementById('intentwrap'); if(d&&w){ w.innerHTML=intent(d,S[d.id]); annotate(w,termList(d)); } renderBar(); };
+
+function decisiveChips(d){
+  if(d.type==='pick') return (d.dims||[]).map(dimOf).map(x=>x.short||x.q).filter(Boolean);
+  if(d.type==='value'){ const ks=[]; d.stops.forEach(s=>(s.outs||[]).forEach(o=>{ if(!ks.includes(o.k)) ks.push(o.k); })); return ks; }
+  return [];
+}
+function summary(){
+  const n=doneCount(), all=n===D.length;
+  return `<div class="kicker"><span class="tag">${T('sum.tag')}</span></div><h2 id="qh" tabindex="-1">${sent?T('sum.doneTitle'):all?T('sum.allTitle'):T('sum.leftTitle',{n:D.length-n})}</h2>
+    <p class="ctx">${sent?T('sum.doneCtx'):T('sum.ctx')}</p>
+    ${sent&&sent.path?`<p class="ctx">${T('sum.saved',{path:`<code>${esc(sent.path)}</code>`})}</p>`:''}
+    <div class="sum">${D.map((d,i)=>{ const a=S[d.id]||{}; const done=isDone(d); const chips=done&&!a.defer?decisiveChips(d):[];
+      const who=a.defer==='delegate'?`<span class="who ai">${esc(d.recNote?.if?T('sum.byClaude',{x:d.recNote.if}):T('sum.byClaudeRec'))}</span>`:done&&!a.defer?`<span class="who me">${esc(T('sum.byYou'))}</span>`:'';
+      return `<div class="srow"><div class="sq"><span>${i+1}. ${esc(d.short||d.q)}</span>${undoBadge(chosenUndo(d,a))}</div>
+        <div>${done?`<span class="sa">${esc(answerText(d))}</span>${!a.defer?`<span class="sn">${esc(meansOf(d,a))}</span>`:''}`:`<span class="sa none">${T('sum.none')}</span>`}${who}
+          ${a.defer&&a.why?`<span class="sn">${T('sum.reason')}: ${esc(a.why)}</span>`:''}${a.note?`<span class="sn">${T('sum.note')}: ${esc(a.note)}</span>`:''}
+          ${chips.length&&!sent?`<div class="whyq">${esc(T('sum.decisive'))}</div><div class="whyc">${chips.map(c=>{ const on=(a.decisive||[]).includes(c); return `<button data-decisive="${esc(d.id)}" data-key="${esc(c)}" class="${on?'on':''}" aria-pressed="${on}">${esc(c)}</button>`; }).join('')}</div>`:''}</div>
+        ${sent?'<span></span>':`<button class="ghost" data-go="${i}" data-back>${esc(T('sum.change'))}</button>`}</div>`; }).join('')}</div>
+    <div class="go"><button class="primary" data-send ${all&&!sent?'':'disabled'}>${sent?T('sum.submitted'):T('sum.submit')}</button>
+      <span class="same" style="margin:0">${sent?'':T('sum.hint')}</span></div>
+`;
+}
+// The overview is a map of what will be decided. Nothing is chosen on it.
+function mapView(){
+  const th=VIEW.theme, themes=Array.isArray(META.themes)?META.themes:[];
+  return `<div class="kicker"><span class="tag map">${esc(T('map.tag'))}</span><span>${esc(T('map.notHere'))}</span></div>
+  <h2 id="qh" tabindex="-1">${esc(T('map.title',{n:D.length}))}</h2>
+  <div class="mapnote">${esc(T('map.ctx'))}</div>
+  <ol class="route">${D.map((d,i)=>{ const done=isDone(d); return `<li class="${done?'done':''} ${th&&!(d.themes||[]).includes(th)?'fade':''}"><button class="stop" data-go="${i}"><span class="no">${done?'✓':i+1}</span>
+    <span class="mt"><b>${esc(d.short||d.q)}</b>${d.stake?`<small>${esc(d.stake)}</small>`:''}${d.depends?`<small class="dep">↳ ${esc(d.depends)}</small>`:''}</span>
+    <span class="mr">${undoBadge(chosenUndo(d,null))}${(d.themes||[]).length?`<span class="th">${d.themes.map(t=>`<span class="chip">${esc(themes.find(x=>x.id===t)?.label||t)}</span>`).join('')}</span>`:''}<span class="st">${done?esc(answerText(d)):esc(T('map.open'))}</span></span></button></li>`; }).join('')}</ol>
+  ${themes.length?`<h3 class="sec">${esc(T('map.themes'))}</h3><div class="themes">${themes.map(t=>`<button class="theme ${th===t.id?'on':''}" data-theme="${esc(t.id)}" aria-pressed="${th===t.id}"><b>${esc(t.label)}</b>${t.desc?`<small>${esc(t.desc)}</small>`:''}<span>${D.map((d,i)=>(d.themes||[]).includes(t.id)?i+1:null).filter(Boolean).join(' · ')}</span></button>`).join('')}</div>`:''}`;
+}
+const endView=()=>`<div class="kicker"><span class="tag hard">${T('end.tag')}</span></div><h2 id="qh" tabindex="-1">${T('end.'+ended+'.title')}</h2><p class="ctx">${T('end.ctx')}</p>`;
+// Other ways to answer sit right under the options: write your own (pick only), or say you cannot choose and why.
+function alternatives(d,a){
+  const open=a.defer?'defer':a.own?'own':panel; const keys=reasonsFor(d);
+  const btn=(k,icon,label,sub)=>`<button class="alt ${open===k?'on':''}" data-alt="${k}" aria-expanded="${open===k}" aria-controls="altp"><span class="ai" aria-hidden="true">${icon}</span><span><b>${esc(label)}</b><small>${esc(sub)}</small></span></button>`;
+  const cards=[ownOk(d)?btn('own','✎',T('alt.own'),T('alt.ownSub')):'',btn('defer','↩',T('cant.title'),T('alt.deferSub'))].filter(Boolean);
+  return `<div class="alts-h">${esc(T('alt.q'))}</div><div class="alts" style="--k:${cards.length}">${cards.join('')}</div>
+    ${open==='own'&&ownOk(d)?`<div class="altp ${a.own?'sel':''}" id="altp"><label class="fld"><span>${T('own.label')}</span><input class="txt" id="own" placeholder="${esc(T('own.ph'))}" value="${esc(a.own||'')}"></label></div>`:''}
+    ${open==='defer'?`<div class="altp" id="altp"><p>${T('cant.help')}</p>${hard(d)?`<p class="must">${T('cant.noDelegate')}</p>`:''}
+      <div class="reasons" style="--n:${keys.length}">${keys.map(k=>`<button class="reason ${a.defer===k?'sel':''}" aria-pressed="${a.defer===k}" data-reason="${k}"><b>${reasonTitle(k)}</b><small>${reasonDesc(k)}</small></button>`).join('')}</div></div>`:''}`;
+}
+function nextLabel(d){ const last=cur===D.length-1, a=S[d.id]||{};
+  if(pending(d)) return T('bar.toIntent');
+  if((a.defer||answered(d,a))&&!weighty(d,a)) return T(backToReview?'bar.lightBack':last?'bar.lightLast':'bar.light');
+  if(isDraft(d)) return T('bar.settle');
+  if(backToReview) return T('bar.toReview');
+  return T(last?'bar.review':'bar.next'); }
+function renderBar(){
+  const bar=document.getElementById('bar');
+  if(ended){ bar.innerHTML=''; return; }
+  if(cur===-1){ bar.innerHTML=`<span class="same" style="margin:0;flex:1">${esc(T('map.bar'))}</span><button class="primary" data-go="0">${esc(T('map.start'))}</button>`; return; }
+  if(cur>=D.length){ bar.innerHTML=sent?'':`<button class="ghost" data-prev>${T('bar.prev')}</button><span style="flex:1"></span>`; return; }
+  const d=D[cur];
+  bar.innerHTML=`<button class="ghost" data-prev ${cur>first()?'':'disabled'}>${T('bar.prev')}</button>
+    <span class="keys" style="flex:1;text-align:center" aria-hidden="true">${d.options?'<kbd>1</kbd>~<kbd>'+d.options.length+'</kbd> '+T('key.choose')+' · ':''}<kbd>←</kbd><kbd>→</kbd> ${T('key.move')} · <kbd>⏎</kbd> ${T('key.next')}</span>
+    <span class="sp" style="flex:1"></span>
+    <button class="primary" data-next>${nextLabel(d)}</button>`;
+}
+let seenObs=null;
+function renderStage(){
+  const st=document.getElementById('stage');
+  if(seenObs){ seenObs.disconnect(); seenObs=null; }
+  if(ended){ st.innerHTML=endView(); renderBar(); return; }
+  if(cur===-1){ st.innerHTML=mapView(); renderBar(); return; }
+  if(cur>=D.length){ st.innerHTML=summary(); renderBar(); return; }
+  const d=D[cur], a=S[d.id]||{};
+  // The check sits right under where the answer was given: under the options, or under the open "write your own" / "can't choose" panel.
+  const check=`<div id="intentwrap">${intent(d,a)}</div>`, viaAlt=!!(a.defer||a.own||panel);
+  st.innerHTML=head(d)+`<div class="lk lk2">${esc(T('layer.2'))}</div>${panelsOf(d)}<div class="${a.defer?'dim-all':''}">${body(d)}</div>${viaAlt?'':check}${alternatives(d,a)}${viaAlt?check:''}`+(d.pattern?`<div class="pattern"><b>${T('note.label')}</b> · ${esc(d.pattern)}</div>`:'');
+  renderBar();
+  if(gateLocked(d,a)&&window.IntersectionObserver){ const m=document.getElementById('seenmark');
+    if(m){ seenObs=new IntersectionObserver(es=>{ if(es.some(e=>e.isIntersecting)){ VIEW.seen[d.id]=true; seenObs.disconnect(); seenObs=null; const y=scrollY; render(); scrollTo(0,y); announce(T('gate.open')); } }); seenObs.observe(m); } }
+  else if(gateLocked(d,a)) VIEW.seen[d.id]=true;
+}
+// Re-rendering replaces the elements, so keyboard focus is put back on the matching control.
+const FOCUS_KEYS=['pick','toggle','seg','stop','reason','allrec','alt','confirm','next','prev','send','cancel','mode','allrows','decisive','val','theme','intentNo','intentYes'];
+function focusSig(){ const el=document.activeElement; if(!el||el===document.body) return null;
+  for(const k of FOCUS_KEYS) if(k in el.dataset) return `[data-${k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())}${el.dataset[k]?`="${CSS.escape(el.dataset[k])}"`:''}]`+('key' in el.dataset?`[data-key="${CSS.escape(el.dataset.key)}"]`:'');
+  return el.id?'#'+CSS.escape(el.id):null; }
+function render(){ const sig=focusSig(); renderNav(); renderStage(); annotateStage();
+  if(sig){ const el=document.querySelector('#stage '+sig+',#bar '+sig+',#nav '+sig); if(el) el.focus({preventScroll:true}); } }
+const focusHead=()=>{ const h=document.getElementById('qh'); if(h) h.focus({preventScroll:true}); };
+// After an answer is set: on a weighty decision, go to the check; on an easy one, just bring the one-line "what this does" into view.
+function afterAnswer(){ const d=D[cur]; setTimeout(()=>{ if(weighty(d,S[d.id]||{})) toIntent(); else { const el=document.getElementById('intent'); if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'}); } },50); }
+// Points at the check under the options when someone tries to move on without answering it.
+function toIntent(){ const el=document.getElementById('intent'); if(!el) return; el.scrollIntoView({behavior:'smooth',block:'center'}); const y=el.querySelector('[data-intent-yes]'); if(y) y.focus({preventScroll:true}); announce(T('intent.needed')); }
+
+// Moving between questions never settles a draft. Only "Settle this" (which says so) or touching the draft does.
+// Moving forward waits until the current answer has been checked against what it will do.
+function go(i,fromReview){ if(locked()) return;
+  i=Math.max(first(),Math.min(D.length,i));
+  if(cur>=0&&cur<D.length&&i>cur&&pending(D[cur])){ toIntent(); return; }
+  if(fromReview) backToReview=true; else if(i>=D.length||i<0) backToReview=false;
+  panel=null; VIEW.setOpen=false; cur=i; render(); window.scrollTo(0,0); focusHead(); }
+function next(){ const d=D[cur];
+  if(pending(d)){ toIntent(); return; }
+  if(commitDraft(d)){ render(); announce(T('sr.picked',{x:answerText(d)})); afterAnswer(); return; }
+  go(backToReview?D.length:cur+1); }
+function confirmIntent(){ const d=D[cur], a=A(d.id); a.ok=true; save(); announce(T('intent.done'));
+  const back=backToReview; backToReview=false; go(back?D.length:cur+1); }
+function rethink(){ const d=D[cur], a=A(d.id); delete a.ok; if(a.defer){ delete a.defer; delete a.why; panel=null; } else if((d.type==='pick'||d.type==='preview')&&!a.own) delete a.choice; save(); render();
+  const o=document.querySelector('#stage .opts,#stage .pvopts,#stage .items,#stage .rows,#stage .val'); if(o) o.scrollIntoView({behavior:'smooth',block:'start'}); }
+// Three kinds of answer exclude each other: the options (or items, or a value), an answer of one's own, and a send-back.
+// Taking one clears the other two, and any change needs the check again.
+function clearAnswer(a,keep){ if(keep!=='choice'){ delete a.choice; delete a.choices; } if(keep!=='own') delete a.own; if(keep!=='defer'){ delete a.defer; delete a.why; } delete a.ok; }
+function pick(key){ const d=D[cur]; const a=A(d.id);
+  if(gateLocked(d,a)){ const g=document.getElementById('gate'); if(g){ g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash'); g.scrollIntoView({behavior:'smooth',block:'center'}); } return; }
+  clearAnswer(a,'choice'); a.choice=key; panel=null; save(); render(); const o=d.options.find(o=>o.key===key); if(o) announce(T('sr.picked',{x:o.label}));
+  setTimeout(()=>{ const el=document.getElementById('intent'); if(el) el.scrollIntoView({behavior:'smooth',block:'nearest'}); },30); }
+function setStop(i,moveSlider){ const d=D[cur]; const wasDraft=isDraft(d); const a=A(d.id); const other=!!(a.defer||panel);
+  clearAnswer(a,'choice'); a.choice=d.stops[i].v; save();
+  // Coming back from "I can't decide": draw the page again so that panel closes.
+  if(other){ panel=null; render(); return; }
+  // Updated in place, not re-rendered, so a slider drag is not interrupted.
+  document.getElementById('vnow').textContent=d.stops[i].v; document.getElementById('vouts').innerHTML=outsHtml(d,i); annotate(document.getElementById('vouts'),termList(d)); document.getElementById('vpre').innerHTML=stopsHtml(d,i,false,myStop(d,a)); document.getElementById('vov').innerHTML=overview(d,i);
+  const r=document.getElementById('vrange'); if(moveSlider) r.value=i; r.setAttribute('aria-valuetext',valueText(d,i));
+  if(wasDraft){ ['draftnote','vdraft'].forEach(id=>{ const el=document.getElementById(id); if(el) el.remove(); }); document.getElementById('val').classList.remove('draft'); }
+  if(moveSlider) announce(T('sr.picked',{x:valueText(d,i)}));
+  refreshIntent(); renderNav(); }
+let sending=false;
+async function send(){
+  if(sending||locked()) return; sending=true;
+  const btn=document.querySelector('[data-send]'); if(btn) btn.disabled=true;
+  try{ const r=await fetch('/api/submit',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({state:S,hash:META.hash})});
+    if(!r.ok) throw new Error(await r.text()); sent=await r.json(); if(live) live.close(); try{ localStorage.removeItem(KEY); }catch(e){} render(); focusHead(); announce(T('sum.doneTitle')); }
+  catch(e){ alert(T('err.submit')+'\n'+e.message); if(btn) btn.disabled=false; }
+  finally{ sending=false; }
+}
+async function cancel(){
+  if(locked()||!confirm(T('cancel.confirm'))) return;
+  try{ const r=await fetch('/api/cancel',{method:'POST'}); if(!r.ok) throw new Error(await r.text()); end('cancelled'); }
+  catch(e){ alert(T('err.submit')+'\n'+e.message); }
+}
+function end(reason){ if(sent||ended) return; ended=reason; if(live) live.close(); banner(false); render(); focusHead(); announce(T('end.'+reason+'.title')); }
+function banner(on){ const b=document.getElementById('banner'); b.hidden=!on; b.textContent=on?T('offline'):''; }
+// Answers saved in this browser may come from an earlier version of the question file. Keep only those that still match.
+function cleanSaved(saved){ const out={}; if(!saved||typeof saved!=='object') return out;
+  for(const d of D){ const a=saved[d.id]; if(!a||typeof a!=='object') continue; const c={};
+    if(reasonsFor(d).includes(a.defer)){ c.defer=a.defer; if(typeof a.why==='string'&&a.why) c.why=a.why; }
+    else if(d.type==='pick'||d.type==='preview'){ if(d.options.some(o=>o.key===a.choice)) c.choice=a.choice; else if(ownOk(d)&&typeof a.own==='string'&&a.own.trim()) c.own=a.own; }
+    else if(d.type==='multi'){ if(Array.isArray(a.choices)) c.choices=d.items.map(i=>i.id).filter(id=>a.choices.includes(id)); }
+    else if(d.type==='batch'){ if(a.choices&&typeof a.choices==='object'){ c.choices={}; d.items.forEach(i=>{ if(i.options.some(o=>o.key===a.choices[i.id])) c.choices[i.id]=a.choices[i.id]; }); } }
+    else if(d.type==='value'){ if(d.stops.some(s=>s.v===a.choice)) c.choice=a.choice; }
+    if(typeof a.note==='string'&&a.note) c.note=a.note;
+    if(a.ok===true&&(c.defer||answered(d,c))) c.ok=true;
+    if(Array.isArray(a.decisive)) c.decisive=a.decisive.filter(x=>typeof x==='string');
+    if(Number.isInteger(a.val)) c.val=a.val;
+    if(Object.keys(c).length) out[d.id]=c; }
+  return out; }
+
+document.addEventListener('click',e=>{
+  const hq=e.target.closest('.hq'); if(hq){ e.preventDefault(); TIP.pin=true; if(TIP.el!==hq) showTip(hq); TIP.pin=true; return; }
+  if(TIP.el&&!e.target.closest('#tip')) hideTip();
+  // Opening a card's details, or dragging its before/after slider, does not pick the card.
+  if(e.target.closest('.opt details.xo,.swr')) return;
+  const t=e.target.closest('[data-go],[data-pick],[data-toggle],[data-seg],[data-allrec],[data-stop],[data-alt],[data-prev],[data-next],[data-send],[data-reason],[data-confirm],[data-cancel],[data-mode],[data-allrows],[data-intent-yes],[data-intent-no],[data-decisive],[data-val],[data-theme],[data-openall]'); if(!t||t.disabled) return;
+  if(locked()) return;
+  const d=D[cur];
+  if(t.dataset.go!=null) go(+t.dataset.go,'back' in t.dataset);
+  else if(t.dataset.pick) pick(t.dataset.pick);
+  else if(t.dataset.toggle){ const a=A(d.id); const s=new Set(multiSel(d)); const on=!s.has(t.dataset.toggle); on?s.add(t.dataset.toggle):s.delete(t.dataset.toggle); clearAnswer(a,'choice'); a.choices=d.items.map(i=>i.id).filter(x=>s.has(x)); panel=null; save(); render();
+    const it=d.items.find(i=>i.id===t.dataset.toggle); announce(T(on?'sr.added':'sr.removed',{x:it.label,n:a.choices.length})); }
+  else if(t.dataset.seg){ const i=t.dataset.seg, k=t.dataset.key; const a=A(d.id); clearAnswer(a,'choice'); (a.choices||(a.choices={}))[i]=k; panel=null; save(); render(); }
+  else if('allrec' in t.dataset){ const a=A(d.id); clearAnswer(a,'choice'); a.choices={}; d.items.forEach(i=>a.choices[i.id]=recOf(i.options).key); panel=null; save(); render(); announce(answerText(d)); }
+  else if(t.dataset.stop){ setStop(+t.dataset.stop,true); }
+  else if('confirm' in t.dataset){ const a=A(d.id); delete a.own; delete a.defer; delete a.why; panel=null; commitDraft(d); render(); announce(T('sr.picked',{x:answerText(d)})); afterAnswer(); }
+  else if(t.dataset.reason){ const a=A(d.id); if(a.defer===t.dataset.reason){ delete a.defer; delete a.why; delete a.ok; } else { clearAnswer(a,'defer'); a.defer=t.dataset.reason; } panel='defer'; save(); render(); if(a.defer) afterAnswer(); }
+  // Opening "write my own" or "I can't decide" takes back the option picked so far; pressing the open one again closes it.
+  else if(t.dataset.alt){ const a=A(d.id), k=t.dataset.alt, open=a.defer?'defer':a.own?'own':panel;
+    if(open===k){ panel=null; clearAnswer(a,'choice'); delete a.choice; delete a.choices; save(); render(); }
+    else { panel=k; clearAnswer(a,null); save(); render(); const f=document.querySelector(k==='own'?'#own':'#altp .reason'); if(f) f.focus(); announce(T('alt.cleared')); } }
+  else if(t.dataset.mode){ VIEW.mode[d.id]=t.dataset.mode; render(); }
+  else if('allrows' in t.dataset){ VIEW.all[d.id]=!VIEW.all[d.id]; render(); }
+  else if('intentYes' in t.dataset){ confirmIntent(); }
+  else if('intentNo' in t.dataset){ rethink(); }
+  else if(t.dataset.decisive){ const a=A(t.dataset.decisive), k=t.dataset.key; const l=a.decisive||(a.decisive=[]); const j=l.indexOf(k); j<0?l.push(k):l.splice(j,1); save(); render(); }
+  else if(t.dataset.val!=null){ const a=A(d.id), v=+t.dataset.val; if(a.val===v) delete a.val; else a.val=v; save(); render(); }
+  else if('openall' in t.dataset){ const ds=[...document.querySelectorAll('#stage details.xo')]; const open=!ds.every(x=>x.open); ds.forEach(x=>{ x.open=open; }); t.textContent=T(open?'layer.closeAll':'layer.openAll'); }
+  else if(t.dataset.theme){ VIEW.theme=VIEW.theme===t.dataset.theme?null:t.dataset.theme; render(); }
+  else if('prev' in t.dataset){ go(cur-1); }
+  else if('next' in t.dataset){ next(); }
+  else if('send' in t.dataset){ send(); }
+  else if('cancel' in t.dataset){ cancel(); }
+});
+document.addEventListener('input',e=>{
+  if(e.target.classList.contains('swr')){ const w=e.target.closest('.swipe'); w.querySelector('.aft').style.clipPath=`inset(0 0 0 ${e.target.value}%)`; w.querySelector('.knife').style.left=e.target.value+'%'; return; }
+  if(locked()) return;
+  if(e.target.id==='vrange') setStop(+e.target.value);
+  if(e.target.id==='dnote'){ const a=A(D[cur].id); a.why=e.target.value; if(!a.why) delete a.why; save(); }
+  if(e.target.id==='own'){ const d=D[cur], a=A(d.id); const v=e.target.value.trim(); if(v){ clearAnswer(a,'own'); a.own=e.target.value; } else { delete a.own; delete a.ok; } save();
+    // Updated in place, not re-rendered, so typing is not interrupted.
+    document.querySelectorAll('#stage [data-pick]').forEach(o=>{ o.classList.remove('sel'); o.setAttribute('aria-checked','false'); });
+    document.getElementById('altp').classList.toggle('sel',!!v); refreshIntent(); renderNav(); }
+  if(e.target.id==='note'){ const a=A(D[cur].id); a.note=e.target.value; if(!a.note) delete a.note; save(); }
+});
+// A drawing's frame grows (or shrinks) to fit what is drawn, so a height that is too small never cuts it off. `height` is the least it gets.
+function fitFrame(f){
+  try{ const d=f.contentDocument, b=d&&d.body; if(!b) return;
+    const need=Math.ceil(b.getBoundingClientRect().bottom+parseFloat(getComputedStyle(b).marginBottom||0));
+    const over=d.documentElement.scrollHeight>f.clientHeight?d.documentElement.scrollHeight:0;
+    f.style.height=Math.min(Math.max(need,over,+f.dataset.min||0,40),900)+'px'; }catch{}
+}
+document.addEventListener('load',e=>{ if(e.target.classList&&e.target.classList.contains('vframe')) fitFrame(e.target); },true);
+let fitTimer; addEventListener('resize',()=>{ clearTimeout(fitTimer); fitTimer=setTimeout(()=>document.querySelectorAll('.vframe').forEach(fitFrame),150); });
+const showPv=key=>document.querySelectorAll('.pvframe').forEach(f=>f.classList.toggle('on',f.dataset.pv===key));
+const chosenPv=()=>{ const d=D[cur], a=S[d.id]||{}; return (d.options.find(o=>o.key===a.choice)||recOf(d.options)).key; };
+// Hovering a comparison row lights the numbered notes for it on every picture, and the same row on every card.
+const lightRow=j=>{ document.querySelectorAll('#stage .dim.hl,#stage .pin.hl').forEach(x=>x.classList.remove('hl')); if(j!=null) document.querySelectorAll(`#stage [data-dim="${j}"]`).forEach(x=>x.classList.add('hl')); };
+document.addEventListener('mouseover',e=>{ const t=e.target.closest('[data-hover]'); if(t) showPv(t.dataset.hover); const r=e.target.closest('#stage .dim[data-dim],#stage .pin[data-dim]'); if(r) lightRow(r.dataset.dim); });
+document.addEventListener('mouseout',e=>{ const r=e.target.closest('#stage .dim[data-dim],#stage .pin[data-dim]'); if(r&&!r.contains(e.relatedTarget)) lightRow(null);
+  const t=e.target.closest('[data-hover]'); if(!t||t.contains(e.relatedTarget)) return; showPv(chosenPv()); });
+// View settings close when you press anywhere else.
+document.addEventListener('pointerdown',e=>{ const v=document.querySelector('details.viewset[open]'); if(v&&!v.contains(e.target)){ v.open=false; VIEW.setOpen=false; } });
+document.addEventListener('toggle',e=>{ if(e.target.classList&&e.target.classList.contains('viewset')) VIEW.setOpen=e.target.open; },true);
+document.addEventListener('mouseover',e=>{ const h=e.target.closest('.hq'); if(h&&!TIP.pin) showTip(h); });
+document.addEventListener('mouseout',e=>{ const h=e.target.closest('.hq'); if(h&&!TIP.pin&&!h.contains(e.relatedTarget)) hideTip(); });
+document.addEventListener('focusin',e=>{ const h=e.target.closest&&e.target.closest('.hq'); if(h) showTip(h); });
+document.addEventListener('focusout',e=>{ const h=e.target.closest&&e.target.closest('.hq'); if(h&&!TIP.pin) hideTip(); });
+window.addEventListener('scroll',()=>{ if(TIP.el) hideTip(); },true);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&TIP.el){ const el=TIP.el; hideTip(); el.focus(); return; }
+  if(locked()) return;
+  const inField=e.target.matches('input');
+  // Arrow keys inside an option group move between its options (radios also select, as native radios do).
+  const grp=!inField&&e.target.closest('[role=radiogroup],[role=group]');
+  if(grp&&/^Arrow(Up|Down|Left|Right)$/.test(e.key)){
+    const items=[...grp.querySelectorAll('[role=radio],[role=checkbox]')]; const i=items.indexOf(e.target.closest('[role=radio],[role=checkbox]'));
+    if(i>=0){ e.preventDefault(); const n=items[(i+(e.key==='ArrowRight'||e.key==='ArrowDown'?1:-1)+items.length)%items.length]; n.focus(); if(n.getAttribute('role')==='radio') n.click(); return; }
+  }
+  if(e.key==='Enter'&&!e.target.matches('button,summary')){ e.preventDefault(); const r=e.target.closest('[data-pick],[data-toggle]'); if(r&&document.activeElement===r){ r.click(); return; } if(cur>=0&&cur<D.length) next(); else if(cur===-1) go(0); return; }
+  if(e.key===' '&&e.target.matches('div[role]')){ e.preventDefault(); e.target.click(); return; }
+  if(inField||e.metaKey||e.ctrlKey||e.altKey) return;
+  const d=D[cur];
+  if(d&&d.options&&/^[1-9]$/.test(e.key)&&d.options[+e.key-1]) pick(d.options[+e.key-1].key);
+  if(e.key==='ArrowRight') cur===-1?go(0):(cur<D.length?next():null);
+  if(e.key==='ArrowLeft') go(cur-1);
+});
+// The open stream tells the server this tab is still here. If the server stops waiting, it says why before it goes.
+function connect(){
+  if(!window.EventSource) return;
+  live=new EventSource('/api/live');
+  live.addEventListener('open',()=>banner(false));
+  live.addEventListener('end',ev=>{ let r='closed'; try{ r=JSON.parse(ev.data).reason; }catch(e){} end(r); });
+  live.addEventListener('error',()=>{ if(!sent&&!ended) banner(true); });
+}
+fetch('/api/questions').then(r=>r.json()).then(q=>{ META=q; D=q.decisions; KEY='hus-visual-decision:'+q.id; document.title=q.title||T('nav.title'); document.documentElement.lang=q.lang||'en';
+  document.getElementById('nav').setAttribute('aria-label',T('nav.title'));
+  try{ const saved=JSON.parse(localStorage.getItem(KEY)||'null'); if(saved&&saved.hash===q.hash) S=cleanSaved(saved.S); else if(saved) localStorage.removeItem(KEY); }catch(e){}
+  // A question that already has an answer was read before; its options stay open.
+  D.forEach(d=>{ if(answered(d,S[d.id])) VIEW.seen[d.id]=true; });
+  cur=first(); render(); connect(); })
+  .catch(e=>{ document.getElementById('stage').innerHTML=`<p class="err">${esc(T("err.load"))}: ${esc(e.message)}</p>`; });
+</script>
+</body>
+</html>

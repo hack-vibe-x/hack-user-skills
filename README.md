@@ -22,12 +22,25 @@ Run `/plugin` to browse the list. To get new plugins and versions later: `/plugi
 
 Each plugin's README covers its use and what it creates on your computer.
 
+## Plugins that carry a copy of another
+
+A plugin installs only its own folder, so a plugin that uses another one's files carries a copy of them instead of depending on it. It works without the other plugin, and turning the other one off does not touch it. The copy is made from the source by `scripts/bundle.mjs` and is never edited by hand. The list is in `bundles.json`; the table below is written by the same script.
+
+<!-- bundles:en -->
+| Plugin (version) | Copy inside it | Copy of | Version of the copy | Version of the source |
+|---|---|---|---|---|
+| hack-user-skills-work-plan 0.4.0 | `skills/work-plan/question-page/` | hack-user-skills-visual-decision | 0.10.2 | 0.10.2 |
+<!-- /bundles:en -->
+
 ## What is in it
 
 | Path | Contents |
 |---|---|
 | `.claude-plugin/marketplace.json` | The marketplace: one entry per plugin |
 | `plugins/<name>/` | One plugin: its manifest, skills, hooks, README, LICENSE, and NOTICE |
+| `bundles.json`, `scripts/bundle.mjs` | Which plugin carries a copy of which, and the script that copies them and writes the table above (`--check` only checks). Not installed with any plugin |
+| `.claude/settings.json` | For working on this repository: after each edit, a hook runs `scripts/bundle.mjs` so the copies follow their source |
+| `.githooks/pre-commit` | For working on this repository: stops a commit whose staged copies do not match their source. Turn it on once per clone with `git config core.hooksPath .githooks` |
 
 ## What it creates
 
@@ -65,12 +78,25 @@ hack-vibe-x가 만든 Claude Code 스킬과 훅입니다. 모든 플러그인이
 
 쓰는 법과 컴퓨터에 만드는 것은 플러그인마다 README에 있습니다.
 
+## 다른 플러그인의 복사본을 품은 플러그인
+
+플러그인은 설치할 때 자기 폴더만 복사됩니다. 그래서 다른 플러그인의 파일을 쓰는 플러그인은 그 플러그인에 의존하지 않고, 파일의 복사본을 자기 안에 둡니다. 원본 플러그인이 없어도 동작하고, 원본을 꺼도 영향을 받지 않습니다. 복사본은 `scripts/bundle.mjs`가 원본에서 만들며 손으로 고치지 않습니다. 목록은 `bundles.json`에 있고, 아래 표도 같은 스크립트가 씁니다.
+
+<!-- bundles:ko -->
+| 플러그인 (버전) | 안에 든 복사본 | 원본 플러그인 | 복사본 버전 | 원본 버전 |
+|---|---|---|---|---|
+| hack-user-skills-work-plan 0.4.0 | `skills/work-plan/question-page/` | hack-user-skills-visual-decision | 0.10.2 | 0.10.2 |
+<!-- /bundles:ko -->
+
 ## 들어 있는 것
 
 | 위치 | 내용 |
 |---|---|
 | `.claude-plugin/marketplace.json` | 마켓플레이스. 플러그인마다 한 줄 |
 | `plugins/<이름>/` | 플러그인 하나: 정보 파일, 스킬, 훅, README, LICENSE, NOTICE |
+| `bundles.json`, `scripts/bundle.mjs` | 어느 플러그인이 어느 플러그인의 복사본을 품는지, 그리고 복사하고 위 표를 쓰는 스크립트(`--check`는 검사만 합니다). 어느 플러그인과도 함께 설치되지 않습니다 |
+| `.claude/settings.json` | 이 저장소를 개발할 때 씁니다. 편집할 때마다 훅이 `scripts/bundle.mjs`를 돌려 복사본이 원본을 따라가게 합니다 |
+| `.githooks/pre-commit` | 이 저장소를 개발할 때 씁니다. 스테이징된 복사본이 원본과 다르면 커밋을 막습니다. 저장소를 받을 때마다 `git config core.hooksPath .githooks`로 한 번 켭니다 |
 
 ## 만드는 것
 

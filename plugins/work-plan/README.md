@@ -11,7 +11,7 @@ Before it writes, Claude asks you every question the material cannot answer, in 
 /plugin install hack-user-skills-work-plan@hack-user-skills
 ```
 
-The question page comes from [hack-user-skills-visual-decision](https://github.com/hack-vibe-x/hack-user-skills/tree/main/plugins/visual-decision). It is declared as a dependency, so installing this plugin installs it too. If it is still missing when the skill runs, the skill installs it with `claude plugin install` and uses it in the same session. Where no page can be opened (`claude -p`, a remote or SSH session), the questions are asked in the terminal.
+The question page is a copy of the one in [hack-user-skills-visual-decision](https://github.com/hack-vibe-x/hack-user-skills/tree/main/plugins/visual-decision) and comes with this plugin, so nothing else is installed. It works the same whether visual-decision is installed, turned off, or not there. Where no page can be opened (`claude -p`, a remote or SSH session), the questions are asked in the terminal.
 
 **Requirements:** Node.js 18 or later. To read PDFs the checker uses `pdftotext` (Poppler, `brew install poppler`); Word, PowerPoint, Excel, `.hwpx` and OpenDocument files are read with `unzip`, which macOS and most Linux systems have. Images, scanned PDFs and `.hwp` files cannot be checked by the program. The plan marks them, so you know which quotes to check yourself.
 
@@ -34,7 +34,8 @@ Work through the plan from step 1. Paste the step's prompt with the files it nam
 | `skills/work-plan/references/ledger.md` | The ledger: where every line of the plan comes from |
 | `skills/work-plan/scripts/ledger.mjs` | Checks the plan's quotes against the material and writes its sources section |
 | `skills/work-plan/locales/` | The words of the sources section, in English and Korean |
-| `tests/` | Tests for the checker: `node --test plugins/work-plan/tests/ledger.test.mjs` |
+| `skills/work-plan/question-page/` | The question page: a copy of visual-decision's page, server and question rules. `BUNDLED.json` says which version it is a copy of |
+| `tests/` | Tests for the checker and the question page: `node --test plugins/work-plan/tests/*.test.mjs` |
 
 ## What it creates
 
@@ -42,7 +43,7 @@ Work through the plan from step 1. Paste the step's prompt with the files it nam
 |---|---|---|
 | `work-plans/` in the folder Claude was started in (or the folder named by `"dir"` in `.hus-work-plan/config.json`) | One Markdown file per plan, named by date and topic | Your documents; keep or delete them |
 | `.hus-work-plan/<date>-<topic>/` in the same folder | Working files: your task description and pasted text word for word, the ledger, each round's question file, answers given in the terminal | Delete the folder once the plan is done. Add `.hus-work-plan/` to `.gitignore` to keep it out of a repository |
-| `.hus-visual-decision/decisions/` | Each question round's record, written by visual-decision | See its README |
+| `.hus-visual-decision/decisions/` | Each question round's record, written by the question page: what was asked, what you chose, and why | Your documents; keep or delete them |
 
 Claude reads the material in this session, as it reads any file you show it. The plugin itself sends nothing anywhere else, and it does not upload files for you: the plan names the files you attach when you do the steps.
 
@@ -65,7 +66,7 @@ Apache License 2.0. See `LICENSE` and `NOTICE`.
 /plugin install hack-user-skills-work-plan@hack-user-skills
 ```
 
-질문 화면은 [hack-user-skills-visual-decision](https://github.com/hack-vibe-x/hack-user-skills/tree/main/plugins/visual-decision)이 띄웁니다. 의존 플러그인으로 적혀 있어서 이 플러그인을 설치하면 함께 설치됩니다. 스킬을 실행할 때 visual-decision이 없으면 `claude plugin install`로 설치하고 그 세션에서 바로 씁니다. 화면을 열 수 없는 곳(`claude -p`, 원격이나 SSH 접속)에서는 터미널로 묻습니다.
+질문 화면은 [hack-user-skills-visual-decision](https://github.com/hack-vibe-x/hack-user-skills/tree/main/plugins/visual-decision)의 화면을 복사한 것으로, 이 플러그인에 들어 있습니다. 그래서 다른 것을 설치하지 않습니다. visual-decision이 설치되어 있든, 꺼져 있든, 없든 똑같이 동작합니다. 화면을 열 수 없는 곳(`claude -p`, 원격이나 SSH 접속)에서는 터미널로 묻습니다.
 
 **필요한 것:** Node.js 18 이상. PDF는 `pdftotext`(Poppler, `brew install poppler`)로 읽습니다. Word, PowerPoint, Excel, `.hwpx`, OpenDocument 파일은 `unzip`으로 읽습니다. macOS와 대부분의 리눅스에 들어 있습니다. 이미지, 스캔한 PDF, `.hwp` 파일은 검사 도구가 맞춰 볼 수 없습니다. 기획서에 그런 자료를 따로 표시하므로, 어느 인용을 직접 확인해야 하는지 알 수 있습니다.
 
@@ -88,7 +89,8 @@ Apache License 2.0. See `LICENSE` and `NOTICE`.
 | `skills/work-plan/references/ledger.md` | 자료 장부: 기획서의 문장마다 어디서 왔는지 적는 목록 |
 | `skills/work-plan/scripts/ledger.mjs` | 기획서의 인용을 원문과 맞춰 보고 출처 목록을 쓰는 검사 도구 |
 | `skills/work-plan/locales/` | 출처 목록에 쓰는 말(영어, 한국어) |
-| `tests/` | 검사 도구 테스트: `node --test plugins/work-plan/tests/ledger.test.mjs` |
+| `skills/work-plan/question-page/` | 질문 화면. visual-decision의 화면, 서버, 질문 규칙을 복사한 것입니다. 어느 버전을 복사했는지는 `BUNDLED.json`에 있습니다 |
+| `tests/` | 검사 도구와 질문 화면 테스트: `node --test plugins/work-plan/tests/*.test.mjs` |
 
 ## 만드는 것
 
@@ -96,7 +98,7 @@ Apache License 2.0. See `LICENSE` and `NOTICE`.
 |---|---|---|
 | Claude를 시작한 폴더의 `work-plans/` (`.hus-work-plan/config.json`의 `"dir"`로 바꿀 수 있음) | 기획서. 날짜와 주제로 이름 붙인 Markdown 파일 | 사용자의 문서입니다. 두거나 지우세요 |
 | 같은 폴더의 `.hus-work-plan/<날짜>-<주제>/` | 작업 파일: 업무 설명과 붙여 넣은 글 원문, 자료 장부, 질문 묶음 파일, 터미널로 받은 답 | 기획서가 끝나면 폴더를 지우세요. 저장소에 넣지 않으려면 `.gitignore`에 `.hus-work-plan/`을 더하세요 |
-| `.hus-visual-decision/decisions/` | 질문 묶음마다 visual-decision이 남기는 기록 | visual-decision README를 보세요 |
+| `.hus-visual-decision/decisions/` | 질문 묶음마다 질문 화면이 남기는 기록: 무엇을 물었고, 무엇을 골랐고, 왜 골랐는지 | 내 문서입니다. 두거나 지웁니다 |
 
 자료는 Claude가 이 세션에서 읽습니다. 사용자가 보여 주는 다른 파일을 읽을 때와 같습니다. 플러그인이 따로 어디로 보내는 것은 없고, 파일을 대신 올리지도 않습니다. 기획서에는 단계를 할 때 사용자가 첨부할 파일 이름이 적힙니다.
 

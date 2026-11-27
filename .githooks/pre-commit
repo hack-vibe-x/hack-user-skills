@@ -1,0 +1,17 @@
+#!/bin/sh
+# Stops a commit in which a copy listed in bundles.json does not match its source, or the README table of copies is out of date.
+# It checks what is staged, not the working folder: the index is written to a temp folder and scripts/bundle.mjs --check runs there.
+# Turn it on once per clone: git config core.hooksPath .githooks
+# Skip it once (not advised): git commit --no-verify
+
+command -v node >/dev/null 2>&1 || { echo "[pre-commit] node not found; the check of copies was skipped." >&2; exit 0; }
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/hus-pre-commit.XXXXXX") || exit 1
+trap 'rm -rf "$tmp"' EXIT
+git checkout-index -a --prefix="$tmp/" || exit 1
+[ -f "$tmp/scripts/bundle.mjs" ] || exit 0
+
+if ! node "$tmp/scripts/bundle.mjs" --check; then
+  echo "[pre-commit] Commit stopped. Run: node scripts/bundle.mjs, then stage the copy and README.md (and bump the plugin that carries the copy)." >&2
+  exit 1
+fi

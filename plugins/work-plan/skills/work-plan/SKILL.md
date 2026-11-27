@@ -1,6 +1,6 @@
 ---
 name: work-plan
-description: Turns a task the user was handed (their description, plus any material that came with it - files, folders, pasted text) into a work plan file. The plan starts from the goal (what the work is for and what success looks like), then what must be known to reach it (the criteria for a good result, and how to get them when nobody has them), how the work is built from the goal, and the path to the end. Every step on the path says which part of the goal it serves, the files to attach, a prompt to paste into an AI chat, the result it must produce, and a done check, including a check against the goal, that tells the person when to move on. Before writing, it asks every question the material cannot answer, in rounds, on a visual-decision web page (installing that plugin when it is missing), and it checks every line of the plan against the material. Use when the user says "업무 기획해줘", "업무 기획서 만들어줘", "이 일 어떻게 할지 기획해줘", "이 자료로 일 계획 세워줘", "일을 받았는데 어떻게 시작하지", "plan this work", "make a work plan", "I was handed this task".
+description: Turns a task the user was handed (their description, plus any material that came with it - files, folders, pasted text) into a work plan file. The plan starts from the goal (what the work is for and what success looks like), then what must be known to reach it (the criteria for a good result, and how to get them when nobody has them), how the work is built from the goal, and the path to the end. Every step on the path says which part of the goal it serves, the files to attach, a prompt to paste into an AI chat, the result it must produce, and a done check, including a check against the goal, that tells the person when to move on. Before writing, it asks every question the material cannot answer, in rounds, on a local web page (the visual-decision question page, which comes with this plugin), and it checks every line of the plan against the material. Use when the user says "업무 기획해줘", "업무 기획서 만들어줘", "이 일 어떻게 할지 기획해줘", "이 자료로 일 계획 세워줘", "일을 받았는데 어떻게 시작하지", "plan this work", "make a work plan", "I was handed this task".
 license: Apache-2.0
 ---
 
@@ -50,16 +50,13 @@ Rules:
 - **Ask until nothing is left.** After each round, add the answers to the ledger, redraw the tree and ask the new frontier. The person can stop at any time. Then every open question becomes an `assumption` entry and goes in the plan's section 7.
 - Never ask for, or give, time estimates in days or weeks.
 
-### Where to ask: the visual-decision page
+### Where to ask: the question page
 
-Ask each round on a visual-decision page. Find it in this order:
+Ask each round on the question page in `<skill>/question-page/`. It is a copy of the page from the hack-user-skills-visual-decision plugin that comes with this plugin, so nothing else needs to be installed, and it works the same whether that plugin is installed, turned off, or missing.
 
-1. **The skill is loaded:** if `hack-user-skills-visual-decision:visual-decision` is in your skill list, load it with the Skill tool and follow it for each round: its rules for questions and words, its check, the cold read, opening the page and reading the result. Write each round's question file as `<work>/round-<n>.json`.
-2. **It is not loaded:** run `claude plugin list --json` and look for the id `hack-user-skills-visual-decision@hack-user-skills`.
-   - Not installed: tell the person in one line that you are installing the question page plugin it needs, then run `claude plugin install hack-user-skills-visual-decision@hack-user-skills`. If the marketplace is unknown, first run `claude plugin marketplace add hack-vibe-x/hack-user-skills`.
-   - Installed but disabled: run `claude plugin enable hack-user-skills-visual-decision@hack-user-skills`.
-   - Then run `claude plugin list --json` again and take that entry's `readFromFolder` if it has one, otherwise its `installPath`. Read `<that folder>/skills/visual-decision/SKILL.md` and follow it in this session, running its scripts from that folder. The skill itself appears from the next session, or after the person types `/reload-plugins`; say so in one line.
-3. **No page:** if the install fails, Node.js is missing, or no page can be opened here (`claude -p`, a remote or SSH session), ask in plain text. Number each question, give your recommended answer under it, and wait:
+1. **Use the page:** read `<skill>/question-page/visual-decision.md` once and follow it for each round: its rules for questions and words, its check, the cold read, opening the page and reading the result. In it, "this skill's folder" means `<skill>/question-page`. Skip its "Off in one project" part, which is about that plugin's own hook. Write each round's question file as `<work>/round-<n>.json` and run `node <skill>/question-page/scripts/serve.mjs <work>/round-<n>.json` (with `--check` and `--text` first, as it says).
+2. **Do not use the visual-decision skill for these rounds**, even when it is in your skill list: the copy here is the version this plugin was tested with.
+3. **No page:** if Node.js is missing, or no page can be opened here (`claude -p`, a remote or SSH session), ask in plain text. Number each question, give your recommended answer under it, and wait:
 
    ```
    ❓ **Q1 - <title>**: <question, with the choices if there are any>

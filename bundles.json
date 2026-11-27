@@ -1,0 +1,11 @@
+{
+  "$comment": "Plugins that carry a copy of another plugin's files, because an installed plugin cannot reach outside its own folder. node scripts/bundle.mjs copies each `from` over its `into`; the copy is never edited by hand.",
+  "bundles": [
+    {
+      "from": "plugins/visual-decision/skills/visual-decision",
+      "into": "plugins/work-plan/skills/work-plan/question-page",
+      "rename": { "SKILL.md": "visual-decision.md" },
+      "why": "work-plan asks its questions on the visual-decision page. A copy instead of a dependency, so work-plan runs alone and visual-decision can be turned off without it."
+    }
+  ]
+}
